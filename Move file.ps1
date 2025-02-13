@@ -128,11 +128,13 @@ try {
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
 
-                #region Test download folder exists
-                Write-Verbose 'Test download folder exists'
-
-                if (-not (Test-Path -LiteralPath $path.Destination -PathType 'Container')) {
+                #region Get all local files and folders
+                try {
+                    $localFilesAndFolders = Get-ChildItem -LiteralPath $path.Destination -Recurse
+                }
+                catch {
                     throw "Path '$($path.Destination)' not found on the file system"
+                    
                 }
                 #endregion
 
@@ -141,14 +143,19 @@ try {
                     Path      = $path.Destination 
                     ChildPath = $tempFolder.download
                 }
-                $tempDownloadFolder = Join-Path @joinPath
+                $localTempDownloadFolder = Join-Path @joinPath
                 
-                if (-not (Test-Path -LiteralPath $tempDownloadFolder -PathType Container)) {
+                $isLocalTempDownloadFolderCreated = $localFilesAndFolders | Where-Object {
+                    ($_.PSIsContainer) -and
+                    ($_.FullName -eq $localTempDownloadFolder)
+                }
+
+                if (-not ($isLocalTempDownloadFolderCreated)) {
                     try {
-                        $null = New-Item -Path $tempDownloadFolder -ItemType Directory
+                        $null = New-Item -Path $localTempDownloadFolder -ItemType Directory
                     }
                     catch {
-                        $M = "Failed creating temporary local download folder '$tempDownloadFolder': $_"
+                        $M = "Failed creating local temporary download folder '$localTempDownloadFolder': $_"
                         $Error.RemoveAt(0)
                         throw $M        
                     }
@@ -209,9 +216,10 @@ try {
 
                 #region Select SFTP root files to download
                 try {
+                    # Only select files on root level
                     $sftpRootFolderFilesToDownload = $sftpRootFolderContent | Where-Object {
                         (-not $_.isDirectory) -and
-                        ($_.FullName -notMatch ".*/.*/") # child dir/files
+                        ($_.FullName -eq "$($sftpPath)$($_.Name)") 
                     }
 
                     if ($FileExtensions) {
@@ -225,6 +233,8 @@ try {
                             $_.Name -match $fileExtensionFilter
                         }
                     }
+
+                    Write-Verbose "Found $($sftpRootFolderFilesToDownload.Count) root folder file(s) to download"
                 }
                 catch {
                     $M = "Failed to select SFTP root files to download in folder '$sftpPath': $_"
@@ -233,35 +243,70 @@ try {
                 }
                 #endregion
 
-                #region Exist when no root files to download
-                if (-not $sftpRootFolderFilesToDownload) {
-                    Write-Verbose 'No files to download'
-                    Return
-                }
-
-                Write-Verbose "Found $($sftpRootFolderFilesToDownload.Count) file(s) to download"
-                #endregion
-
                 #region Create SFTP temp download folder
                 try {
                     $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
 
-                    $isTempDownloadFolderOnSftpServerCreated = $false
+                    Write-Verbose "Temp download folder on SFTP server '$tempDownloadFolderSftpServer'"
 
-                    $sftpRootFolderContent | Where-Object {
+                    $isTempDownloadFolderOnSftpServerCreated = $sftpRootFolderContent | Where-Object {
                         $_.IsDirectory -and
-                        $_.Name -eq ''
+                        $_.Name -eq $tempDownloadFolderSftpServer
                     }
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
-                        <# Action to perform if the condition is true #>
+                        Write-Verbose 'Create temp download folder'
+                        New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer -ItemType Directory -Recurse
                     }
-                    New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer  -ItemType Directory
                 }
                 catch {
                     $M = "Failed creating temp folder '$tempDownloadFolderSftpServer' on the SFTP server: $_"
                     $Error.RemoveAt(0)
                     throw $M
+                }
+                #endregion
+
+                #region Remove incomplete downloaded files in local temp folder
+                $localIncompleteDownloadedFiles = $localFilesAndFolders | Where-Object {
+                    (-not $_.PSIsContainer) -and
+                    ($_.Parent -eq $localTempDownloadFolder)
+                }
+
+                foreach (
+                    $incompleteFile in $localIncompleteDownloadedFiles
+                ) {
+                    try {
+                        Write-Verbose "Remove incomplete downloaded file '$incompleteFile'"
+
+                        $result = [PSCustomObject]@{
+                            DateTime    = Get-Date
+                            Source      = $path.Source
+                            Destination = $path.Destination
+                            FileName    = $incompleteFile.Name
+                            FileLength  = $incompleteFile.Length
+                            Action      = $null
+                            Error       = $null
+                        }
+                            
+                        Remove-Item -LiteralPath $incompleteFile.FullName -Force
+                            
+                        $result.Action = "Removed incomplete downloaded file '$incompleteFile'"
+                    }
+                    catch {
+                        $M = "Failed removing incomplete file '$incompleteFile': $_"
+                        $Error.RemoveAt(0)
+                    }
+                    finally {
+                        $result
+                    }
+                }
+                #endregion
+
+                #region Exit when no root files to download
+                if (-not $sftpRootFolderFilesToDownload) {
+                    Write-Verbose 'No root folder files to download'
+                    Write-Verbose 'Exit script'
+                    Return
                 }
                 #endregion
 
@@ -273,41 +318,6 @@ try {
                     $errorMessage = "Failed retrieving files in folder '$($path.Destination)': $_"
                     $Error.RemoveAt(0)
                     throw $errorMessage
-                }
-                #endregion
-
-                #region Remove incomplete downloaded files
-                foreach (
-                    $incompleteFile in
-                    $localFiles.where(
-                        { $_.Name -like "*$($PartialFileExtension.Download)" }
-                    )
-                ) {
-                    try {
-                        $result = [PSCustomObject]@{
-                            DateTime    = Get-Date
-                            Source      = $path.Source
-                            Destination = $path.Destination
-                            FileName    = $incompleteFile.Name
-                            FileLength  = $incompleteFile.Length
-                            Action      = $null
-                            Error       = $null
-                        }
-
-                        Write-Verbose "Remove incomplete downloaded file '$($incompleteFile.Name)'"
-
-                        $incompleteFile | Remove-Item
-
-                        $result.Action = 'Removed incomplete downloaded file from the destination folder'
-                    }
-                    catch {
-                        $result.Error = "Failed removing incomplete downloaded file '$($incompleteFile.Name)': $_"
-                        Write-Warning $result.Error
-                        $Error.RemoveAt(0)
-                    }
-                    finally {
-                        $result
-                    }
                 }
                 #endregion
 

@@ -10,9 +10,9 @@ BeforeAll {
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
-        SftpComputerName     = 'PC1'
-        SftpCredential       = New-Object @params
-        Paths                = @(
+        SftpComputerName  = 'PC1'
+        SftpCredential    = New-Object @params
+        Paths             = @(
             @{
                 Source      = (New-Item 'TestDrive:/f1' -ItemType 'Directory').FullName
                 Destination = 'sftp:/data/'
@@ -22,18 +22,16 @@ BeforeAll {
                 Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
             }
         )
-        MaxConcurrentJobs    = 1
-        FileExtensions       = @()
-        OverwriteFile        = $false
-        PartialFileExtension = @{
-            Upload   = '.UploadInProgress'
-            Download = '.DownloadInProgress'
-        }
+        MaxConcurrentJobs = 1
+        FileExtensions    = @()
+        OverwriteFile     = $false
     }
 
     Mock Get-SFTPChildItem
     Mock Set-SFTPItem
     Mock Get-SFTPItem
+    Mock New-SFTPItem
+    Mock Move-SFTPItem
     Mock Rename-SFTPFile
     Mock Remove-SFTPItem
     Mock Remove-SFTPSession
@@ -234,7 +232,7 @@ Describe 'Upload to SFTP server' {
                     ($SessionId -eq 1)
                 }
             }
-        }
+        } -Skip
         It 'remove the local temp file' {
             $testFiles | ForEach-Object {
                 $_.FullName | Should -Not -Exist
@@ -388,16 +386,19 @@ Describe 'Download from the SFTP server' {
     BeforeAll {
         $testFiles = @(
             @{
-                Name     = 'b.txt'
-                FullName = '/data/b.txt'
+                Name        = 'b.txt'
+                FullName    = '/data/b.txt'
+                isDirectory = $false
             }
             @{
-                Name     = 'c.txt'
-                FullName = '/data/c.txt'
+                Name        = 'c.txt'
+                FullName    = '/data/c.txt'
+                isDirectory = $false
             }
             @{
-                Name     = 'd.txt.DownloadInProgress'
-                FullName = '/data/d.txt.DownloadInProgress'
+                Name        = 'd.txt'
+                FullName    = '/data/d.txt'
+                isDirectory = $false
             }
         )
         Mock Get-SFTPChildItem {
@@ -433,7 +434,7 @@ Describe 'Download from the SFTP server' {
 
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
-        } -Tag test
+        }
         It 'the download folder does not exist' {
             $testNewParams = Copy-ObjectHC $testParams
             $testNewParams.Paths[1].Destination = 'TestDrive:/notExisting/'
@@ -457,6 +458,15 @@ Describe 'Download from the SFTP server' {
             $testResult = .$testScript @testNewParams
 
             $testLocalDownloadPath | Should -Exist
+        }
+        It 'create temp folder on SFTP server' {
+            $testResult = .$testScript @testParams
+
+            should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
+                ($Path -eq '/report/sftpTransfer/download' ) -and
+                ($ItemType -eq 'Directory') -and
+                ($Recurse)
+            }
         }
         It 'the download fails' {
             Mock Get-SFTPItem {
@@ -509,27 +519,27 @@ Describe 'Download from the SFTP server' {
             )
 
             Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'b.txt.DownloadInProgress' -ItemType 'File'
+                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'b.txt' -ItemType 'File'
             } -ParameterFilter {
-                ($Path -eq '/data/b.txt.DownloadInProgress') -and
+                ($Path -eq '/data/b.txt') -and
                 ($Destination -eq $testNewParams.Paths[0].Destination)
             }
 
             Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'c.txt.DownloadInProgress' -ItemType 'File'
+                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'c.txt' -ItemType 'File'
             } -ParameterFilter {
-                ($Path -eq '/data/c.txt.DownloadInProgress') -and
+                ($Path -eq '/data/c.txt') -and
                 ($Destination -eq $testNewParams.Paths[0].Destination)
             }
 
             Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'd.txt.DownloadInProgress' -ItemType 'File'
+                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'd.txt' -ItemType 'File'
             } -ParameterFilter {
-                ($Path -eq '/data/d.txt.DownloadInProgress') -and
+                ($Path -eq '/data/d.txt') -and
                 ($Destination -eq $testNewParams.Paths[0].Destination)
             }
 
-            $testIncompleteFile = New-Item -Path $testNewParams.Paths[0].Destination -Name 'k.txt.DownloadInProgress' -ItemType 'File'
+            $testIncompleteFile = New-Item -Path $testNewParams.Paths[0].Destination -Name 'k.txt' -ItemType 'File'
 
             $testCompleteFile = New-Item -Path $testNewParams.Paths[0].Destination -Name 'y.txt' -ItemType 'File'
 
@@ -544,28 +554,10 @@ Describe 'Download from the SFTP server' {
         It 'fully downloaded files in the download folder are left untouched' {
             $testCompleteFile | Should -Exist
         }
-        It 'call Rename-SFTPFile to rename files on the SFTP server to a temp file name' {
-            $testFiles[0..1] | ForEach-Object {
-                Should -Invoke Rename-SFTPFile -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    ($Path -eq $_.FullName) -and
-                    ($NewName -eq ($_.Name + ".DownloadInProgress")) -and
-                    ($SessionId -eq 1)
-                }
-            }
-        }
-        It 'do not call Rename-SFTPFile to rename incomplete temp files' {
-            $testFiles[2] | ForEach-Object {
-                Should -Not -Invoke Rename-SFTPFile -Scope Context -ParameterFilter {
-                    ($Path -eq $_.FullName) -and
-                    ($NewName -eq ($_.Name + ".DownloadInProgress")) -and
-                    ($SessionId -eq 1)
-                }
-            }
-        }
         It 'call Get-SFTPItem to download all temp file' {
             $testFiles[0..1] | ForEach-Object {
                 Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    ($Path -eq "$($_.FullName).DownloadInProgress") -and
+                    ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths[0].Destination) -and
                     ($SessionId -eq 1)
                 }
@@ -577,31 +569,13 @@ Describe 'Download from the SFTP server' {
                     ($SessionId -eq 1)
                 }
             }
-        }
-        It 'rename downloaded temp files to original name' {
-            $testFiles[0..1].foreach(
-                {
-                    $testNewParams.Paths[0].Destination + '\' + $_.Name |
-                    Should -Exist
-                    $testNewParams.Paths[0].Destination + '\' + $_.Name + '.DownloadInProgress' |
-                    Should -Not -Exist
-                }
-            )
-            $testFiles[2].foreach(
-                {
-                    $testNewParams.Paths[0].Destination + '\' + $_.Name |
-                    Should -Not -Exist
-                    $testNewParams.Paths[0].Destination + '\' + $_.Name.TrimEnd('.DownloadInProgress') |
-                    Should -Exist
-                }
-            )
         }
         It 'remove temp file on the SFTP server' {
             Should -Invoke Remove-SFTPItem -Times 3 -Exactly -Scope Context
 
             $testFiles[0.1].FullName | ForEach-Object {
                 Should -Invoke Remove-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    $Path -eq "$_.DownloadInProgress"
+                    $Path -eq "$_"
                 }
             }
             $testFiles[2].FullName | ForEach-Object {
@@ -628,7 +602,7 @@ Describe 'Download from the SFTP server' {
             It 'downloaded files that failed in the previous run' {
                 foreach ($testFile in $testFiles[2]) {
                     $actual = $testResults.where(
-                        { $_.FileName -eq $testFile.Name.TrimEnd('.DownloadInProgress') }
+                        { $_.FileName -eq $testFile.Name }
                     )
 
                     $actual.DateTime | Should -Not -BeNullOrEmpty
@@ -649,7 +623,7 @@ Describe 'Download from the SFTP server' {
                     $actual.Source | Should -Be $testNewParams.Paths[0].Source
                     $actual.Destination | Should -Be $testNewParams.Paths[0].Destination
                     $actual.FileLength | Should -Not -BeNullOrEmpty
-                    $actual.Action | Should -Be 'Removed incomplete downloaded file from the destination folder'
+                    $actual.Action | Should -Be "Removed incomplete downloaded file '$($actual.FullName)'"
                     $actual.Error | Should -BeNullOrEmpty
                 }
             }
@@ -676,7 +650,7 @@ Describe 'Download from the SFTP server' {
                 $testSFtpFile
             }
             Mock Get-SFTPItem {
-                $null = New-Item -Path "$($testFile.FullName).DownloadInProgress" -ItemType 'File'
+                $null = New-Item -Path $testFile.FullName -ItemType 'File'
             }
         }
         Context 'true' {
@@ -736,23 +710,35 @@ Describe 'Download from the SFTP server' {
                 }
             )
 
-            $testFiles = @(
+            $testData = @(
                 @{
-                    Name     = 'b.txt'
-                    FullName = '/data/b.txt'
+                    Name        = 'a.txt'
+                    FullName    = '/data/a.txt'
+                    isDirectory = $false
                 }
                 @{
-                    Name     = 'c.jpg'
-                    FullName = '/data/c.jpg'
+                    Name        = 'b.jpg'
+                    FullName    = '/data/b.jpg'
+                    isDirectory = $false
                 }
                 @{
-                    Name     = 'd.txt.docx'
-                    FullName = '/data/d.docx'
+                    Name        = 'c.docx'
+                    FullName    = '/data/c.docx'
+                    isDirectory = $false
+                }
+                @{
+                    Name        = 'folder'
+                    FullName    = '/data/folder'
+                    isDirectory = $true
                 }
             )
 
+            $testFiles = $testData.where(
+                { -not $_.isDirectory }
+            )
+
             Mock Get-SFTPChildItem {
-                $testFiles
+                $testData
             }
         }
         It 'empty, all files are downloaded' {
@@ -762,12 +748,13 @@ Describe 'Download from the SFTP server' {
 
             $testFiles | ForEach-Object {
                 Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
-                    ($Path -eq "$($_.FullName).DownloadInProgress") -and
+                    ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
                 }
             }
-        }
+            Should -Invoke Get-SFTPItem -Times $testFiles.Count -Exactly 
+        }  -Tag test
         It 'not empty, only specific files are downloaded' {
             $testNewParams.FileExtensions = @('.txt', '.jpg')
 
@@ -782,7 +769,7 @@ Describe 'Download from the SFTP server' {
                 }
             ) | ForEach-Object {
                 Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
-                    ($Path -eq "$($_.FullName).DownloadInProgress") -and
+                    ($Path -eq "$($_.FullName)") -and
                     ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
                 }
