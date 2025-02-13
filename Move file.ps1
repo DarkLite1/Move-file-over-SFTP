@@ -10,37 +10,39 @@
 
     The move CmdLets (Move-Item and Move-SFTPItem) are used because they fail 
     when a file is in use. The download CmdLet 'Get-SFTPItem' does not fail when
-    a file is in use. Therefor we will rename the file during the download,
-    to make sure we have transferred a complete file, and after full download
-    move it to the correct folder on the local file system with the correct name.
+    a file is in use. 
+
+    tempFolder = 'sftpTransfer/download' 
+
+    DOWNLOAD FILE FROM SFTP SERVER
+    1. Test if tempFolder on SFTP server has files
+        > yes: previous download failed
+            - 
+        
 
     - Download file from SFTP server
+        tempFolder = 'sftpTransfer/download' 
         1. on SFTP server:
-            - Create folder 'sftpTransfer' 
-            - Try to move the file to 'sftpTransfer' folder on SFTP server
-                > success: continue
-                > failure can be: 
-                    - file in use: retry
+            - Create tempFolder on SFTP server
+            - Try to move file to tempFolder on SFTP server
+            > failure: 
+                - file in use: retry
+                - duplicate file: 
+                    > overwrite true: overwrite
+                    > overwrite false: leave file in tempFolder and throw error
+            > success: continue
+        2. on local file system
+            - Create tempFolder on local file system
+            - Download file from tempFolder on SFTP server to local tempFolder
+                (connection issues, disk full, ..)
+                > failure:
+                    - file in use: not possible, we are the only consumer and we 
+                      can lock down permissions on tempFolder if needed
                     - duplicate file: 
                         > overwrite true: overwrite
-                        > overwrite false: leave file in 'sftpTransfer' folder, throw error
-        2. Download file 
-            - from SFTP server folder 'sftpTransfer' to local folder 'sftpTransfer'
-              with new name 'file.txt.downloadInProgress'
+                        > overwrite false: leave file in tempFolder and throw error
                 > success: 
-                    - remove file on SFTP server in 'sftpTransfer' folder
-                    - failure
-
-
-
-    1. Rename the source file on the SFTP server
-       from 'a.txt' to 'a.txt.PartialFileExtension'
-        > when a file can't be renamed it is locked
-        > then we wait a few seconds for an unlock and try again
-    2. Download 'a.txt.PartialFileExtension' from the SFTP server
-    3. Remove the file on the SFTP server
-    4. Rename the file from 'a.txt.PartialFileExtension' to 'a.txt'
-       in the download folder
+                    - remove file in tempFolder on the SFTP server
 
 .PARAMETER Paths
     Lost of source and destination folders.
@@ -118,6 +120,11 @@ try {
             }
             #endregion
 
+            $tempFolder = @{
+                download = 'sftpTransfer/download' 
+                upload = 'sftpTransfer/upload' 
+            }
+
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
 
@@ -127,6 +134,10 @@ try {
                 if (-not (Test-Path -LiteralPath $path.Destination -PathType 'Container')) {
                     throw "Path '$($path.Destination)' not found on the file system"
                 }
+                #endregion
+
+                #region Create temp folder
+                
                 #endregion
 
                 #region Open SFTP session

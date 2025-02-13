@@ -448,7 +448,9 @@ Describe 'Download from the SFTP server' {
         }
         It 'the download fails' {
             Mock Get-SFTPItem {
-                throw 'Oops'
+                # bug in CmdLet, dos not throw bu creates warning
+                # throw 'Oops' 
+                Write-Warning 'Oops'
             }
 
             $error.Clear()
@@ -458,7 +460,7 @@ Describe 'Download from the SFTP server' {
             $testResult.Error | Should -BeLike "*Oops"
 
             $error | Should -HaveCount 0
-        }
+        } -Tag test
         It 'authentication to the SFTP server fails' {
             $testNewParams = Copy-ObjectHC $testParams
             $testNewParams.Paths = @(
