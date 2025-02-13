@@ -196,17 +196,22 @@ try {
                 }
                 #endregion
 
-                #region Create SFTP temp download folder
-                
-                #endregion
-
                 #region Get SFTP root folder content
                 try {
-                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath
+                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse
+                }
+                catch {
+                    $M = "Failed retrieving the content of SFTP folder '$sftpPath': $_"
+                    $Error.RemoveAt(0)
+                    throw $M
+                }
+                #endregion
 
-                  
-                    $filesToDownload = $sftpRootFolderContent | Where-Object {
-                        (-not $_.isDirectory)
+                #region Select SFTP root files to download
+                try {
+                    $sftpRootFolderFilesToDownload = $sftpRootFolderContent | Where-Object {
+                        (-not $_.isDirectory) -and
+                        ($_.FullName -notMatch ".*/.*/") # child dir/files
                     }
 
                     if ($FileExtensions) {
@@ -216,20 +221,45 @@ try {
                             $FileExtensions | ForEach-Object { "$_$" }
                         ) -join '|'
 
-                        $filesToDownload = $filesToDownload | Where-Object {
+                        $sftpRootFolderFilesToDownload = $sftpRootFolderFilesToDownload | Where-Object {
                             $_.Name -match $fileExtensionFilter
                         }
                     }
-
-                    if (-not $filesToDownload) {
-                        Write-Verbose 'No files to download'
-                        Return
-                    }
-
-                    Write-Verbose "Found $($filesToDownload.Count) file(s) to download"
                 }
                 catch {
-                    $M = "Failed retrieving the content of SFTP folder '$sftpPath': $_"
+                    $M = "Failed to select SFTP root files to download in folder '$sftpPath': $_"
+                    $Error.RemoveAt(0)
+                    throw $M
+                }
+                #endregion
+
+                #region Exist when no root files to download
+                if (-not $sftpRootFolderFilesToDownload) {
+                    Write-Verbose 'No files to download'
+                    Return
+                }
+
+                Write-Verbose "Found $($sftpRootFolderFilesToDownload.Count) file(s) to download"
+                #endregion
+
+                #region Create SFTP temp download folder
+                try {
+                    $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
+
+                    $isTempDownloadFolderOnSftpServerCreated = $false
+
+                    $sftpRootFolderContent | Where-Object {
+                        $_.IsDirectory -and
+                        $_.Name -eq ''
+                    }
+
+                    if (-not $isTempDownloadFolderOnSftpServerCreated) {
+                        <# Action to perform if the condition is true #>
+                    }
+                    New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer  -ItemType Directory
+                }
+                catch {
+                    $M = "Failed creating temp folder '$tempDownloadFolderSftpServer' on the SFTP server: $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
@@ -281,7 +311,7 @@ try {
                 }
                 #endregion
 
-                foreach ($file in $filesToDownload) {
+                foreach ($file in $sftpRootFolderFilesToDownload) {
                     try {
                         Write-Verbose "File '$($file.FullName)'"
 
