@@ -429,11 +429,11 @@ Describe 'Download from the SFTP server' {
             $testResult = .$testScript @testParams
 
             $testResult.Error |
-            Should -BeLike "*Failed retrieving the list of SFTP files: Nope"
+            Should -BeLike "*Failed retrieving the content of SFTP folder '/report/': Nope"
 
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
-        }
+        } -Tag test
         It 'the download folder does not exist' {
             $testNewParams = Copy-ObjectHC $testParams
             $testNewParams.Paths[1].Destination = 'TestDrive:/notExisting/'
@@ -457,7 +457,7 @@ Describe 'Download from the SFTP server' {
             $testResult = .$testScript @testNewParams
 
             $testLocalDownloadPath | Should -Exist
-        } -Tag test
+        }
         It 'the download fails' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning

@@ -196,14 +196,18 @@ try {
                 }
                 #endregion
 
-                #region Get files to download
-                try {
-                    $allSftpFiles = Get-SFTPChildItem @sessionParams -Path $sftpPath -File
+                #region Create SFTP temp download folder
+                
+                #endregion
 
-                    $interruptedDownloadedFiles, $filesToDownload = $allSftpFiles.where(
-                        { $_.Name -like "*$($PartialFileExtension.Download)" },
-                        'Split'
-                    )
+                #region Get SFTP root folder content
+                try {
+                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath
+
+                  
+                    $filesToDownload = $sftpRootFolderContent | Where-Object {
+                        (-not $_.isDirectory)
+                    }
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
@@ -217,8 +221,6 @@ try {
                         }
                     }
 
-                    $filesToDownload = $interruptedDownloadedFiles + $filesToDownload
-
                     if (-not $filesToDownload) {
                         Write-Verbose 'No files to download'
                         Return
@@ -227,7 +229,7 @@ try {
                     Write-Verbose "Found $($filesToDownload.Count) file(s) to download"
                 }
                 catch {
-                    $M = "Failed retrieving the list of SFTP files: $_"
+                    $M = "Failed retrieving the content of SFTP folder '$sftpPath': $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
