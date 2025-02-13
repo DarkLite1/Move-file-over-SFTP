@@ -122,7 +122,7 @@ try {
 
             $tempFolder = @{
                 download = 'sftpTransfer/download' 
-                upload = 'sftpTransfer/upload' 
+                upload   = 'sftpTransfer/upload' 
             }
 
             if ($path.Source -like 'sftp*' ) {
@@ -136,8 +136,23 @@ try {
                 }
                 #endregion
 
-                #region Create temp folder
+                #region Create temp local download folder
+                $joinPath = @{
+                    Path      = $path.Destination 
+                    ChildPath = $tempFolder.download
+                }
+                $tempDownloadFolder = Join-Path @joinPath
                 
+                if (-not (Test-Path -LiteralPath $tempDownloadFolder -PathType Container)) {
+                    try {
+                        $null = New-Item -Path $tempDownloadFolder -ItemType Directory
+                    }
+                    catch {
+                        $M = "Failed creating temporary local download folder '$tempDownloadFolder': $_"
+                        $Error.RemoveAt(0)
+                        throw $M        
+                    }
+                }
                 #endregion
 
                 #region Open SFTP session

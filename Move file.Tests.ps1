@@ -446,6 +446,18 @@ Describe 'Download from the SFTP server' {
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
         }
+        It 'create temp folder on local file system' {
+            $testNewParams = Copy-ObjectHC $testParams
+            $testJoinParams = @{
+                Path      = $testNewParams.Paths[1].Destination 
+                ChildPath = 'sftpTransfer/download' 
+            }
+            $testLocalDownloadPath = Join-Path @testJoinParams
+
+            $testResult = .$testScript @testNewParams
+
+            $testLocalDownloadPath | Should -Exist
+        } -Tag test
         It 'the download fails' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning
@@ -460,7 +472,7 @@ Describe 'Download from the SFTP server' {
             $testResult.Error | Should -BeLike "*Oops"
 
             $error | Should -HaveCount 0
-        } -Tag test
+        } 
         It 'authentication to the SFTP server fails' {
             $testNewParams = Copy-ObjectHC $testParams
             $testNewParams.Paths = @(
