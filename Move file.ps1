@@ -8,7 +8,31 @@
 .DESCRIPTION
     Move files to or from an SFTP server.
 
-    To avoid file locks:
+    The move CmdLets (Move-Item and Move-SFTPItem) are used because they fail 
+    when a file is in use. The download CmdLet 'Get-SFTPItem' does not fail when
+    a file is in use. Therefor we will rename the file during the download,
+    to make sure we have transferred a complete file, and after full download
+    move it to the correct folder on the local file system with the correct name.
+
+    - Download file from SFTP server
+        1. on SFTP server:
+            - Create folder 'sftpTransfer' 
+            - Try to move the file to 'sftpTransfer' folder on SFTP server
+                > success: continue
+                > failure can be: 
+                    - file in use: retry
+                    - duplicate file: 
+                        > overwrite true: overwrite
+                        > overwrite false: leave file in 'sftpTransfer' folder, throw error
+        2. Download file 
+            - from SFTP server folder 'sftpTransfer' to local folder 'sftpTransfer'
+              with new name 'file.txt.downloadInProgress'
+                > success: 
+                    - remove file on SFTP server in 'sftpTransfer' folder
+                    - failure
+
+
+
     1. Rename the source file on the SFTP server
        from 'a.txt' to 'a.txt.PartialFileExtension'
         > when a file can't be renamed it is locked
@@ -370,11 +394,24 @@ try {
                         try {
                             Write-Verbose 'Download temp file'
 
+                            # Get-SFTPItem does not throw an error, only a warning
+                            # https://github.com/darkoperator/Posh-SSH/issues/606
+
+                            $WarningPreference = 'Continue'
+                            $getSftpItemWarningMessages = @()
+
                             $params = @{
-                                Path        = $tempFile.DownloadFilePath
-                                Destination = $path.Destination
+                                Path            = $tempFile.DownloadFilePath
+                                Destination     = $path.Destination
+                                WarningVariable = 'getSftpItemWarningMessages'
                             }
                             Get-SFTPItem @sessionParams @params
+
+                            if ($getSftpItemWarningMessages) {
+                                foreach ($warning in $getSftpItemWarningMessages) {
+                                    throw $warning
+                                }
+                            }
                         }
                         catch {
                             $M = "Failed to download file '$($tempFile.DownloadFilePath)': $_"
