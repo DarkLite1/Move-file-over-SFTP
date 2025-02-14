@@ -387,7 +387,7 @@ Describe 'Download from the SFTP server' {
         $testFiles = @(
             @{
                 Name        = 'b.txt'
-                FullName    = '/data/b.txt'
+                FullName    = '/report/b.txt'
                 isDirectory = $false
             }
         )
@@ -481,7 +481,7 @@ Describe 'Download from the SFTP server' {
                 $testResult.Error | Should -BeLike "*Oops"
 
                 $error | Should -HaveCount 0
-            } 
+            }   -Tag test
             It 'Get-SFTPItem throws a terminating warning' {
                 Mock Get-SFTPItem {
                     # bug in CmdLet, dos not throw bu creates warning
@@ -498,8 +498,7 @@ Describe 'Download from the SFTP server' {
                 $error | Should -HaveCount 0
             } 
         }
-        
-    } -Tag test
+    }
 }
 Describe 'Download from the SFTP server' {
     Context 'when files are found on the SFTP server' {

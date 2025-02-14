@@ -205,7 +205,7 @@ try {
                     # ErrorAction Stop not respected
                     $errorMessage = $null
 
-                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse -ErrorVariable 'errorMessage'
+                    $sftpServerFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse -ErrorVariable 'errorMessage'
 
                     if ($errorMessage) { throw $errorMessage }
                 }
@@ -219,7 +219,7 @@ try {
                 #region Select SFTP root files to download
                 try {
                     # Only select files on root level
-                    $sftpRootFolderFilesToDownload = $sftpRootFolderContent | Where-Object {
+                    $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
                         (-not $_.isDirectory) -and
                         ($_.FullName -eq "$($sftpPath)$($_.Name)") 
                     }
@@ -231,12 +231,12 @@ try {
                             $FileExtensions | ForEach-Object { "$_$" }
                         ) -join '|'
 
-                        $sftpRootFolderFilesToDownload = $sftpRootFolderFilesToDownload | Where-Object {
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
                             $_.Name -match $fileExtensionFilter
                         }
                     }
 
-                    Write-Verbose "Found $($sftpRootFolderFilesToDownload.Count) root folder file(s) to download"
+                    Write-Verbose "Found $($sftpServerFilesToDownload.Count) root folder file(s) to download"
                 }
                 catch {
                     $M = "Failed to select SFTP root files to download in folder '$sftpPath': $_"
@@ -251,7 +251,7 @@ try {
 
                     Write-Verbose "Temp download folder on SFTP server '$tempDownloadFolderSftpServer'"
 
-                    $isTempDownloadFolderOnSftpServerCreated = $sftpRootFolderContent | Where-Object {
+                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
                         $_.IsDirectory -and
                         $_.Name -eq $tempDownloadFolderSftpServer
                     }
@@ -305,23 +305,23 @@ try {
                 #endregion
 
                 #region Exit when no root files to download
-                if (-not $sftpRootFolderFilesToDownload) {
+                if (-not $sftpServerFilesToDownload) {
                     Write-Verbose 'No root folder files to download'
                     Write-Verbose 'Exit script'
                     Return
                 }
                 #endregion
 
-                foreach ($file in $sftpRootFolderFilesToDownload) {
+                foreach ($fileToDownload in $sftpServerFilesToDownload) {
                     try {
-                        Write-Verbose "File '$($file.FullName)'"
+                        Write-Verbose "File '$($fileToDownload.FullName)'"
 
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
                             Destination = $path.Destination
-                            FileName    = $file.Name
-                            FileLength  = $file.Length
+                            FileName    = $fileToDownload.Name
+                            FileLength  = $fileToDownload.Length
                             Action      = $null
                             Error       = $null
                         }
@@ -330,7 +330,7 @@ try {
                         $failedFile = $false
 
                         if (
-                            $file.Name -like "*$($PartialFileExtension.Download)"
+                            $fileToDownload.Name -like "*$($PartialFileExtension.Download)"
                         ) {
                             Write-Verbose 'Files was not completely downloaded'
 
@@ -340,16 +340,16 @@ try {
 
                         #region Create temp name
                         $tempFile = @{
-                            DownloadFileName = $file.Name + $PartialFileExtension.Download
-                            DownloadFilePath = $file.FullName +
+                            DownloadFileName = $fileToDownload.Name + $PartialFileExtension.Download
+                            DownloadFilePath = $fileToDownload.FullName +
                             $PartialFileExtension.Download
                         }
 
                         if ($failedFile) {
-                            $tempFile.DownloadFileName = $file.Name
-                            $tempFile.DownloadFilePath = $file.FullName
+                            $tempFile.DownloadFileName = $fileToDownload.Name
+                            $tempFile.DownloadFilePath = $fileToDownload.FullName
 
-                            $result.FileName = $file.Name.TrimEnd(
+                            $result.FileName = $fileToDownload.Name.TrimEnd(
                                 $PartialFileExtension.Download
                             )
                         }
@@ -424,7 +424,7 @@ try {
                             ) {
                                 try {
                                     $params = @{
-                                        Path    = $file.FullName
+                                        Path    = $fileToDownload.FullName
                                         NewName = $tempFile.DownloadFileName
                                     }
 
