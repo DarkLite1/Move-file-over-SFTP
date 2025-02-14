@@ -420,7 +420,7 @@ Describe 'Download from the SFTP server' {
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
         }
-        Context 'the SFTP path does not exist or file list cannot be retrieved' {
+        Context 'file list cannot be retrieved or SFTP path does not exist' {
             It 'Get-SFTPChildItem throws a terminating error' {
                 $testNewParams = Copy-ObjectHC $testParams
                 $testNewParams.Paths[1].Source = 'sftp:/notExisting/'
@@ -466,36 +466,38 @@ Describe 'Download from the SFTP server' {
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
         }
-        It 'the download fails with a warning' {
-            Mock Get-SFTPItem {
-                # bug in CmdLet, dos not throw bu creates warning
-                # throw 'Oops' 
-                Write-Warning 'Oops'
-            }
+        Context 'the file download fails' {
+            It 'Get-SFTPItem creates a warning' {
+                Mock Get-SFTPItem {
+                    # bug in CmdLet, dos not throw bu creates warning
+                    # throw 'Oops' 
+                    Write-Warning 'Oops'
+                }
 
-            $error.Clear()
+                $error.Clear()
 
-            $testResult = .$testScript @testParams
+                $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike "*Oops"
+                $testResult.Error | Should -BeLike "*Oops"
 
-            $error | Should -HaveCount 0
-        } 
-        It 'the download fails with an error' {
-            Mock Get-SFTPItem {
-                # bug in CmdLet, dos not throw bu creates warning
-                # throw 'Oops' 
-                throw 'Oops'
-            }
+                $error | Should -HaveCount 0
+            } 
+            It 'Get-SFTPItem throws a terminating warning' {
+                Mock Get-SFTPItem {
+                    # bug in CmdLet, dos not throw bu creates warning
+                    # throw 'Oops' 
+                    throw 'Oops'
+                }
 
-            $error.Clear()
+                $error.Clear()
 
-            $testResult = .$testScript @testParams
+                $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike "*Oops"
+                $testResult.Error | Should -BeLike "*Oops"
 
-            $error | Should -HaveCount 0
-        } 
+                $error | Should -HaveCount 0
+            } 
+        }
         
     } -Tag test
 }
