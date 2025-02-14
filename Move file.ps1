@@ -479,7 +479,7 @@ try {
                         }
                         #endregion
 
-                        #region Rename temp file
+                        #region Move temp file to destination folder
                         try {
                             Write-Verbose 'Rename temp file'
 
@@ -487,7 +487,7 @@ try {
                                 LiteralPath = Join-Path $path.Destination $tempFile.DownloadFileName
                                 NewName     = $result.FileName
                             }
-                            Rename-Item @params
+                            # Rename-Item @params
                         }
                         catch {
                             $M = "Failed to rename the file '$($params.LiteralPath)' to '$($result.FileName)': $_"

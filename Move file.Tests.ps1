@@ -481,7 +481,7 @@ Describe 'Download from the SFTP server' {
                 $testResult.Error | Should -BeLike "*Oops"
 
                 $error | Should -HaveCount 0
-            }   -Tag test
+            }
             It 'Get-SFTPItem throws a terminating warning' {
                 Mock Get-SFTPItem {
                     # bug in CmdLet, dos not throw bu creates warning
@@ -498,6 +498,20 @@ Describe 'Download from the SFTP server' {
                 $error | Should -HaveCount 0
             } 
         }
+        it 'a duplicate file is in the destination folder and OverWriteFile is false' {
+            $testNewParams = Copy-ObjectHC $testParams
+            $testNewParams.OverwriteFile = $false
+
+            $testFile = New-Item "$($testNewParams.Paths[1].Destination)\$($testFiles[0].Name)" -ItemType 'File'
+
+            $testResult = .$testScript @testNewParams
+
+            $testResult.FileName | Should -Be $testFile.Name
+            $testResult.Error | Should -Be "Duplicate file '$($testFile.Name)' in folder '$($testNewParams.Paths[1].Destination)', use Option.OverwriteFile if desired"
+
+            Should -Not -Invoke Get-SFTPItem
+            Should -Not -Invoke Rename-SFTPFile
+        }  -Tag test
     }
 }
 Describe 'Download from the SFTP server' {
