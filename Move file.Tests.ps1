@@ -390,99 +390,12 @@ Describe 'Download from the SFTP server' {
                 FullName    = '/data/b.txt'
                 isDirectory = $false
             }
-            @{
-                Name        = 'c.txt'
-                FullName    = '/data/c.txt'
-                isDirectory = $false
-            }
-            @{
-                Name        = 'd.txt'
-                FullName    = '/data/d.txt'
-                isDirectory = $false
-            }
         )
         Mock Get-SFTPChildItem {
             $testFiles
         }
     }
     Context 'create an object with Error property when' {
-        It 'the SFTP path does not exist' {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths[1].Source = 'sftp:/notExisting/'
-
-            Mock Test-SFTPPath {
-                $false
-            }
-
-            $testResult = .$testScript @testNewParams
-
-            $testResult.Error |
-            Should -BeLike "*Path '/notExisting/' not found on the SFTP server"
-
-            Should -Not -Invoke Get-SFTPItem
-            Should -Not -Invoke Rename-SFTPFile
-        }
-        It 'the SFTP file list cannot be retrieved' {
-            Mock Get-SFTPChildItem {
-                throw 'Nope'
-            }
-
-            $testResult = .$testScript @testParams
-
-            $testResult.Error |
-            Should -BeLike "*Failed retrieving the content of SFTP folder '/report/': Nope"
-
-            Should -Not -Invoke Get-SFTPItem
-            Should -Not -Invoke Rename-SFTPFile
-        }
-        It 'the download folder does not exist' {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths[1].Destination = 'TestDrive:/notExisting/'
-
-            $testResult = .$testScript @testNewParams
-
-            $testResult.Error |
-            Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
-
-            Should -Not -Invoke Get-SFTPItem
-            Should -Not -Invoke Rename-SFTPFile
-        }
-        It 'create temp folder on local file system' {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testJoinParams = @{
-                Path      = $testNewParams.Paths[1].Destination 
-                ChildPath = 'sftpTransfer/download' 
-            }
-            $testLocalDownloadPath = Join-Path @testJoinParams
-
-            $testResult = .$testScript @testNewParams
-
-            $testLocalDownloadPath | Should -Exist
-        }
-        It 'create temp folder on SFTP server' {
-            $testResult = .$testScript @testParams
-
-            should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
-                ($Path -eq '/report/sftpTransfer/download' ) -and
-                ($ItemType -eq 'Directory') -and
-                ($Recurse)
-            }
-        }
-        It 'the download fails' {
-            Mock Get-SFTPItem {
-                # bug in CmdLet, dos not throw bu creates warning
-                # throw 'Oops' 
-                Write-Warning 'Oops'
-            }
-
-            $error.Clear()
-
-            $testResult = .$testScript @testParams
-
-            $testResult.Error | Should -BeLike "*Oops"
-
-            $error | Should -HaveCount 0
-        } 
         It 'authentication to the SFTP server fails' {
             $testNewParams = Copy-ObjectHC $testParams
             $testNewParams.Paths = @(
@@ -507,7 +420,86 @@ Describe 'Download from the SFTP server' {
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
         }
-    }
+        Context 'the SFTP path does not exist or file list cannot be retrieved' {
+            It 'Get-SFTPChildItem throws a terminating error' {
+                $testNewParams = Copy-ObjectHC $testParams
+                $testNewParams.Paths[1].Source = 'sftp:/notExisting/'
+
+                Mock Get-SFTPChildItem {
+                    throw 'path not found'
+                }
+
+                $testResult = .$testScript @testNewParams
+
+                $testResult.Error |
+                should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+
+                Should -Not -Invoke Get-SFTPItem
+                Should -Not -Invoke Rename-SFTPFile
+            }
+            It 'Get-SFTPChildItem creates a non terminating error' {
+                $testNewParams = Copy-ObjectHC $testParams
+                $testNewParams.Paths[1].Source = 'sftp:/notExisting/'
+
+                Mock Get-SFTPChildItem {
+                    Write-Error 'path not found'
+                }
+
+                $testResult = .$testScript @testNewParams
+
+                $testResult.Error |
+                should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+
+                Should -Not -Invoke Get-SFTPItem
+                Should -Not -Invoke Rename-SFTPFile
+            }
+        }
+        It 'the download folder does not exist' {
+            $testNewParams = Copy-ObjectHC $testParams
+            $testNewParams.Paths[1].Destination = 'TestDrive:/notExisting/'
+
+            $testResult = .$testScript @testNewParams
+
+            $testResult.Error |
+            Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
+
+            Should -Not -Invoke Get-SFTPItem
+            Should -Not -Invoke Rename-SFTPFile
+        }
+        It 'the download fails with a warning' {
+            Mock Get-SFTPItem {
+                # bug in CmdLet, dos not throw bu creates warning
+                # throw 'Oops' 
+                Write-Warning 'Oops'
+            }
+
+            $error.Clear()
+
+            $testResult = .$testScript @testParams
+
+            $testResult.Error | Should -BeLike "*Oops"
+
+            $error | Should -HaveCount 0
+        } 
+        It 'the download fails with an error' {
+            Mock Get-SFTPItem {
+                # bug in CmdLet, dos not throw bu creates warning
+                # throw 'Oops' 
+                throw 'Oops'
+            }
+
+            $error.Clear()
+
+            $testResult = .$testScript @testParams
+
+            $testResult.Error | Should -BeLike "*Oops"
+
+            $error | Should -HaveCount 0
+        } 
+        
+    } -Tag test
+}
+Describe 'Download from the SFTP server' {
     Context 'when files are found on the SFTP server' {
         BeforeAll {
             $testNewParams = Copy-ObjectHC $testParams
@@ -518,6 +510,36 @@ Describe 'Download from the SFTP server' {
                 }
             )
 
+            $destinationFolder = $testNewParams.Destination.FullName
+
+            $testDataOnSftpServer = @(
+                @{
+                    Name        = 'z.txt' 
+                    FullName    = '/sftpTransfer/download/z.txt' 
+                    IsDirectory = $false
+                }
+                @{
+                    Name        = 'a.txt' 
+                    FullName    = '/data/a.txt' 
+                    IsDirectory = $false
+                }
+            )
+
+            $testDataLocal = @(
+                @{
+                    Name        = 'a.txt' 
+                    Directory   = $destinationFolder
+                    IsDirectory = $false
+                }
+            )
+
+            Mock Get-SFTPItem {
+                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'a.txt' -ItemType 'File'
+            } -ParameterFilter {
+                ($Path -eq '/data/a.txt') -and
+                ($Destination -eq $testNewParams.Paths[0].Destination)
+            }
+
             Mock Get-SFTPItem {
                 $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'b.txt' -ItemType 'File'
             } -ParameterFilter {
@@ -527,13 +549,6 @@ Describe 'Download from the SFTP server' {
 
             Mock Get-SFTPItem {
                 $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'c.txt' -ItemType 'File'
-            } -ParameterFilter {
-                ($Path -eq '/data/c.txt') -and
-                ($Destination -eq $testNewParams.Paths[0].Destination)
-            }
-
-            Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths[0].Destination -Name 'd.txt' -ItemType 'File'
             } -ParameterFilter {
                 ($Path -eq '/data/d.txt') -and
                 ($Destination -eq $testNewParams.Paths[0].Destination)
@@ -547,6 +562,27 @@ Describe 'Download from the SFTP server' {
         }
         It 'call Get-SFTPChildItem to retrieve the SFTP list' {
             Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Context
+        } #  -Tag test
+        It 'create temp folder on SFTP server' {
+            $testResult = .$testScript @testParams
+
+            should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
+                ($Path -eq '/report/sftpTransfer/download' ) -and
+                ($ItemType -eq 'Directory') -and
+                ($Recurse)
+            }
+        }
+        It 'create temp folder on local file system' {
+            $testNewParams = Copy-ObjectHC $testParams
+            $testJoinParams = @{
+                Path      = $testNewParams.Paths[1].Destination 
+                ChildPath = 'sftpTransfer/download' 
+            }
+            $testLocalDownloadPath = Join-Path @testJoinParams
+
+            $testResult = .$testScript @testNewParams
+
+            $testLocalDownloadPath | Should -Exist
         }
         It 'incomplete downloaded files are removed from the download folder' {
             $testIncompleteFile | Should -Not -Exist
@@ -754,7 +790,7 @@ Describe 'Download from the SFTP server' {
                 }
             }
             Should -Invoke Get-SFTPItem -Times $testFiles.Count -Exactly 
-        }  -Tag test
+        }
         It 'not empty, only specific files are downloaded' {
             $testNewParams.FileExtensions = @('.txt', '.jpg')
 

@@ -130,11 +130,15 @@ try {
 
                 #region Get all local files and folders
                 try {
-                    $localFilesAndFolders = Get-ChildItem -LiteralPath $path.Destination -Recurse
+                    $localFilesAndFoldersInDestination = Get-ChildItem -LiteralPath $path.Destination -Recurse
+
+                    $localFilesInDestinationFolder = $localFilesAndFoldersInDestination | Where-Object {
+                        (-not $_.IsDirectory) -and
+                        $_.Parent -eq $path.Destination
+                    }
                 }
                 catch {
                     throw "Path '$($path.Destination)' not found on the file system"
-                    
                 }
                 #endregion
 
@@ -145,7 +149,7 @@ try {
                 }
                 $localTempDownloadFolder = Join-Path @joinPath
                 
-                $isLocalTempDownloadFolderCreated = $localFilesAndFolders | Where-Object {
+                $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination | Where-Object {
                     ($_.PSIsContainer) -and
                     ($_.FullName -eq $localTempDownloadFolder)
                 }
@@ -195,20 +199,18 @@ try {
 
                 $sftpPath = $path.Source.TrimStart('sftp:')
 
-                #region Test SFTP path exists
-                Write-Verbose "Test if SFTP path '$sftpPath' exists"
-
-                if (-not (Test-SFTPPath @sessionParams -Path $sftpPath)) {
-                    throw "Path '$sftpPath' not found on the SFTP server"
-                }
-                #endregion
-
                 #region Get SFTP root folder content
                 try {
-                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse
+                    # https://github.com/darkoperator/Posh-SSH/issues/607
+                    # ErrorAction Stop not respected
+                    $errorMessage = $null
+
+                    $sftpRootFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse -ErrorVariable 'errorMessage'
+
+                    if ($errorMessage) { throw $errorMessage }
                 }
                 catch {
-                    $M = "Failed retrieving the content of SFTP folder '$sftpPath': $_"
+                    $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
@@ -267,7 +269,7 @@ try {
                 #endregion
 
                 #region Remove incomplete downloaded files in local temp folder
-                $localIncompleteDownloadedFiles = $localFilesAndFolders | Where-Object {
+                $localIncompleteDownloadedFiles = $localFilesAndFoldersInDestination | Where-Object {
                     (-not $_.PSIsContainer) -and
                     ($_.Parent -eq $localTempDownloadFolder)
                 }
@@ -307,17 +309,6 @@ try {
                     Write-Verbose 'No root folder files to download'
                     Write-Verbose 'Exit script'
                     Return
-                }
-                #endregion
-
-                #region Get all local files
-                try {
-                    $localFiles = Get-ChildItem -LiteralPath $path.Destination -File
-                }
-                catch {
-                    $errorMessage = "Failed retrieving files in folder '$($path.Destination)': $_"
-                    $Error.RemoveAt(0)
-                    throw $errorMessage
                 }
                 #endregion
 
@@ -366,7 +357,7 @@ try {
 
                         #region Test file already present
                         if (
-                            $localFile = $localFiles.where(
+                            $localFile = $localFilesInDestinationFolder.where(
                                 { $_.Name -eq $result.FileName }
                             )
                         ) {
