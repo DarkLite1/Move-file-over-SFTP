@@ -94,6 +94,56 @@ try {
 
     $scriptBlock = {
         try {
+            function Start-RetryAction {
+                <# 
+                    .SYNOPSIS
+                        Run a CmdLet multiple times. 
+
+                    .DESCRIPTION
+                        This is useful for cases where a file is locked.
+                #>
+                [CmdletBinding()]
+                Param (
+                    [Parameter(Mandatory)]
+                    [scriptblock]$ScriptBlock,
+                    [ValidateRange(1, 5)]
+                    [int]$RetryCount = 5,
+                    [ValidateRange(1, 15)]
+                    [int]$RetryWaitSeconds = 5
+                )
+            
+                $attempt = @{
+                    count   = 0
+                    success = $false
+                }
+            
+                while (
+                    (-not $attempt.success) -and
+                    ($attempt.count -lt $RetryCount)
+                ) {
+                    try {
+                        $attempt.count++
+                        Write-Verbose "Attempt $($attempt.count)/$RetryCount"
+            
+                        & $ScriptBlock -ErrorAction 'Stop'
+            
+                        $attempt.success = $true
+                    }
+                    catch {
+                        if ($attempt.count -lt $RetryCount) {
+                            Write-Warning "Attempt failed, wait $RetryWaitSeconds seconds"
+                            Start-Sleep -Seconds $RetryWaitSeconds
+                        }
+                        $errorMessage = $_
+                        $Error.RemoveAt(0)
+                    }
+                }
+            
+                if (-not $attempt.success) {
+                    throw $errorMessage
+                }
+            }
+
             $path = $_
 
             Write-Verbose "Source '$($path.Source)' Destination '$($path.Destination)'"
@@ -269,6 +319,7 @@ try {
                 #endregion
 
                 #region Remove incomplete downloaded files in local temp folder
+                <# 
                 $localIncompleteDownloadedFiles = $localFilesAndFoldersInDestination | Where-Object {
                     (-not $_.PSIsContainer) -and
                     ($_.Parent -eq $localTempDownloadFolder)
@@ -302,6 +353,7 @@ try {
                         $result
                     }
                 }
+#>
                 #endregion
 
                 #region Exit when no root files to download
@@ -364,14 +416,8 @@ try {
                             Write-Verbose 'Duplicate file on local file system'
 
                             if ($OverwriteFile) {
-                                $retryCount = 0
-                                $fileLocked = $true
-
-                                while (
-                                    ($fileLocked) -and
-                                    ($retryCount -lt $RetryCountOnLockedFiles)
-                                ) {
-                                    try {
+                                try {
+                                    Start-RetryAction -ScriptBlock {
                                         Write-Verbose 'Remove duplicate file'
 
                                         $removeParams = @{
@@ -388,20 +434,12 @@ try {
                                             FileLength  = $result.FileLength
                                             Action      = 'Removed duplicate file from the file system'
                                             Error       = $null
-                                        }
-
-                                        $fileLocked = $false
-                                    }
-                                    catch {
-                                        $errorMessage = $_
-                                        $Error.RemoveAt(0)
-                                        $retryCount++
-                                        Write-Warning "File locked, wait $RetryWaitSeconds seconds, attempt $retryCount/$RetryCountOnLockedFiles"
-                                        Start-Sleep -Seconds $RetryWaitSeconds
+                                        }         
                                     }
                                 }
-
-                                if ($fileLocked) {
+                                catch {
+                                    $errorMessage = $_
+                                    $Error.RemoveAt(0)
                                     throw "Failed removing duplicate file from the local file system after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
                                 }
                             }
