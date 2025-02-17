@@ -400,18 +400,20 @@ try {
 
                         $result.DateTime = Get-Date
 
-                        #region Rename source file to temp file on SFTP server
+                        #region Move file to temp folder on SFTP server
                         if (-not $failedFile) {
                             try {
                                 Start-RetryActionHC -ScriptBlock {
                                     $params = @{
-                                        Path    = $fileToDownload.FullName
-                                        NewName = $tempFile.DownloadFileName
+                                        Path        = $fileToDownload.FullName
+                                        Destination = '{0}/{1}' -f  
+                                        $tempDownloadFolderSftpServer,
+                                        $result.FileName
                                     }
 
-                                    Write-Verbose "Rename source file on SFTP server to temp file '$($params.NewName)'"
+                                    Write-Verbose "Move file '$($params.Path)' to temp folder '$($params.Destination)' on the SFTP server"
 
-                                    Rename-SFTPFile @sessionParams @params
+                                    Move-SFTPItem @sessionParams @params
                                 }
                             }
                             catch {
@@ -655,7 +657,7 @@ try {
                             Start-RetryActionHC -ScriptBlock {
                                 Write-Verbose "Rename source file to temp file '$($tempFile.UploadFileName)'"
                                 $file |
-                                Rename-Item -NewName $tempFile.UploadFileName
+                                    Rename-Item -NewName $tempFile.UploadFileName
                             }
                         }
                         catch {
@@ -722,7 +724,7 @@ try {
                                 Write-Verbose "Rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)'"
 
                                 $tempFile.UploadFilePath |
-                                Rename-Item -NewName $file.Name
+                                    Rename-Item -NewName $file.Name
                             }
                             catch {
                                 [PSCustomObject]@{

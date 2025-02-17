@@ -198,15 +198,17 @@ Describe 'When there are no files on the SFTP server' {
             'Rename-SFTPFile',
             'Test-SFTPPath'
         ).ForEach(
-            { Should -Not -Invoke $_ -Scope Describe}
+            { Should -Not -Invoke $_ -Scope Describe }
         )
     }
     It 'there is no output from the script' {
         $testResult | Should -BeNullOrEmpty
     }
-} -Tag test
+}
 Describe 'When a file is found on the SFTP server' {
-    It '' {
+    BeforeAll {
+        Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
+
         Mock Get-SFTPChildItem {
             @{
                 Name        = 'b.txt'
@@ -215,24 +217,35 @@ Describe 'When a file is found on the SFTP server' {
             }
         }
 
-        $testNewParams = Copy-ObjectHC $testParams
-        $testNewParams.OverwriteFile = $false
-
-        @(
-            "$($testNewParams.Paths.Destination)\b.txt"
-        ).ForEach(
-            { New-Item -Path $_ -ItemType 'File' }
-        )
-
-        $testResult = .$testScript @testNewParams
-
-        $testResult.FileName | Should -Be 'b.txt'
-        $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
-
-        Should -Not -Invoke Get-SFTPItem
-        Should -Not -Invoke Rename-SFTPFile
+        $testResult = .$testScript @testParams
     }
-}
+    It 'Get list of files on the SFTP server' {
+        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe
+    }
+    It 'Create a temp folder on the SFTP server' {
+        Should -Invoke New-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($Path -eq '/report/sftpTransfer/download' ) -and
+            ($ItemType -eq 'Directory') -and
+            ($Recurse)
+        }
+    }
+    It 'create a temp folder on the local file system' {
+        $testJoinParams = @{
+            Path      = $testParams.Paths.Destination 
+            ChildPath = 'sftpTransfer/download' 
+        }
+        $testTempFolder = Join-Path @testJoinParams
+
+        $testTempFolder | Should -Exist
+    }
+    It 'Move the file from the source to the temp folder on the SFTP server' {
+        Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/b.txt') -and
+            ($Destination -eq '/report/sftpTransfer/download/b.txt' )
+        }
+    }
+} -Tag test
 Describe 'When files are found on the SFTP server' {
     BeforeAll {
         $testNewParams = Copy-ObjectHC $testParams
@@ -293,30 +306,6 @@ Describe 'When files are found on the SFTP server' {
 
         $testResults = .$testScript @testNewParams
     }
-    It 'call Get-SFTPChildItem to retrieve the SFTP list' {
-        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Context
-    } -Tag test
-    It 'create temp folder on SFTP server' {
-        $testResult = .$testScript @testParams
-
-        Should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
-                ($Path -eq '/report/sftpTransfer/download' ) -and
-                ($ItemType -eq 'Directory') -and
-                ($Recurse)
-        }
-    }
-    It 'create temp folder on local file system' {
-        $testNewParams = Copy-ObjectHC $testParams
-        $testJoinParams = @{
-            Path      = $testNewParams.Paths.Destination 
-            ChildPath = 'sftpTransfer/download' 
-        }
-        $testLocalDownloadPath = Join-Path @testJoinParams
-
-        $testResult = .$testScript @testNewParams
-
-        $testLocalDownloadPath | Should -Exist
-    }
     It 'incomplete downloaded files are removed from the download folder' {
         $testIncompleteFile | Should -Not -Exist
     }
@@ -325,7 +314,7 @@ Describe 'When files are found on the SFTP server' {
     }
     It 'call Get-SFTPItem to download all temp file' {
         $testFiles[0..1] | ForEach-Object {
-            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
                     ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths.Destination) -and
                     ($SessionId -eq 1)
