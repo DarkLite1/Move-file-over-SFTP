@@ -468,11 +468,11 @@ try {
                             }
 
                             Write-Verbose "Download file from SFTP server path '$($params.Source)' to '$($params.Destination)'"
-                            
+
                             Get-SFTPItemHC @params
                         }
                         catch {
-                            $M = "Failed to download file '$($tempFile.DownloadFilePath)': $_"
+                            $M = "Download file from SFTP server path '$($params.Source)' to '$($params.Destination)': $_"
                             $Error.RemoveAt(0)
                             throw $M
                         }

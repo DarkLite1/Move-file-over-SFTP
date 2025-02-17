@@ -262,6 +262,7 @@ Describe 'When a file is found on the SFTP server' {
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
             ($Destination -eq $testTempFileInDestinationFolder )
         }
+        
         $testTempFileInDestinationFolder | Should -Exist   
     }
 } -Tag test
