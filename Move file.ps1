@@ -153,7 +153,8 @@ try {
                         if ($attempt.count -lt $RetryCount) {
                             Write-Warning "Attempt $($attempt.count)/$RetryCount failed, wait $RetryWaitSeconds seconds"
                             Start-Sleep -Seconds $RetryWaitSeconds
-                        } else {
+                        }
+                        else {
                             Write-Warning "Attempt $($attempt.count)/$RetryCount failed"
                         }
                         $errorMessage = $_
@@ -166,7 +167,6 @@ try {
                 }
             }
 
-            Start-RetryAction  -ScriptBlock {'test'}
 
             $tempFolder = @{
                 download = 'sftpTransfer/download' 

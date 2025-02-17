@@ -16,7 +16,7 @@ BeforeAll {
             Source      = 'sftp:/report/'
             Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
         }
-        MaxConcurrentJobs = 1
+        MaxConcurrentJobs = 2
         FileExtensions    = @()
         OverwriteFile     = $false
     }
