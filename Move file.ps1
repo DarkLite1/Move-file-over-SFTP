@@ -472,13 +472,25 @@ try {
                             Get-SFTPItemHC @params
                         }
                         catch {
-                            #region remove incomplete downloaded file
+                            #region remove partially downloaded file
                             if (Test-Path -LiteralPath $params.Destination -PathType Leaf) {
                                 try {
                                     $params.Destination | Remove-Item -Force
                                 }
                                 catch {
-                                    Write-Error "Failed removing partially downloaded file: $_"
+                                    $errorMessage = "Failed removing partially downloaded file '$($params.Destination)': $_"
+
+                                    Write-Warning $errorMessage
+
+                                    [PSCustomObject]@{
+                                        DateTime    = Get-Date
+                                        Source      = $path.Source
+                                        Destination = $path.Destination
+                                        FileName    = $fileToDownload.Name
+                                        FileLength  = $fileToDownload.Length
+                                        Action      = $null
+                                        Error       = $errorMessage
+                                    }
                                 }
                             }
                             #endregion
