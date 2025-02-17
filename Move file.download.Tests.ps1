@@ -181,25 +181,31 @@ Describe 'Create an object with Error property when' {
         Should -Not -Invoke Rename-SFTPFile
     }
 }
-Describe 'when there are no files on the SFTP server' {
-    It 'nothing is done' {
+Describe 'When there are no files on the SFTP server' {
+    BeforeAll {
         Mock Get-SFTPChildItem 
 
         $testResult = .$testScript @testParams
 
-        $testResult | Should -BeNullOrEmpty
-        Should -Invoke Get-SFTPChildItem
+    }
+    It 'Get-SFTPChildItem is called to get the list of files' {
+        Should -Invoke Get-SFTPChildItem -Scope Describe
+    }
+    It 'Other SFTP functions are not called' {
         @(
             'Get-SFTPItem',
             'Move-SFTPItem',
             'Rename-SFTPFile',
             'Test-SFTPPath'
         ).ForEach(
-            { Should -Not -Invoke $_ }
+            { Should -Not -Invoke $_ -Scope Describe}
         )
     }
+    It 'there is no output from the script' {
+        $testResult | Should -BeNullOrEmpty
+    }
 } -Tag test
-Describe 'when a file is found on the SFTP server' {
+Describe 'When a file is found on the SFTP server' {
     It '' {
         Mock Get-SFTPChildItem {
             @{
