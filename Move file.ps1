@@ -190,8 +190,8 @@ try {
                     $localFilesAndFoldersInDestination = Get-ChildItem -LiteralPath $path.Destination -Recurse
 
                     $localFilesInDestinationFolder = $localFilesAndFoldersInDestination | Where-Object {
-                        (-not $_.IsDirectory) -and
-                        $_.Parent -eq $path.Destination
+                        (-not $_.PSIsContainer) -and
+                        $_.Directory.FullName -eq $path.Destination
                     }
                 }
                 catch {
@@ -393,16 +393,7 @@ try {
                             ))
                         ) {
                             Write-Verbose 'Duplicate file on local file system'
-                            [PSCustomObject]@{
-                                DateTime    = $result.DateTime
-                                Source      = $result.Source
-                                Destination = $result.Destination
-                                FileName    = $result.FileName
-                                FileLength  = $result.FileLength
-                                Action      = 'Duplicate file in destination folder, use OverwriteFile if desired'
-                                Error       = $null
-                            }      
-
+                            $result.Error = 'Duplicate file in destination folder, use OverwriteFile if desired'
                             continue
                         }
                         #endregion
