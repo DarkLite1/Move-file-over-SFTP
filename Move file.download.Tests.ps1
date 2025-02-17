@@ -217,11 +217,11 @@ Describe 'When a file is found on the SFTP server' {
             }
         }
 
-        Mock Move-SFTPItem {
+        Mock Get-SFTPItem {
             $testNewItemParams = @{
                 Path     = '{0}\sftpTransfer\download\b.txt' -f 
                 $testParams.Paths.Destination
-                ItemType = 'File '
+                ItemType = 'File'
             }
             New-Item @testNewItemParams
         }
@@ -254,8 +254,15 @@ Describe 'When a file is found on the SFTP server' {
             ($Destination -eq '/report/sftpTransfer/download/b.txt' )
         }
     }
-    It 'Download file from the temp folder on the SFTP server to the temp folder on the local file system' {
+    It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
+        $testTempFileInDestinationFolder = '{0}\sftpTransfer\download\b.txt' -f $testParams.Paths.Destination
 
+        Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+            ($Destination -eq $testTempFileInDestinationFolder )
+        }
+        $testTempFileInDestinationFolder | Should -Exist   
     }
 } -Tag test
 Describe 'When files are found on the SFTP server' {

@@ -98,6 +98,42 @@ try {
     # $VerbosePreference = 'Continue'
 
     $scriptBlock = {
+        function Get-SFTPItemHC {
+            <# 
+                .SYNOPSIS
+                    Download a file
+
+                .DESCRIPTION
+                    Get-SFTPItem does not throw an error, only a warning
+
+                .LINK
+                    https://github.com/darkoperator/Posh-SSH/issues/606
+            #>
+
+            [CmdletBinding()]
+            Param (
+                [parameter(Mandatory)]
+                [String]$Source,
+                [parameter(Mandatory)]
+                [String]$Destination
+            )
+
+            $WarningPreference = 'Continue'
+            $getSftpItemWarningMessages = @()
+
+            $params = @{
+                Path            = $Source
+                Destination     = $Destination
+                WarningVariable = 'getSftpItemWarningMessages'
+            }
+            Get-SFTPItem @sessionParams @params
+
+            if ($getSftpItemWarningMessages) {
+                foreach ($warning in $getSftpItemWarningMessages) {
+                    throw $warning
+                }
+            }
+        }       
         function Start-RetryActionHC {
             <# 
                 .SYNOPSIS
@@ -400,50 +436,40 @@ try {
 
                         $result.DateTime = Get-Date
 
+                        $sftpTempFilePath = '{0}/{1}' -f  
+                        $tempDownloadFolderSftpServer, $result.FileName
+                        
                         #region Move file to temp folder on SFTP server
-                        if (-not $failedFile) {
-                            try {
-                                Start-RetryActionHC -ScriptBlock {
-                                    $params = @{
-                                        Path        = $fileToDownload.FullName
-                                        Destination = '{0}/{1}' -f  
-                                        $tempDownloadFolderSftpServer,
-                                        $result.FileName
-                                    }
-
-                                    Write-Verbose "Move file '$($params.Path)' to temp folder '$($params.Destination)' on the SFTP server"
-
-                                    Move-SFTPItem @sessionParams @params
+                        try {
+                            Start-RetryActionHC -ScriptBlock {
+                                $params = @{
+                                    Path        = $fileToDownload.FullName
+                                    Destination = $sftpTempFilePath
                                 }
+
+                                Write-Verbose "Move file '$($params.Path)' to temp folder '$($params.Destination)' on the SFTP server"
+
+                                Move-SFTPItem @sessionParams @params
                             }
-                            catch {
-                                throw "Failed renaming file on the SFTP server: $_"
-                            }
+                        }
+                        catch {
+                            throw "Failed renaming file on the SFTP server: $_"
                         }
                         #endregion
 
+                        $localTempFilePath = '{0}\{1}' -f 
+                        $localTempDownloadFolder, $result.FileName
+
                         #region Download temp file from the SFTP server
                         try {
-                            Write-Verbose 'Download temp file'
-
-                            # Get-SFTPItem does not throw an error, only a warning
-                            # https://github.com/darkoperator/Posh-SSH/issues/606
-
-                            $WarningPreference = 'Continue'
-                            $getSftpItemWarningMessages = @()
-
                             $params = @{
-                                Path            = $tempFile.DownloadFilePath
-                                Destination     = $path.Destination
-                                WarningVariable = 'getSftpItemWarningMessages'
+                                Source      = $sftpTempFilePath
+                                Destination = $localTempFilePath
                             }
-                            Get-SFTPItem @sessionParams @params
 
-                            if ($getSftpItemWarningMessages) {
-                                foreach ($warning in $getSftpItemWarningMessages) {
-                                    throw $warning
-                                }
-                            }
+                            Write-Verbose "Download file from SFTP server path '$($params.Source)' to '$($params.Destination)'"
+                            
+                            Get-SFTPItemHC @params
                         }
                         catch {
                             $M = "Failed to download file '$($tempFile.DownloadFilePath)': $_"
