@@ -89,6 +89,59 @@ try {
     # $VerbosePreference = 'Continue'
 
     $scriptBlock = {
+        function Start-RetryActionHC {
+            <# 
+                .SYNOPSIS
+                    Run a CmdLet multiple times. 
+
+                .DESCRIPTION
+                    This is useful for cases where a file is locked.
+            #>
+            [CmdletBinding()]
+            Param (
+                [Parameter(Mandatory)]
+                [scriptblock]$ScriptBlock,
+                [ValidateRange(1, 25)]
+                [int]$RetryCount = $RetryCount,
+                [ValidateRange(1, 30)]
+                [int]$RetryWaitSeconds = $RetryWaitSeconds
+            )
+        
+            $attempt = @{
+                count   = 0
+                success = $false
+            }
+        
+            while (
+                (-not $attempt.success) -and
+                ($attempt.count -lt $RetryCount)
+            ) {
+                try {
+                    $attempt.count++
+                    Write-Verbose "Attempt $($attempt.count)/$RetryCount"
+        
+                    & $ScriptBlock -ErrorAction 'Stop'
+        
+                    $attempt.success = $true
+                }
+                catch {
+                    if ($attempt.count -lt $RetryCount) {
+                        Write-Warning "Attempt $($attempt.count)/$RetryCount failed, wait $RetryWaitSeconds seconds"
+                        Start-Sleep -Seconds $RetryWaitSeconds
+                    }
+                    else {
+                        Write-Warning "Attempt $($attempt.count)/$RetryCount failed"
+                    }
+                    $errorMessage = $_
+                    $Error.RemoveAt(0)
+                }
+            }
+        
+            if (-not $attempt.success) {
+                throw $errorMessage
+            }
+        }
+
         try {
             $path = $_
 
@@ -114,59 +167,6 @@ try {
                 $RetryWaitSeconds = $using:RetryWaitSeconds
             }
             #endregion
-            function Start-RetryAction {
-                <# 
-                    .SYNOPSIS
-                        Run a CmdLet multiple times. 
-
-                    .DESCRIPTION
-                        This is useful for cases where a file is locked.
-                #>
-                [CmdletBinding()]
-                Param (
-                    [Parameter(Mandatory)]
-                    [scriptblock]$ScriptBlock,
-                    [ValidateRange(1, 25)]
-                    [int]$RetryCount = $RetryCount,
-                    [ValidateRange(1, 30)]
-                    [int]$RetryWaitSeconds = $RetryWaitSeconds
-                )
-            
-                $attempt = @{
-                    count   = 0
-                    success = $false
-                }
-            
-                while (
-                    (-not $attempt.success) -and
-                    ($attempt.count -lt $RetryCount)
-                ) {
-                    try {
-                        $attempt.count++
-                        Write-Verbose "Attempt $($attempt.count)/$RetryCount"
-            
-                        & $ScriptBlock -ErrorAction 'Stop'
-            
-                        $attempt.success = $true
-                    }
-                    catch {
-                        if ($attempt.count -lt $RetryCount) {
-                            Write-Warning "Attempt $($attempt.count)/$RetryCount failed, wait $RetryWaitSeconds seconds"
-                            Start-Sleep -Seconds $RetryWaitSeconds
-                        }
-                        else {
-                            Write-Warning "Attempt $($attempt.count)/$RetryCount failed"
-                        }
-                        $errorMessage = $_
-                        $Error.RemoveAt(0)
-                    }
-                }
-            
-                if (-not $attempt.success) {
-                    throw $errorMessage
-                }
-            }
-
 
             $tempFolder = @{
                 download = 'sftpTransfer/download' 
@@ -402,7 +402,7 @@ try {
                         #region Rename source file to temp file on SFTP server
                         if (-not $failedFile) {
                             try {
-                                Start-RetryAction -ScriptBlock {
+                                Start-RetryActionHC -ScriptBlock {
                                     $params = @{
                                         Path    = $fileToDownload.FullName
                                         NewName = $tempFile.DownloadFileName
