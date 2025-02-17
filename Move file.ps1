@@ -472,6 +472,17 @@ try {
                             Get-SFTPItemHC @params
                         }
                         catch {
+                            #region remove incomplete downloaded file
+                            if (Test-Path -LiteralPath $params.Destination -PathType Leaf) {
+                                try {
+                                    $params.Destination | Remove-Item -Force
+                                }
+                                catch {
+                                    Write-Error "Failed removing partially downloaded file: $_"
+                                }
+                            }
+                            #endregion
+
                             $M = "Download file from SFTP server path '$($params.Source)' to '$($params.Destination)': $_"
                             $Error.RemoveAt(0)
                             throw $M
