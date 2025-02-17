@@ -422,11 +422,9 @@ try {
 
                                     Rename-SFTPFile @sessionParams @params
                                 }
-                            
                             }
                             catch {
-                                throw "Failed renaming file on the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
-                        
+                                throw "Failed renaming file on the SFTP server: $_"
                             }
                         }
                         #endregion
@@ -627,26 +625,17 @@ try {
                             )
                         ) {
                             Write-Verbose 'Duplicate file on SFTP server'
-
                             if ($OverwriteFile) {
-                                $retryCount = 0
-                                $fileLocked = $true
-
-                                while (
-                                        ($fileLocked) -and
-                                        ($retryCount -lt $RetryCountOnLockedFiles)
-                                ) {
-                                    try {
+                                try {
+                                    Start-RetryActionHC -ScriptBlock {
                                         Write-Verbose 'Remove duplicate file on SFTP server'
-
+    
                                         $removeParams = @{
                                             Path        = $sftpFile.FullName
                                             ErrorAction = 'Stop'
                                         }
                                         Remove-SFTPItem @sessionParams @removeParams
-
-                                        $fileLocked = $false
-
+    
                                         [PSCustomObject]@{
                                             DateTime    = $result.DateTime
                                             Source      = $result.Source
@@ -656,17 +645,9 @@ try {
                                             Action      = 'Removed duplicate file from SFTP server'
                                             Error       = $null
                                         }
-                                    }
-                                    catch {
-                                        $errorMessage = $_
-                                        $Error.RemoveAt(0)
-                                        $retryCount++
-                                        Write-Warning "File locked, wait $RetryWaitSeconds seconds, attempt $retryCount/$RetryCountOnLockedFiles"
-                                        Start-Sleep -Seconds $RetryWaitSeconds
-                                    }
+                                    }          
                                 }
-
-                                if ($fileLocked) {
+                                catch {
                                     throw "Failed removing duplicate file from the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
                                 }
                             }
@@ -679,30 +660,16 @@ try {
                         $result.DateTime = Get-Date
 
                         #region Rename source file to temp file
-                        $retryCount = 0
-                        $fileLocked = $true
-
-                        while (
-                                ($fileLocked) -and
-                                ($retryCount -lt $RetryCountOnLockedFiles)
-                        ) {
-                            try {
+                        try {
+                            Start-RetryActionHC -ScriptBlock {
                                 Write-Verbose "Rename source file to temp file '$($tempFile.UploadFileName)'"
                                 $file |
                                 Rename-Item -NewName $tempFile.UploadFileName
                                 $fileLocked = $false
                             }
-                            catch {
-                                $errorMessage = $_
-                                $Error.RemoveAt(0)
-                                $retryCount++
-                                Write-Warning "File locked, wait $RetryWaitSeconds seconds, attempt $retryCount/$RetryCountOnLockedFiles"
-                                Start-Sleep -Seconds $RetryWaitSeconds
-                            }
                         }
-
-                        if ($fileLocked) {
-                            throw "Failed renaming the source file after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
+                        catch {
+                            throw "Failed renaming the source file: File in use: $_"
                         }
                         #endregion
 
