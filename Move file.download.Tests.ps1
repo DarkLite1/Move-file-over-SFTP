@@ -134,7 +134,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike '*Oops'
+            $testResult.Error | Should -BeLike 'Failed to download file*Oops'
 
             $error | Should -HaveCount 0
         }
@@ -149,7 +149,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike '*Oops'
+            $testResult.Error | Should -BeLike 'Failed to download file*Oops'
 
             $error | Should -HaveCount 0
         } 
@@ -262,7 +262,7 @@ Describe 'When a file is found on the SFTP server' {
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
             ($Destination -eq $testTempFileInDestinationFolder )
         }
-        
+
         $testTempFileInDestinationFolder | Should -Exist   
     }
 } -Tag test
