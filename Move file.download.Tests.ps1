@@ -265,6 +265,14 @@ Describe 'When a file is found on the SFTP server' {
 
         $testTempFileInDestinationFolder | Should -Exist   
     }
+    It 'Move the file from the local temp folder to the destination folder on the local file system' {
+        '{0}\b.txt' -f 
+        $testParams.Paths.Destination | Should -Exist
+    }
+    It 'The file is no longer in the temp folder on the local file system' {
+        '{0}\sftpTransfer\download\b.txt' -f 
+        $testParams.Paths.Destination | Should -Not -Exist
+    }
 } -Tag test
 Describe 'When files are found on the SFTP server' {
     BeforeAll {
@@ -373,7 +381,7 @@ Describe 'When files are found on the SFTP server' {
                 $actual.Source | Should -Be $testNewParams.Paths.Source
                 $actual.Destination | Should -Be $testNewParams.Paths.Destination
                 $actual.FileLength | Should -Not -BeNullOrEmpty
-                $actual.Action | Should -Be 'File moved'
+                $actual.Actions | Should -Be 'File moved'
                 $actual.Error | Should -BeNullOrEmpty
             }
         }
@@ -387,7 +395,7 @@ Describe 'When files are found on the SFTP server' {
                 $actual.Source | Should -Be $testNewParams.Paths.Source
                 $actual.Destination | Should -Be $testNewParams.Paths.Destination
                 $actual.FileLength | Should -Not -BeNullOrEmpty
-                $actual.Action | Should -Be 'File moved after previous unsuccessful move'
+                $actual.Actions | Should -Be 'File moved after previous unsuccessful move'
                 $actual.Error | Should -BeNullOrEmpty
             }
         }
@@ -401,7 +409,7 @@ Describe 'When files are found on the SFTP server' {
                 $actual.Source | Should -Be $testNewParams.Paths.Source
                 $actual.Destination | Should -Be $testNewParams.Paths.Destination
                 $actual.FileLength | Should -Not -BeNullOrEmpty
-                $actual.Action | Should -Be "Removed incomplete downloaded file '$($actual.FullName)'"
+                $actual.Actions | Should -Be "Removed incomplete downloaded file '$($actual.FullName)'"
                 $actual.Error | Should -BeNullOrEmpty
             }
         }
@@ -442,11 +450,11 @@ Describe 'OverwriteFile' {
         }
         It 'one object for the removed duplicate file' {
             $testResults[0].FileName | Should -Be $testFile.Name
-            $testResults[0].Action | Should -Be 'Removed duplicate file from the file system'
+            $testResults[0].Actions | Should -Be 'Removed duplicate file from the file system'
         }
         It 'one object for the downloaded file' {
             $testResults[1].FileName | Should -Be $testFile.Name
-            $testResults[1].Action | Should -Be 'File moved'
+            $testResults[1].Actions | Should -Be 'File moved'
         }
         It 'call Get-SFTPItem to download the file' {
             Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context

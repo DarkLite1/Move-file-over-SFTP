@@ -188,7 +188,7 @@ Begin {
         # Write-EventLog @EventVerboseParams -Message $M
 
         $file = Get-Content $ImportFile -Raw -EA Stop -Encoding UTF8 |
-        ConvertFrom-Json
+            ConvertFrom-Json
         #endregion
 
         #region Test .json file properties
@@ -309,9 +309,9 @@ Begin {
                 $task.Actions | Group-Object -Property {
                     $_.ComputerName
                 } |
-                Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                    throw "Duplicate 'Tasks.Actions.ComputerName' found: $($_.Name)"
-                }
+                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                        throw "Duplicate 'Tasks.Actions.ComputerName' found: $($_.Name)"
+                    }
                 #endregion
 
                 foreach ($action in $task.Actions) {
@@ -362,16 +362,16 @@ Begin {
 
                     #region Test unique Source Destination
                     $action.Paths | Group-Object -Property 'Source' |
-                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                        throw "Duplicate 'Tasks.Actions.Paths.Source' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
-                    }
+                        Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                            throw "Duplicate 'Tasks.Actions.Paths.Source' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
+                        }
                     #endregion
 
                     #region Test unique Source Destination
                     $action.Paths | Group-Object -Property 'Destination' |
-                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                        throw "Duplicate 'Tasks.Actions.Paths.Destination' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
-                    }
+                        Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                            throw "Duplicate 'Tasks.Actions.Paths.Destination' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
+                        }
                     #endregion
                 }
             }
@@ -645,8 +645,8 @@ Process {
 
             if (
                 $psSessionParams.ComputerName = $Tasks.Actions.ComputerName |
-                Sort-Object -Unique |
-                Where-Object { $_ -ne $env:COMPUTERNAME }
+                    Sort-Object -Unique |
+                    Where-Object { $_ -ne $env:COMPUTERNAME }
             ) {
                 #region Open PS remoting sessions
                 Write-Verbose "Connect to $($psSessionParams.ComputerName.Count) remote computers"
@@ -730,9 +730,8 @@ End {
         #region Counter
         $counter = @{
             Total = @{
-                MovedFiles  = 0
-                OtherAction = 0
-                Errors      = 0
+                MovedFiles = 0
+                Errors     = 0
             }
         }
         #endregion
@@ -743,7 +742,7 @@ End {
         ).Count
 
         $systemErrorsHtmlList = if ($countSystemErrors) {
-            "<p>Detected <b>{0} system error{1}</b>:{2}</p>" -f $countSystemErrors,
+            '<p>Detected <b>{0} system error{1}</b>:{2}</p>' -f $countSystemErrors,
             $(
                 if ($countSystemErrors -ne 1) { 's' }
             ),
@@ -790,8 +789,8 @@ End {
                     Expression = { $_.FileLength / 1KB }
                 },
                 @{
-                    Name       = 'Action'
-                    Expression = { $_.Action }
+                    Name       = 'Actions'
+                    Expression = { $_.Actions -join ', ' }
                 },
                 'Error'
             }
@@ -896,16 +895,15 @@ End {
             foreach ($action in $task.Actions) {
                 #region Counter
                 $counter.Action = @{
-                    MovedFiles  = 0
-                    OtherAction = 0
-                    Errors      = 0
+                    MovedFiles = 0
+                    Errors     = 0
                 }
 
                 $counter.Action.MovedFiles = $action.Job.Results.Where(
-                    { (-not $_.Error) -and ($_.Action -like 'File moved*') }
-                ).Count
-                $counter.Action.OtherAction = $action.Job.Results.Where(
-                    { (-not $_.Error) -and ($_.Action -notLike 'File moved*') }
+                    {
+                        (-not $_.Error) -and 
+                        ($_.Moved) 
+                    }
                 ).Count
 
                 $counter.Action.Errors = $action.Job.Results.Where(
@@ -915,7 +913,6 @@ End {
                 $counter.Total.Errors += $action.Job.Error.Count
 
                 $counter.Total.MovedFiles += $counter.Action.MovedFiles
-                $counter.Total.OtherAction += $counter.Action.OtherAction
                 #endregion
 
                 #region Log errors
@@ -955,9 +952,8 @@ End {
                 foreach ($path in $action.Paths) {
                     #region Counter
                     $counter.Path = @{
-                        MovedFiles  = 0
-                        OtherAction = 0
-                        Errors      = 0
+                        MovedFiles = 0
+                        Errors     = 0
                     }
 
                     $counter.Path.Errors += $action.Job.Results.Where(
@@ -972,14 +968,7 @@ End {
                         (-not $_.Error) -and
                         ($_.Source -eq $path.Source) -and
                         ($_.Destination -eq $path.Destination) -and
-                        ($_.Action -like 'File moved*')
-                        }).Count
-                    $counter.Path.OtherAction += $action.Job.Results.Where(
-                        {
-                        (-not $_.Error) -and
-                        ($_.Source -eq $path.Source) -and
-                        ($_.Destination -eq $path.Destination) -and
-                        ($_.Action -notLike 'File moved*')
+                        ($_.Moved)
                         }).Count
                     #endregion
 
@@ -1006,18 +995,8 @@ End {
                             $(
                                 $result = "$($counter.Path.MovedFiles) moved"
 
-                                if ($counter.Path.OtherAction) {
-                                    $result += ", {0} other action{1}" -f
-                                    $(
-                                        $counter.Path.OtherAction
-                                    ),
-                                    $(
-                                        if($counter.Path.OtherAction -ne 1) {'s'}
-                                    )
-                                }
-
                                 if ($counter.Path.Errors) {
-                                    $result += ", {0} error{1}" -f
+                                    $result += ', {0} error{1}' -f
                                     $(
                                         $counter.Path.Errors
                                     ),
@@ -1062,8 +1041,7 @@ End {
                     ) -and
                     (
                         ($counter.Total.Errors) -or
-                        ($counter.Total.MovedFiles) -or
-                        ($counter.Total.OtherAction)
+                        ($counter.Total.MovedFiles)
                     )
                 )
             )
@@ -1098,14 +1076,9 @@ End {
             Subject  = @("$($counter.Total.MovedFiles) moved")
         }
 
-        if ($counter.Total.OtherAction) {
-            $mailParams.Subject += "$($counter.Total.OtherAction) other action{0}" -f $(
-                if ($counter.Total.OtherAction -ne 1) { 's' }
-            )
-        }
         if ($counter.Total.Errors) {
             $mailParams.Priority = 'High'
-            $mailParams.Subject += "{0} error{1}" -f
+            $mailParams.Subject += '{0} error{1}' -f
             $counter.Total.Errors,
             $(if ($counter.Total.Errors -ne 1) { 's' })
         }
@@ -1131,8 +1104,7 @@ End {
                 ($file.SendMail.When -eq 'OnlyOnErrorOrAction') -and
                 (
                     ($counter.Total.Errors) -or
-                    ($counter.Total.MovedFiles) -or
-                    ($counter.Total.OtherAction)
+                    ($counter.Total.MovedFiles)
                 )
             )
         ) {
@@ -1163,7 +1135,7 @@ End {
 
         if ($mailParams.Attachments) {
             $mailParams.Message +=
-            "<p><i>* Check the attachment for details</i></p>"
+            '<p><i>* Check the attachment for details</i></p>'
         }
 
         Get-ScriptRuntimeHC -Stop

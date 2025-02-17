@@ -53,7 +53,8 @@ BeforeAll {
             FileName    = 'a.txt'
             FileLength  = 5KB
             DateTime    = Get-Date
-            Action      = 'File moved after previous unsuccessful move'
+            Moved       = $true
+            Actions     = @('File moved after previous unsuccessful move')
             Error       = $null
         }
         [PSCustomObject]@{
@@ -62,7 +63,8 @@ BeforeAll {
             FileName    = 'b.txt'
             FileLength  = 3KB
             DateTime    = Get-Date
-            Action      = 'File moved'
+            Moved       = $true
+            Actions     = @('File moved')
             Error       = $null
         }
     )
@@ -77,7 +79,8 @@ BeforeAll {
             FileName     = $testData[0].FileName
             FileSize     = $testData[0].FileLength / 1KB
             DateTime     = $testData[0].DateTime
-            Action       = $testData[0].Action
+            Moved        = $testData[0].Moved
+            Actions      = $testData[0].Actions
             Error        = $null
         }
         [PSCustomObject]@{
@@ -89,13 +92,14 @@ BeforeAll {
             FileName     = $testData[1].FileName
             FileSize     = $testData[1].FileLength / 1KB
             DateTime     = $testData[1].DateTime
-            Action       = $testData[1].Action
+            Moved        = $testData[1].Moved
+            Actions      = $testData[1].Actions
             Error        = $null
         }
     )
 
     $testOutParams = @{
-        FilePath = (New-Item "TestDrive:/Test.json" -ItemType File).FullName
+        FilePath = (New-Item 'TestDrive:/Test.json' -ItemType File).FullName
         Encoding = 'utf8'
     }
 
@@ -148,7 +152,7 @@ BeforeAll {
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @('ImportFile', 'ScriptName') {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
-        Should -BeTrue
+            Should -BeTrue
     }
 }
 Describe 'send an e-mail to the admin when' {
@@ -176,7 +180,7 @@ Describe 'send an e-mail to the admin when' {
             $testNewParams.ScriptPath.MoveFile = 'c:\upDoesNotExist.ps1'
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testNewParams
 
@@ -196,7 +200,7 @@ Describe 'send an e-mail to the admin when' {
             .$testScript @testNewParams
 
             Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "Cannot find Path*nonExisting.json*")
+                    (&$MailAdminParams) -and ($Message -like 'Cannot find Path*nonExisting.json*')
             }
             Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                 $EntryType -eq 'Error'
@@ -210,7 +214,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -227,7 +231,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.MaxConcurrentJobs = 'wrong'
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -246,7 +250,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -263,7 +267,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].TaskName = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -279,7 +283,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].Sftp.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -298,7 +302,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].Sftp.Credential.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -317,7 +321,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = $null
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -335,7 +339,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'b'
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -353,7 +357,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'a'
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -371,7 +375,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = (New-Item 'TestDrive:\a.pub' -ItemType File).FullName
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -385,7 +389,7 @@ Describe 'send an e-mail to the admin when' {
                 }
             }
 
-            Context "Tasks.Actions" {
+            Context 'Tasks.Actions' {
                 It 'Tasks.Actions.<_> not found' -ForEach @(
                     'Paths'
                 ) {
@@ -393,7 +397,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Actions[0].$_ = $null
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -411,7 +415,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile.Tasks[0].Actions[0].Remove('ComputerName')
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -423,7 +427,7 @@ Describe 'send an e-mail to the admin when' {
                             $EntryType -eq 'Error'
                         }
                     }
-                    It "Duplicate ComputerName" {
+                    It 'Duplicate ComputerName' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
 
                         $testNewInputFile.Tasks[0].Actions = @(
@@ -432,7 +436,7 @@ Describe 'send an e-mail to the admin when' {
                         )
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -452,7 +456,7 @@ Describe 'send an e-mail to the admin when' {
                     $testNewInputFile.Tasks[0].Actions[0].Paths[0].$_ = $null
 
                     $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                        Out-File @testOutParams
 
                     .$testScript @testParams
 
@@ -471,7 +475,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -489,7 +493,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = '/out/b'
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -507,7 +511,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'sftp\b'
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -525,7 +529,7 @@ Describe 'send an e-mail to the admin when' {
                         $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -537,7 +541,7 @@ Describe 'send an e-mail to the admin when' {
                             $EntryType -eq 'Error'
                         }
                     }
-                    It "Duplicate Source paths" {
+                    It 'Duplicate Source paths' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
 
                         $testSourceFolder = (New-Item 'TestDrive:\i' -ItemType Directory).FullName
@@ -554,7 +558,7 @@ Describe 'send an e-mail to the admin when' {
                         )
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -566,7 +570,7 @@ Describe 'send an e-mail to the admin when' {
                             $EntryType -eq 'Error'
                         }
                     }
-                    It "Duplicate Destination paths" {
+                    It 'Duplicate Destination paths' {
                         $testNewInputFile = Copy-ObjectHC $testInputFile
 
                         $testNewInputFile.Tasks[0].Actions[0].Paths = @(
@@ -581,7 +585,7 @@ Describe 'send an e-mail to the admin when' {
                         )
 
                         $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
+                            Out-File @testOutParams
 
                         .$testScript @testParams
 
@@ -602,7 +606,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].Option.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -618,7 +622,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.SendMail.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -637,7 +641,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.ExportExcelFile.$_ = $null
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -654,7 +658,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.ExportExcelFile.When = 'wrong'
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -671,7 +675,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.SendMail.When = 'wrong'
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -693,7 +697,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[1].TaskName = 'Name1'
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -707,7 +711,7 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile.Tasks[0].Option.FileExtensions = @('txt', '.xml')
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+                    Out-File @testOutParams
 
                 .$testScript @testParams
 
@@ -728,7 +732,7 @@ Describe 'send an e-mail to the admin when' {
             }
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -750,7 +754,7 @@ Describe 'send an e-mail to the admin when' {
             }
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -771,7 +775,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -784,7 +788,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'sftp:/a'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -817,7 +821,7 @@ Describe 'execute the SFTP script when' {
     Context 'Tasks.Actions.ComputerName is not the localhost' {
         BeforeAll {
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -844,7 +848,7 @@ Describe 'execute the SFTP script when' {
             $testNewInputFile.Tasks[0].Actions[0].ComputerName = 'localhost'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -871,7 +875,7 @@ Describe 'execute the SFTP script when' {
             $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'TestDrive:\key.txt'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -885,7 +889,7 @@ Describe 'execute the SFTP script when' {
 Describe 'when the SFTP script runs successfully' {
     BeforeAll {
         $testInputFile | ConvertTo-Json -Depth 7 |
-        Out-File @testOutParams
+            Out-File @testOutParams
 
         .$testScript @testParams
     }
@@ -911,8 +915,8 @@ Describe 'when the SFTP script runs successfully' {
                 $actualRow.ComputerName | Should -Be $testRow.ComputerName
                 $actualRow.Destination | Should -Be $testRow.Destination
                 $actualRow.DateTime.ToString('yyyyMMdd') |
-                Should -Be $testRow.DateTime.ToString('yyyyMMdd')
-                $actualRow.Action | Should -Be $testRow.Action
+                    Should -Be $testRow.DateTime.ToString('yyyyMMdd')
+                $actualRow.Actions | Should -Be $testRow.Actions
                 $actualRow.FileName | Should -Be $testRow.FileName
                 $actualRow.FileSize | Should -Be $testRow.FileSize
                 $actualRow.Error | Should -Be $testRow.Error
@@ -938,24 +942,24 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'Never'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -BeNullOrEmpty
+                Should -BeNullOrEmpty
         }
         It "'OnlyOnError' and no errors are found" {
             $testNewInputFile = Copy-ObjectHC $testInputFile
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -BeNullOrEmpty
+                Should -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are no errors and no actions" {
             Mock Invoke-Command {
@@ -967,12 +971,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -BeNullOrEmpty
+                Should -BeNullOrEmpty
         }
     }
     Context 'create an Excel file' {
@@ -992,19 +996,19 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -Not -BeNullOrEmpty
+                Should -Not -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are actions but no errors" {
             Mock Invoke-Command {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Uploaded = $true
+                    Moved = $true
                     Action   = @('upload')
                     Error    = $null
                 }
@@ -1016,18 +1020,18 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -Not -BeNullOrEmpty
+                Should -Not -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are errors but no actions" {
             Mock Invoke-Command {
                 [PSCustomObject]@{
                     Path     = 'a'
-                    Uploaded = $false
+                    Moved = $false
                     DateTime = Get-Date
                     Action   = @()
                     Error    = 'oops'
@@ -1040,12 +1044,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-            Should -Not -BeNullOrEmpty
+                Should -Not -BeNullOrEmpty
         }
     }
 }
@@ -1061,7 +1065,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'Never'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -1072,7 +1076,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -1088,7 +1092,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -1112,7 +1116,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -1123,7 +1127,7 @@ Describe 'SendMail.When' {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Uploaded = $true
+                    Moved    = $true
                     Action   = @('upload')
                     Error    = $null
                 }
@@ -1135,12 +1139,12 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
             Should -Invoke Send-MailHC @testParamFilter
-        }
+        }  -Tag test
         It "'OnlyOnErrorOrAction' and there are errors but no actions" {
             Mock Invoke-Command {
                 [PSCustomObject]@{
@@ -1157,7 +1161,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -1171,16 +1175,16 @@ Describe 'ReportOnly' {
     Context 'when no previously exported Excel file is found' {
         BeforeAll {
             Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
-            Should -BeNullOrEmpty
+                Should -BeNullOrEmpty
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams -ReportOnly
         }
         It 'no not create an Excel file' {
             Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
-            Should -BeNullOrEmpty
+                Should -BeNullOrEmpty
         }
         It 'do not call the SFTP script' {
             Should -Not -Invoke New-PSSession
@@ -1207,7 +1211,7 @@ Describe 'ReportOnly' {
             $testExportedExcelRows | Export-Excel @testExportParams
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+                Out-File @testOutParams
 
             .$testScript @testParams -ReportOnly
         }

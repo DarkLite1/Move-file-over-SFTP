@@ -187,7 +187,7 @@ Describe 'Upload to SFTP server' {
                 $actual.Source | Should -Be $testNewParams.Paths.Source
                 $actual.Destination | Should -Be $testNewParams.Paths.Destination
                 $actual.FileLength | Should -Not -BeNullOrEmpty
-                $actual.Action | Should -Be 'File moved'
+                $actual.Actions | Should -Be 'File moved'
                 $actual.Error | Should -BeNullOrEmpty
             }
         }
@@ -231,7 +231,7 @@ Describe 'Upload to SFTP server' {
             It 'return an object with results' {
                 $testResults | Should -HaveCount 2
 
-                $testResults.Action[0] | Should -Be 'Removed duplicate file from SFTP server'
+                $testResults.Actions[0] | Should -Be 'Removed duplicate file from SFTP server'
             }
         }
         Context 'false' {

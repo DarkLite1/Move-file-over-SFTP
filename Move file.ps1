@@ -380,7 +380,7 @@ try {
                             Destination = $path.Destination
                             FileName    = $incompleteFile.Name
                             FileLength  = $incompleteFile.Length
-                            Action      = $null
+                            Actions      = @()
                             Error       = $null
                         }
                             
@@ -417,7 +417,8 @@ try {
                             Destination = $path.Destination
                             FileName    = $fileToDownload.Name
                             FileLength  = $fileToDownload.Length
-                            Action      = $null
+                            Actions     = @()
+                            Moved       = $false
                             Error       = $null
                         }
 
@@ -460,7 +461,7 @@ try {
                         $localTempFilePath = '{0}\{1}' -f 
                         $localTempDownloadFolder, $result.FileName
 
-                        #region Download temp file from the SFTP server
+                        #region Download to temp folder on local file system
                         try {
                             $params = @{
                                 Source      = $sftpTempFilePath
@@ -501,15 +502,18 @@ try {
                         }
                         #endregion
 
-                        #region Move temp file to destination folder
+                        #region Move file from local temp folder to destination folder
                         try {
-                            Write-Verbose 'Rename temp file'
-
                             $params = @{
-                                LiteralPath = Join-Path $path.Destination $tempFile.DownloadFileName
-                                NewName     = $result.FileName
+                                LiteralPath = $localTempFilePath
+                                Destination = '{0}\{1}' -f $path.destination, $result.FileName
                             }
-                            # Rename-Item @params
+
+                            Write-Verbose "Move file '$($params.LiteralPath)' to '$($params.Destination)"
+                            
+                            Move-Item @params
+
+                            $result.Action += 'File moved'
                         }
                         catch {
                             $M = "Failed to rename the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
@@ -518,25 +522,7 @@ try {
                         }
                         #endregion
 
-                        #region Remove file from the SFTP server
-                        try {
-                            Write-Verbose 'Remove temp file'
-
-                            Remove-SFTPItem @sessionParams -Path $tempFile.DownloadFilePath
-                        }
-                        catch {
-                            $M = "Failed to remove file '$($tempFile.DownloadFilePath)': $_"
-                            $Error.RemoveAt(0)
-                            throw $M
-                        }
-                        #endregion
-
-                        if ($failedFile) {
-                            $result.Action = 'File moved after previous unsuccessful move'
-                        }
-                        else {
-                            $result.Action = 'File moved'
-                        }
+                        $result.Moved = $true
                     }
                     catch {
                         $result.Error = $_
@@ -651,7 +637,8 @@ try {
                             Destination = $path.Destination
                             FileName    = $file.Name
                             FileLength  = $file.Length
-                            Action      = $null
+                            Actions     = @()
+                            Moved       = $false
                             Error       = $null
                         }
 
@@ -761,7 +748,7 @@ try {
                         }
                         #endregion
 
-                        $result.Action = 'File moved'
+                        $result.Moved = $true
                     }
                     catch {
                         #region Rename temp file back to original file name
