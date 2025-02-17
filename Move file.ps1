@@ -67,6 +67,15 @@
 .PARAMETER OverwriteFile
     When a file that is being downloaded is already present with the same name
     it will be overwritten when OverwriteFile is TRUE.
+
+.PARAMETER AttemptCount
+    How many times will we attempt to execute CmdLets that might fail on first
+    attempt. A file that is locked cannot be moved, with this counter, multiple 
+    attempts can be made.
+
+.PARAMETER WaitSecondsBetweenAttempts
+    When a CmdLet fails, the script will wait x amount of seconds before trying 
+    to execute the CmdLet again.
 #>
 
 Param (
