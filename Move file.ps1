@@ -81,12 +81,8 @@ Param (
     [String[]]$SftpOpenSshKeyFile,
     [String[]]$FileExtensions,
     [Boolean]$OverwriteFile,
-    [Int]$RetryCountOnLockedFiles = 3,
-    [Int]$RetryWaitSeconds = 3,
-    [hashtable]$PartialFileExtension = @{
-        Upload   = '.UploadInProgress'
-        Download = '.DownloadInProgress'
-    }
+    [Int]$RetryCount = 5,
+    [Int]$RetryWaitSeconds = 3
 )
 
 try {
@@ -94,6 +90,30 @@ try {
 
     $scriptBlock = {
         try {
+            $path = $_
+
+            Write-Verbose "Source '$($path.Source)' Destination '$($path.Destination)'"
+
+            #region Set defaults
+            # workaround for https://github.com/PowerShell/PowerShell/issues/16894
+            $ProgressPreference = 'SilentlyContinue'
+            $ErrorActionPreference = 'Stop'
+            #endregion
+
+            #region Declare variables for code running in parallel
+            if (-not $MaxConcurrentJobs) {
+                $VerbosePreference = $using:VerbosePreference
+
+                $SftpComputerName = $using:SftpComputerName
+                $SftpOpenSshKeyFile = $using:SftpOpenSshKeyFile
+                $sftpCredential = $using:sftpCredential
+
+                $FileExtensions = $using:FileExtensions
+                $OverwriteFile = $using:OverwriteFile
+                $RetryCount = $using:RetryCount
+                $RetryWaitSeconds = $using:RetryWaitSeconds
+            }
+            #endregion
             function Start-RetryAction {
                 <# 
                     .SYNOPSIS
@@ -106,10 +126,10 @@ try {
                 Param (
                     [Parameter(Mandatory)]
                     [scriptblock]$ScriptBlock,
-                    [ValidateRange(1, 5)]
-                    [int]$RetryCount = 5,
-                    [ValidateRange(1, 15)]
-                    [int]$RetryWaitSeconds = 5
+                    [ValidateRange(1, 25)]
+                    [int]$RetryCount = $RetryCount,
+                    [ValidateRange(1, 30)]
+                    [int]$RetryWaitSeconds = $RetryWaitSeconds
                 )
             
                 $attempt = @{
@@ -131,8 +151,10 @@ try {
                     }
                     catch {
                         if ($attempt.count -lt $RetryCount) {
-                            Write-Warning "Attempt failed, wait $RetryWaitSeconds seconds"
+                            Write-Warning "Attempt $($attempt.count)/$RetryCount failed, wait $RetryWaitSeconds seconds"
                             Start-Sleep -Seconds $RetryWaitSeconds
+                        } else {
+                            Write-Warning "Attempt $($attempt.count)/$RetryCount failed"
                         }
                         $errorMessage = $_
                         $Error.RemoveAt(0)
@@ -144,31 +166,7 @@ try {
                 }
             }
 
-            $path = $_
-
-            Write-Verbose "Source '$($path.Source)' Destination '$($path.Destination)'"
-
-            #region Set defaults
-            # workaround for https://github.com/PowerShell/PowerShell/issues/16894
-            $ProgressPreference = 'SilentlyContinue'
-            $ErrorActionPreference = 'Stop'
-            #endregion
-
-            #region Declare variables for code running in parallel
-            if (-not $MaxConcurrentJobs) {
-                $VerbosePreference = $using:VerbosePreference
-
-                $SftpComputerName = $using:SftpComputerName
-                $SftpOpenSshKeyFile = $using:SftpOpenSshKeyFile
-                $sftpCredential = $using:sftpCredential
-
-                $FileExtensions = $using:FileExtensions
-                $PartialFileExtension = $using:PartialFileExtension
-                $RetryCountOnLockedFiles = $using:RetryCountOnLockedFiles
-                $RetryWaitSeconds = $using:RetryWaitSeconds
-                $OverwriteFile = $using:OverwriteFile
-            }
-            #endregion
+            Start-RetryAction  -ScriptBlock {'test'}
 
             $tempFolder = @{
                 download = 'sftpTransfer/download' 
@@ -378,45 +376,24 @@ try {
                             Error       = $null
                         }
 
-                        #region Test file already present
+                        #region Test duplicate file
                         if (
-                            $localFile = $localFilesInDestinationFolder.where(
+                            (-not $OverwriteFile) -and 
+                            ($localFile = $localFilesInDestinationFolder.where(
                                 { $_.Name -eq $result.FileName }
-                            )
+                            ))
                         ) {
                             Write-Verbose 'Duplicate file on local file system'
+                            [PSCustomObject]@{
+                                DateTime    = $result.DateTime
+                                Source      = $result.Source
+                                Destination = $result.Destination
+                                FileName    = $result.FileName
+                                FileLength  = $result.FileLength
+                                Action      = 'Duplicate file in destination folder, use OverwriteFile if desired'
+                                Error       = $null
+                            }      
 
-                            if ($OverwriteFile) {
-                                try {
-                                    Start-RetryAction -ScriptBlock {
-                                        Write-Verbose 'Remove duplicate file'
-
-                                        $removeParams = @{
-                                            LiteralPath = $localFile.FullName
-                                            ErrorAction = 'Stop'
-                                        }
-                                        Remove-Item @removeParams
-
-                                        [PSCustomObject]@{
-                                            DateTime    = $result.DateTime
-                                            Source      = $result.Source
-                                            Destination = $result.Destination
-                                            FileName    = $result.FileName
-                                            FileLength  = $result.FileLength
-                                            Action      = 'Removed duplicate file from the file system'
-                                            Error       = $null
-                                        }         
-                                    }
-                                }
-                                catch {
-                                    $errorMessage = $_
-                                    $Error.RemoveAt(0)
-                                    throw "Failed removing duplicate file from the local file system after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
-                                }
-                            }
-                            else {
-                                throw "Duplicate file '$($result.FileName)' in folder '$($path.Destination)', use Option.OverwriteFile if desired"
-                            }
                         }
                         #endregion
 
@@ -424,14 +401,8 @@ try {
 
                         #region Rename source file to temp file on SFTP server
                         if (-not $failedFile) {
-                            $retryCount = 0
-                            $fileLocked = $true
-
-                            while (
-                                ($fileLocked) -and
-                                ($retryCount -lt $RetryCountOnLockedFiles)
-                            ) {
-                                try {
+                            try {
+                                Start-RetryAction -ScriptBlock {
                                     $params = @{
                                         Path    = $fileToDownload.FullName
                                         NewName = $tempFile.DownloadFileName
@@ -440,20 +411,12 @@ try {
                                     Write-Verbose "Rename source file on SFTP server to temp file '$($params.NewName)'"
 
                                     Rename-SFTPFile @sessionParams @params
-
-                                    $fileLocked = $false
                                 }
-                                catch {
-                                    $errorMessage = $_
-                                    $Error.RemoveAt(0)
-                                    $retryCount++
-                                    Write-Warning "File locked, wait $RetryWaitSeconds seconds, attempt $retryCount/$RetryCountOnLockedFiles"
-                                    Start-Sleep -Seconds $RetryWaitSeconds
-                                }
+                            
                             }
-
-                            if ($fileLocked) {
+                            catch {
                                 throw "Failed renaming file on the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
+                        
                             }
                         }
                         #endregion
@@ -625,41 +588,6 @@ try {
                     $errorMessage = "Failed retrieving SFTP files: $_"
                     $Error.RemoveAt(0)
                     throw $errorMessage
-                }
-                #endregion
-
-                #region Remove incomplete uploaded files from the SFTP server
-                foreach (
-                    $partialFile in
-                    $sftpFiles.where(
-                        { $_.Name -like "*$($PartialFileExtension.Upload)" }
-                    )
-                ) {
-                    try {
-                        $result = [PSCustomObject]@{
-                            DateTime    = Get-Date
-                            Source      = $path.Source
-                            Destination = $path.Destination
-                            FileName    = $partialFile.Name
-                            FileLength  = $partialFile.Length
-                            Action      = $null
-                            Error       = $null
-                        }
-
-                        Write-Verbose "Remove incomplete uploaded file '$($partialFile.FullName)'"
-
-                        Remove-SFTPItem @sessionParams -Path $partialFile.FullName
-
-                        $result.Action = 'Removed incomplete uploaded file'
-                    }
-                    catch {
-                        $result.Error = "Failed removing incomplete uploaded file: $_"
-                        Write-Warning $result.Error
-                        $Error.RemoveAt(0)
-                    }
-                    finally {
-                        $result
-                    }
                 }
                 #endregion
 

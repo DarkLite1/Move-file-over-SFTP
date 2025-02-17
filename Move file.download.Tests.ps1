@@ -172,7 +172,7 @@ Describe 'Create an object with Error property when' {
         $testResult = .$testScript @testNewParams
 
         $testResult.FileName | Should -Be 'b.txt'
-        $testResult.Error | Should -Be "Duplicate file 'b.txt' in folder '$($testNewParams.Paths.Destination)', use Option.OverwriteFile if desired"
+        $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
