@@ -178,7 +178,7 @@ try {
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
 
-                #region Get all local files and folders
+                #region Get all files and folders on local file system
                 try {
                     $localFilesAndFoldersInDestination = Get-ChildItem -LiteralPath $path.Destination -Recurse
 
@@ -192,7 +192,7 @@ try {
                 }
                 #endregion
 
-                #region Create temp local download folder
+                #region Create temp folder on local file system
                 $joinPath = @{
                     Path      = $path.Destination 
                     ChildPath = $tempFolder.download
@@ -249,7 +249,7 @@ try {
 
                 $sftpPath = $path.Source.TrimStart('sftp:')
 
-                #region Get SFTP root folder content
+                #region Get folder content on SFTP server
                 try {
                     # https://github.com/darkoperator/Posh-SSH/issues/607
                     # ErrorAction Stop not respected
@@ -266,7 +266,7 @@ try {
                 }
                 #endregion
 
-                #region Select SFTP root files to download
+                #region Select files to download on SFTP server
                 try {
                     # Only select files on root level
                     $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
@@ -295,7 +295,7 @@ try {
                 }
                 #endregion
 
-                #region Create SFTP temp download folder
+                #region Create temp folder on SFTP server
                 try {
                     $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
 
@@ -356,9 +356,9 @@ try {
 #>
                 #endregion
 
-                #region Exit when no root files to download
+                #region Exit when no files to download
                 if (-not $sftpServerFilesToDownload) {
-                    Write-Verbose 'No root folder files to download'
+                    Write-Verbose 'No files to download in source folder on SFTP server'
                     Write-Verbose 'Exit script'
                     Return
                 }
@@ -377,35 +377,6 @@ try {
                             Action      = $null
                             Error       = $null
                         }
-
-                        #region Test if the file was completely downloaded
-                        $failedFile = $false
-
-                        if (
-                            $fileToDownload.Name -like "*$($PartialFileExtension.Download)"
-                        ) {
-                            Write-Verbose 'Files was not completely downloaded'
-
-                            $failedFile = $true
-                        }
-                        #endregion
-
-                        #region Create temp name
-                        $tempFile = @{
-                            DownloadFileName = $fileToDownload.Name + $PartialFileExtension.Download
-                            DownloadFilePath = $fileToDownload.FullName +
-                            $PartialFileExtension.Download
-                        }
-
-                        if ($failedFile) {
-                            $tempFile.DownloadFileName = $fileToDownload.Name
-                            $tempFile.DownloadFilePath = $fileToDownload.FullName
-
-                            $result.FileName = $fileToDownload.Name.TrimEnd(
-                                $PartialFileExtension.Download
-                            )
-                        }
-                        #endregion
 
                         #region Test file already present
                         if (
@@ -555,35 +526,6 @@ try {
                         }
                     }
                     catch {
-                        #region Rename temp file back to original file name
-                        $testPathParams = @{
-                            LiteralPath = Join-Path $path.Destination ($result.FileName + $PartialFileExtension.Download)
-                            PathType    = 'Leaf'
-                        }
-
-                        if (Test-Path @testPathParams) {
-                            try {
-                                Write-Warning 'Download failed'
-                                Write-Verbose "Remove incomplete downloaded file '$($testPathParams.LiteralPath)'"
-
-                                $testPathParams.LiteralPath | Remove-Item
-                            }
-                            catch {
-                                [PSCustomObject]@{
-                                    DateTime    = Get-Date
-                                    Source      = $result.Source
-                                    Destination = $result.Destination
-                                    FileName    = ($result.FileName + $PartialFileExtension.Download)
-                                    FileLength  = $result.FileLength
-                                    Action      = $null
-                                    Error       = "Failed to remove incomplete downloaded file '$($testPathParams.LiteralPath)': $_"
-                                }
-
-                                $Error.RemoveAt(0)
-                            }
-                        }
-                        #endregion
-
                         $result.Error = $_
                         Write-Warning $_
                         $Error.RemoveAt(0)

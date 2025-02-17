@@ -152,330 +152,340 @@ Describe 'Create an object with Error property when' {
         } 
     }
     it 'a duplicate file is in the destination folder and OverWriteFile is false' {
+        Mock Get-SFTPChildItem {
+            @{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+            }
+        }
+
         $testNewParams = Copy-ObjectHC $testParams
         $testNewParams.OverwriteFile = $false
 
-        $testFile = New-Item "$($testNewParams.Paths.Destination)\$($testFiles[0].Name)" -ItemType 'File'
+        @(
+            "$($testNewParams.Paths.Destination)\b.txt"
+        ).ForEach(
+            { New-Item -Path $_ -ItemType 'File' }
+        )
 
         $testResult = .$testScript @testNewParams
 
-        $testResult.FileName | Should -Be $testFile.Name
-        $testResult.Error | Should -Be "Duplicate file '$($testFile.Name)' in folder '$($testNewParams.Paths.Destination)', use Option.OverwriteFile if desired"
+        $testResult.FileName | Should -Be 'b.txt'
+        $testResult.Error | Should -Be "Duplicate file 'b.txt' in folder '$($testNewParams.Paths.Destination)', use Option.OverwriteFile if desired"
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
     }  -Tag test
 }
-Describe 'Download from the SFTP server' {
-    Context 'when files are found on the SFTP server' {
-        BeforeAll {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths = @(
-                @{
-                    Source      = 'sftp:/data/'
-                    Destination = (New-Item 'TestDrive:/ll' -ItemType 'Directory').FullName
-                }
-            )
+Describe 'When files are found on the SFTP server' {
+    BeforeAll {
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.Paths = @(
+            @{
+                Source      = 'sftp:/data/'
+                Destination = (New-Item 'TestDrive:/ll' -ItemType 'Directory').FullName
+            }
+        )
 
-            $destinationFolder = $testNewParams.Destination.FullName
+        $destinationFolder = $testNewParams.Destination.FullName
 
-            $testDataOnSftpServer = @(
-                @{
-                    Name        = 'z.txt' 
-                    FullName    = '/sftpTransfer/download/z.txt' 
-                    IsDirectory = $false
-                }
-                @{
-                    Name        = 'a.txt' 
-                    FullName    = '/data/a.txt' 
-                    IsDirectory = $false
-                }
-            )
+        $testDataOnSftpServer = @(
+            @{
+                Name        = 'z.txt' 
+                FullName    = '/sftpTransfer/download/z.txt' 
+                IsDirectory = $false
+            }
+            @{
+                Name        = 'a.txt' 
+                FullName    = '/data/a.txt' 
+                IsDirectory = $false
+            }
+        )
 
-            $testDataLocal = @(
-                @{
-                    Name        = 'a.txt' 
-                    Directory   = $destinationFolder
-                    IsDirectory = $false
-                }
-            )
+        $testDataLocal = @(
+            @{
+                Name        = 'a.txt' 
+                Directory   = $destinationFolder
+                IsDirectory = $false
+            }
+        )
 
-            Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths.Destination -Name 'a.txt' -ItemType 'File'
-            } -ParameterFilter {
+        Mock Get-SFTPItem {
+            $null = New-Item -Path $testNewParams.Paths.Destination -Name 'a.txt' -ItemType 'File'
+        } -ParameterFilter {
                 ($Path -eq '/data/a.txt') -and
                 ($Destination -eq $testNewParams.Paths.Destination)
-            }
+        }
 
-            Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths.Destination -Name 'b.txt' -ItemType 'File'
-            } -ParameterFilter {
+        Mock Get-SFTPItem {
+            $null = New-Item -Path $testNewParams.Paths.Destination -Name 'b.txt' -ItemType 'File'
+        } -ParameterFilter {
                 ($Path -eq '/data/b.txt') -and
                 ($Destination -eq $testNewParams.Paths.Destination)
-            }
+        }
 
-            Mock Get-SFTPItem {
-                $null = New-Item -Path $testNewParams.Paths.Destination -Name 'c.txt' -ItemType 'File'
-            } -ParameterFilter {
+        Mock Get-SFTPItem {
+            $null = New-Item -Path $testNewParams.Paths.Destination -Name 'c.txt' -ItemType 'File'
+        } -ParameterFilter {
                 ($Path -eq '/data/d.txt') -and
                 ($Destination -eq $testNewParams.Paths.Destination)
-            }
-
-            $testIncompleteFile = New-Item -Path $testNewParams.Paths.Destination -Name 'k.txt' -ItemType 'File'
-
-            $testCompleteFile = New-Item -Path $testNewParams.Paths.Destination -Name 'y.txt' -ItemType 'File'
-
-            $testResults = .$testScript @testNewParams
         }
-        It 'call Get-SFTPChildItem to retrieve the SFTP list' {
-            Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Context
-        } #  -Tag test
-        It 'create temp folder on SFTP server' {
-            $testResult = .$testScript @testParams
 
-            should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
+        $testIncompleteFile = New-Item -Path $testNewParams.Paths.Destination -Name 'k.txt' -ItemType 'File'
+
+        $testCompleteFile = New-Item -Path $testNewParams.Paths.Destination -Name 'y.txt' -ItemType 'File'
+
+        $testResults = .$testScript @testNewParams
+    }
+    It 'call Get-SFTPChildItem to retrieve the SFTP list' {
+        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Context
+    } #-Tag test
+    It 'create temp folder on SFTP server' {
+        $testResult = .$testScript @testParams
+
+        should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
                 ($Path -eq '/report/sftpTransfer/download' ) -and
                 ($ItemType -eq 'Directory') -and
                 ($Recurse)
-            }
         }
-        It 'create temp folder on local file system' {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testJoinParams = @{
-                Path      = $testNewParams.Paths.Destination 
-                ChildPath = 'sftpTransfer/download' 
-            }
-            $testLocalDownloadPath = Join-Path @testJoinParams
+    }
+    It 'create temp folder on local file system' {
+        $testNewParams = Copy-ObjectHC $testParams
+        $testJoinParams = @{
+            Path      = $testNewParams.Paths.Destination 
+            ChildPath = 'sftpTransfer/download' 
+        }
+        $testLocalDownloadPath = Join-Path @testJoinParams
 
-            $testResult = .$testScript @testNewParams
+        $testResult = .$testScript @testNewParams
 
-            $testLocalDownloadPath | Should -Exist
-        }
-        It 'incomplete downloaded files are removed from the download folder' {
-            $testIncompleteFile | Should -Not -Exist
-        }
-        It 'fully downloaded files in the download folder are left untouched' {
-            $testCompleteFile | Should -Exist
-        }
-        It 'call Get-SFTPItem to download all temp file' {
-            $testFiles[0..1] | ForEach-Object {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+        $testLocalDownloadPath | Should -Exist
+    }
+    It 'incomplete downloaded files are removed from the download folder' {
+        $testIncompleteFile | Should -Not -Exist
+    }
+    It 'fully downloaded files in the download folder are left untouched' {
+        $testCompleteFile | Should -Exist
+    }
+    It 'call Get-SFTPItem to download all temp file' {
+        $testFiles[0..1] | ForEach-Object {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths.Destination) -and
                     ($SessionId -eq 1)
-                }
             }
-            $testFiles[2] | ForEach-Object {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+        }
+        $testFiles[2] | ForEach-Object {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths.Destination) -and
                     ($SessionId -eq 1)
-                }
-            }
-        }
-        It 'remove temp file on the SFTP server' {
-            Should -Invoke Remove-SFTPItem -Times 3 -Exactly -Scope Context
-
-            $testFiles[0.1].FullName | ForEach-Object {
-                Should -Invoke Remove-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    $Path -eq "$_"
-                }
-            }
-            $testFiles[2].FullName | ForEach-Object {
-                Should -Invoke Remove-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    $Path -eq $_
-                }
-            }
-        }
-        Context 'return an object with results for' {
-            It 'normally downloaded files' {
-                foreach ($testFile in $testFiles[0..1]) {
-                    $actual = $testResults.where(
-                        { $_.FileName -eq $testFile.Name }
-                    )
-
-                    $actual.DateTime | Should -Not -BeNullOrEmpty
-                    $actual.Source | Should -Be $testNewParams.Paths.Source
-                    $actual.Destination | Should -Be $testNewParams.Paths.Destination
-                    $actual.FileLength | Should -Not -BeNullOrEmpty
-                    $actual.Action | Should -Be 'File moved'
-                    $actual.Error | Should -BeNullOrEmpty
-                }
-            }
-            It 'downloaded files that failed in the previous run' {
-                foreach ($testFile in $testFiles[2]) {
-                    $actual = $testResults.where(
-                        { $_.FileName -eq $testFile.Name }
-                    )
-
-                    $actual.DateTime | Should -Not -BeNullOrEmpty
-                    $actual.Source | Should -Be $testNewParams.Paths.Source
-                    $actual.Destination | Should -Be $testNewParams.Paths.Destination
-                    $actual.FileLength | Should -Not -BeNullOrEmpty
-                    $actual.Action | Should -Be 'File moved after previous unsuccessful move'
-                    $actual.Error | Should -BeNullOrEmpty
-                }
-            }
-            It 'removed incomplete files from the destination folder' {
-                foreach ($testFile in $testIncompleteFile) {
-                    $actual = $testResults.where(
-                        { $_.FileName -eq $testFile.Name }
-                    )
-
-                    $actual.DateTime | Should -Not -BeNullOrEmpty
-                    $actual.Source | Should -Be $testNewParams.Paths.Source
-                    $actual.Destination | Should -Be $testNewParams.Paths.Destination
-                    $actual.FileLength | Should -Not -BeNullOrEmpty
-                    $actual.Action | Should -Be "Removed incomplete downloaded file '$($actual.FullName)'"
-                    $actual.Error | Should -BeNullOrEmpty
-                }
             }
         }
     }
-    Context 'OverwriteFile' {
-        BeforeAll {
-            $testSFtpFile = @{
-                Name     = 'a.txt'
-                FullName = '\data\a.txt'
-            }
+    It 'remove temp file on the SFTP server' {
+        Should -Invoke Remove-SFTPItem -Times 3 -Exactly -Scope Context
 
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths = @(
-                @{
-                    Source      = 'sftp:/data/'
-                    Destination = (New-Item 'TestDrive:/y' -ItemType 'Directory').FullName
-                }
-            )
-
-            $testFile = New-Item "$($testNewParams.Paths.Destination)\$($testSFtpFile.Name)" -ItemType 'File'
-
-            Mock Get-SFTPChildItem {
-                $testSFtpFile
-            }
-            Mock Get-SFTPItem {
-                $null = New-Item -Path $testFile.FullName -ItemType 'File'
+        $testFiles[0.1].FullName | ForEach-Object {
+            Should -Invoke Remove-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                $Path -eq "$_"
             }
         }
-        Context 'true' {
-            BeforeAll {
-                $testNewParams.OverwriteFile = $true
-
-                $testResults = .$testScript @testNewParams
-            }
-            It '2 objects are returned' {
-                $testResults | Should -HaveCount 2
-            }
-            It 'one object for the removed duplicate file' {
-                $testResults[0].FileName | Should -Be $testFile.Name
-                $testResults[0].Action | Should -Be 'Removed duplicate file from the file system'
-            }
-            It 'one object for the downloaded file' {
-                $testResults[1].FileName | Should -Be $testFile.Name
-                $testResults[1].Action | Should -Be 'File moved'
-            }
-            It 'call Get-SFTPItem to download the file' {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context
-            }
-        }
-        Context 'false' {
-            BeforeAll {
-                if (-not (Test-Path $testFile)) {
-                    $null = New-Item $testFile -ItemType File
-                }
-
-                $testNewParams.OverwriteFile = $false
-
-                $Error.Clear()
-
-                $testResults = .$testScript @testNewParams
-            }
-            It 'do not call Get-SFTPItem to download the file' {
-                Should -Not -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context
-            }
-            It '1 object is returned' {
-                $testResults | Should -HaveCount 1
-
-                $testResults.FileName | Should -Be $testFile.Name
-                $testResults.Error | Should -Be "Duplicate file '$($testFile.Name)' in folder '$($testNewParams.Paths.Destination)', use Option.OverwriteFile if desired"
-            }
-            It 'errors are handled within the script' {
-                $error | Should -HaveCount 0
+        $testFiles[2].FullName | ForEach-Object {
+            Should -Invoke Remove-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                $Path -eq $_
             }
         }
     }
-    Context 'when FileExtensions is' {
-        BeforeAll {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths = @(
-                @{
-                    Source      = 'sftp:/data/'
-                    Destination = (New-Item 'TestDrive:\pl' -ItemType 'Directory').FullName
-                }
-            )
+    Context 'return an object with results for' {
+        It 'normally downloaded files' {
+            foreach ($testFile in $testFiles[0..1]) {
+                $actual = $testResults.where(
+                    { $_.FileName -eq $testFile.Name }
+                )
 
-            $testData = @(
-                @{
-                    Name        = 'a.txt'
-                    FullName    = '/data/a.txt'
-                    isDirectory = $false
-                }
-                @{
-                    Name        = 'b.jpg'
-                    FullName    = '/data/b.jpg'
-                    isDirectory = $false
-                }
-                @{
-                    Name        = 'c.docx'
-                    FullName    = '/data/c.docx'
-                    isDirectory = $false
-                }
-                @{
-                    Name        = 'folder'
-                    FullName    = '/data/folder'
-                    isDirectory = $true
-                }
-            )
-
-            $testFiles = $testData.where(
-                { -not $_.isDirectory }
-            )
-
-            Mock Get-SFTPChildItem {
-                $testData
+                $actual.DateTime | Should -Not -BeNullOrEmpty
+                $actual.Source | Should -Be $testNewParams.Paths.Source
+                $actual.Destination | Should -Be $testNewParams.Paths.Destination
+                $actual.FileLength | Should -Not -BeNullOrEmpty
+                $actual.Action | Should -Be 'File moved'
+                $actual.Error | Should -BeNullOrEmpty
             }
         }
-        It 'empty, all files are downloaded' {
-            $testNewParams.FileExtensions = @()
+        It 'downloaded files that failed in the previous run' {
+            foreach ($testFile in $testFiles[2]) {
+                $actual = $testResults.where(
+                    { $_.FileName -eq $testFile.Name }
+                )
 
-            .$testScript @testNewParams
+                $actual.DateTime | Should -Not -BeNullOrEmpty
+                $actual.Source | Should -Be $testNewParams.Paths.Source
+                $actual.Destination | Should -Be $testNewParams.Paths.Destination
+                $actual.FileLength | Should -Not -BeNullOrEmpty
+                $actual.Action | Should -Be 'File moved after previous unsuccessful move'
+                $actual.Error | Should -BeNullOrEmpty
+            }
+        }
+        It 'removed incomplete files from the destination folder' {
+            foreach ($testFile in $testIncompleteFile) {
+                $actual = $testResults.where(
+                    { $_.FileName -eq $testFile.Name }
+                )
 
-            $testFiles | ForEach-Object {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
+                $actual.DateTime | Should -Not -BeNullOrEmpty
+                $actual.Source | Should -Be $testNewParams.Paths.Source
+                $actual.Destination | Should -Be $testNewParams.Paths.Destination
+                $actual.FileLength | Should -Not -BeNullOrEmpty
+                $actual.Action | Should -Be "Removed incomplete downloaded file '$($actual.FullName)'"
+                $actual.Error | Should -BeNullOrEmpty
+            }
+        }
+    }
+}
+Describe 'OverwriteFile' {
+    BeforeAll {
+        $testSFtpFile = @{
+            Name     = 'a.txt'
+            FullName = '\data\a.txt'
+        }
+
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.Paths = @(
+            @{
+                Source      = 'sftp:/data/'
+                Destination = (New-Item 'TestDrive:/y' -ItemType 'Directory').FullName
+            }
+        )
+
+        $testFile = New-Item "$($testNewParams.Paths.Destination)\$($testSFtpFile.Name)" -ItemType 'File'
+
+        Mock Get-SFTPChildItem {
+            $testSFtpFile
+        }
+        Mock Get-SFTPItem {
+            $null = New-Item -Path $testFile.FullName -ItemType 'File'
+        }
+    }
+    Context 'true' {
+        BeforeAll {
+            $testNewParams.OverwriteFile = $true
+
+            $testResults = .$testScript @testNewParams
+        }
+        It '2 objects are returned' {
+            $testResults | Should -HaveCount 2
+        }
+        It 'one object for the removed duplicate file' {
+            $testResults[0].FileName | Should -Be $testFile.Name
+            $testResults[0].Action | Should -Be 'Removed duplicate file from the file system'
+        }
+        It 'one object for the downloaded file' {
+            $testResults[1].FileName | Should -Be $testFile.Name
+            $testResults[1].Action | Should -Be 'File moved'
+        }
+        It 'call Get-SFTPItem to download the file' {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context
+        }
+    }
+    Context 'false' {
+        BeforeAll {
+            if (-not (Test-Path $testFile)) {
+                $null = New-Item $testFile -ItemType File
+            }
+
+            $testNewParams.OverwriteFile = $false
+
+            $Error.Clear()
+
+            $testResults = .$testScript @testNewParams
+        }
+        It 'do not call Get-SFTPItem to download the file' {
+            Should -Not -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context
+        }
+        It '1 object is returned' {
+            $testResults | Should -HaveCount 1
+
+            $testResults.FileName | Should -Be $testFile.Name
+            $testResults.Error | Should -Be "Duplicate file '$($testFile.Name)' in folder '$($testNewParams.Paths.Destination)', use Option.OverwriteFile if desired"
+        }
+        It 'errors are handled within the script' {
+            $error | Should -HaveCount 0
+        }
+    }
+}
+Describe 'when FileExtensions is' {
+    BeforeAll {
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.Paths = @(
+            @{
+                Source      = 'sftp:/data/'
+                Destination = (New-Item 'TestDrive:\pl' -ItemType 'Directory').FullName
+            }
+        )
+
+        $testData = @(
+            @{
+                Name        = 'a.txt'
+                FullName    = '/data/a.txt'
+                isDirectory = $false
+            }
+            @{
+                Name        = 'b.jpg'
+                FullName    = '/data/b.jpg'
+                isDirectory = $false
+            }
+            @{
+                Name        = 'c.docx'
+                FullName    = '/data/c.docx'
+                isDirectory = $false
+            }
+            @{
+                Name        = 'folder'
+                FullName    = '/data/folder'
+                isDirectory = $true
+            }
+        )
+
+        $testFiles = $testData.where(
+            { -not $_.isDirectory }
+        )
+
+        Mock Get-SFTPChildItem {
+            $testData
+        }
+    }
+    It 'empty, all files are downloaded' {
+        $testNewParams.FileExtensions = @()
+
+        .$testScript @testNewParams
+
+        $testFiles | ForEach-Object {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
                     ($Path -eq $_.FullName) -and
                     ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
-                }
             }
-            Should -Invoke Get-SFTPItem -Times $testFiles.Count -Exactly 
         }
-        It 'not empty, only specific files are downloaded' {
-            $testNewParams.FileExtensions = @('.txt', '.jpg')
+        Should -Invoke Get-SFTPItem -Times $testFiles.Count -Exactly 
+    }
+    It 'not empty, only specific files are downloaded' {
+        $testNewParams.FileExtensions = @('.txt', '.jpg')
 
-            .$testScript @testNewParams
+        .$testScript @testNewParams
 
-            Should -Invoke Get-SFTPItem -Times 2 -Exactly
+        Should -Invoke Get-SFTPItem -Times 2 -Exactly
 
-            $testFiles.Where(
-                {
+        $testFiles.Where(
+            {
                     ($_.Name -like '*.txt') -or
                     ($_.Name -like '*.jpg')
-                }
-            ) | ForEach-Object {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
+            }
+        ) | ForEach-Object {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -ParameterFilter {
                     ($Path -eq "$($_.FullName)") -and
                     ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
-                }
             }
         }
     }
