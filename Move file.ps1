@@ -81,8 +81,8 @@ Param (
     [String[]]$SftpOpenSshKeyFile,
     [String[]]$FileExtensions,
     [Boolean]$OverwriteFile,
-    [Int]$RetryCount = 5,
-    [Int]$RetryWaitSeconds = 3
+    [Int]$AttemptCount = 5,
+    [Int]$WaitSecondsBetweenAttempts = 3
 )
 
 try {
@@ -102,9 +102,9 @@ try {
                 [Parameter(Mandatory)]
                 [scriptblock]$ScriptBlock,
                 [ValidateRange(1, 25)]
-                [int]$RetryCount = $RetryCount,
+                [int]$RetryCount = $AttemptCount,
                 [ValidateRange(1, 30)]
-                [int]$RetryWaitSeconds = $RetryWaitSeconds
+                [int]$WaitSecondsBetweenAttempts = $WaitSecondsBetweenAttempts
             )
         
             $attempt = @{
@@ -114,23 +114,23 @@ try {
         
             while (
                 (-not $attempt.success) -and
-                ($attempt.count -lt $RetryCount)
+                ($attempt.count -lt $AttemptCount)
             ) {
                 try {
                     $attempt.count++
-                    Write-Verbose "Attempt $($attempt.count)/$RetryCount"
+                    Write-Verbose "Attempt $($attempt.count)/$AttemptCount"
         
                     & $ScriptBlock -ErrorAction 'Stop'
         
                     $attempt.success = $true
                 }
                 catch {
-                    if ($attempt.count -lt $RetryCount) {
-                        Write-Warning "Attempt $($attempt.count)/$RetryCount failed, wait $RetryWaitSeconds seconds"
-                        Start-Sleep -Seconds $RetryWaitSeconds
+                    if ($attempt.count -lt $AttemptCount) {
+                        Write-Warning "Attempt $($attempt.count)/$AttemptCount failed, wait $WaitSecondsBetweenAttempts seconds"
+                        Start-Sleep -Seconds $WaitSecondsBetweenAttempts
                     }
                     else {
-                        Write-Warning "Attempt $($attempt.count)/$RetryCount failed"
+                        Write-Warning "Attempt $($attempt.count)/$AttemptCount failed"
                     }
                     $errorMessage = $_
                     $Error.RemoveAt(0)
@@ -163,8 +163,8 @@ try {
 
                 $FileExtensions = $using:FileExtensions
                 $OverwriteFile = $using:OverwriteFile
-                $RetryCount = $using:RetryCount
-                $RetryWaitSeconds = $using:RetryWaitSeconds
+                $AttemptCount = $using:AttemptCount
+                $WaitSecondsBetweenAttempts = $using:WaitSecondsBetweenAttempts
             }
             #endregion
 
@@ -232,11 +232,11 @@ try {
 
                     $sftpSession = New-SFTPSession @params
 
-                    Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
-
                     $sessionParams = @{
                         SessionId = $sftpSession.SessionID
                     }
+
+                    Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
                 }
                 catch {
                     $M = "Failed creating an SFTP session to '$SftpComputerName': $_"
@@ -394,6 +394,7 @@ try {
                                 Error       = $null
                             }      
 
+                            continue
                         }
                         #endregion
 
