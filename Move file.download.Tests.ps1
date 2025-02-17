@@ -31,6 +31,7 @@ BeforeAll {
     Mock Rename-SFTPFile
     Mock Remove-SFTPItem
     Mock Remove-SFTPSession
+    Mock Test-SFTPPath
     Mock New-SFTPSession {
         [PSCustomObject]@{
             SessionID = 1
@@ -187,9 +188,44 @@ Describe 'when there are no files on the SFTP server' {
         $testResult = .$testScript @testParams
 
         $testResult | Should -BeNullOrEmpty
+        Should -Invoke Get-SFTPChildItem
+        @(
+            'Get-SFTPItem',
+            'Move-SFTPItem',
+            'Rename-SFTPFile',
+            'Test-SFTPPath'
+        ).ForEach(
+            { Should -Not -Invoke $_ }
+        )
+    }
+} -Tag test
+Describe 'when a file is found on the SFTP server' {
+    It '' {
+        Mock Get-SFTPChildItem {
+            @{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+            }
+        }
+
+        $testNewParams = Copy-ObjectHC $testParams
+        $testNewParams.OverwriteFile = $false
+
+        @(
+            "$($testNewParams.Paths.Destination)\b.txt"
+        ).ForEach(
+            { New-Item -Path $_ -ItemType 'File' }
+        )
+
+        $testResult = .$testScript @testNewParams
+
+        $testResult.FileName | Should -Be 'b.txt'
+        $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
+
         Should -Not -Invoke Get-SFTPItem
-        Should -Not -Invoke Move-SFTPItem
-    } -Tag test
+        Should -Not -Invoke Rename-SFTPFile
+    }
 }
 Describe 'When files are found on the SFTP server' {
     BeforeAll {
@@ -253,7 +289,7 @@ Describe 'When files are found on the SFTP server' {
     }
     It 'call Get-SFTPChildItem to retrieve the SFTP list' {
         Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Context
-    } #-Tag test
+    } -Tag test
     It 'create temp folder on SFTP server' {
         $testResult = .$testScript @testParams
 
