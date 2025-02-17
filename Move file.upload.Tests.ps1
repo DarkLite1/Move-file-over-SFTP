@@ -12,12 +12,10 @@ BeforeAll {
     $testParams = @{
         SftpComputerName  = 'PC1'
         SftpCredential    = New-Object @params
-        Paths             = @(
-            @{
-                Source      = (New-Item 'TestDrive:/f1' -ItemType 'Directory').FullName
-                Destination = 'sftp:/data/'
-            }
-        )
+        Paths             = @{
+            Source      = (New-Item 'TestDrive:/f1' -ItemType 'Directory').FullName
+            Destination = 'sftp:/data/'
+        }
         MaxConcurrentJobs = 1
         FileExtensions    = @()
         OverwriteFile     = $false
@@ -52,12 +50,12 @@ Describe 'Upload to SFTP server' {
     Context 'create an object with Error property when' {
         It 'Paths.Source does not exist' {
             $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.Paths[0].Source = 'c:\doesNotExist'
+            $testNewParams.Paths.Source = 'c:\doesNotExist'
 
             $testResult = .$testScript @testNewParams
 
             $testResult.Error |
-            Should -Be "Path '$($testNewParams.Paths[0].Source)' not found on the file system"
+            Should -Be "Path '$($testNewParams.Paths.Source)' not found on the file system"
         }
         It 'the SFTP path does not exist' {
             $testNewParams = Copy-ObjectHC $testParams
@@ -149,7 +147,7 @@ Describe 'Upload to SFTP server' {
             )
 
             $testFiles = @('file1.txt', 'file2.txt', 'file3.txt') | ForEach-Object {
-                New-Item "$($testNewParams.Paths[0].Source)\$_" -ItemType 'File'
+                New-Item "$($testNewParams.Paths.Source)\$_" -ItemType 'File'
             }
 
             $testResults = .$testScript @testNewParams
@@ -158,7 +156,7 @@ Describe 'Upload to SFTP server' {
             $testFiles | ForEach-Object {
                 Should -Invoke Set-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($Path -eq "$($_.FullName).UploadInProgress") -and
-                    ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
+                    ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
                 }
             }
@@ -166,7 +164,7 @@ Describe 'Upload to SFTP server' {
         It 'call Rename-SFTPFile to rename the temp file' {
             $testFiles | ForEach-Object {
                 Should -Invoke Rename-SFTPFile -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    ($Path -eq ($testNewParams.Paths[0].Destination.TrimStart('sftp:') + $_.Name + ".UploadInProgress")) -and
+                    ($Path -eq ($testNewParams.Paths.Destination.TrimStart('sftp:') + $_.Name + ".UploadInProgress")) -and
                     ($NewName -eq $_.Name) -and
                     ($SessionId -eq 1)
                 }
@@ -186,8 +184,8 @@ Describe 'Upload to SFTP server' {
                 )
 
                 $actual.DateTime | Should -Not -BeNullOrEmpty
-                $actual.Source | Should -Be $testNewParams.Paths[0].Source
-                $actual.Destination | Should -Be $testNewParams.Paths[0].Destination
+                $actual.Source | Should -Be $testNewParams.Paths.Source
+                $actual.Destination | Should -Be $testNewParams.Paths.Destination
                 $actual.FileLength | Should -Not -BeNullOrEmpty
                 $actual.Action | Should -Be 'File moved'
                 $actual.Error | Should -BeNullOrEmpty
@@ -209,7 +207,7 @@ Describe 'Upload to SFTP server' {
                 }
             )
 
-            $testFile = New-Item "$($testNewParams.Paths[0].Source)\$($testSFtpFile.Name)" -ItemType 'File'
+            $testFile = New-Item "$($testNewParams.Paths.Source)\$($testSFtpFile.Name)" -ItemType 'File'
 
             Mock Get-SFTPChildItem {
                 $testSFtpFile
@@ -233,7 +231,7 @@ Describe 'Upload to SFTP server' {
             It 'return an object with results' {
                 $testResults | Should -HaveCount 2
 
-                $testResults[0].Action | Should -Be 'Removed duplicate file from SFTP server'
+                $testResults.Action[0] | Should -Be 'Removed duplicate file from SFTP server'
             }
         }
         Context 'false' {
@@ -274,7 +272,7 @@ Describe 'Upload to SFTP server' {
                 'file.xml'
                 'file.jpg'
             ) | ForEach-Object {
-                New-Item -Path (Join-Path $testNewParams.Paths[0].Source $_) -ItemType 'File'
+                New-Item -Path (Join-Path $testNewParams.Paths.Source $_) -ItemType 'File'
             }
 
             .$testScript @testNewParams
@@ -282,7 +280,7 @@ Describe 'Upload to SFTP server' {
             $testFiles | ForEach-Object {
                 Should -Invoke Set-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($Path -eq "$($_.FullName).UploadInProgress") -and
-                    ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
+                    ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
                 }
             }
@@ -295,7 +293,7 @@ Describe 'Upload to SFTP server' {
                 'file.xml'
                 'file.jpg'
             ) | ForEach-Object {
-                New-Item -Path (Join-Path $testNewParams.Paths[0].Source $_) -ItemType 'File'
+                New-Item -Path (Join-Path $testNewParams.Paths.Source $_) -ItemType 'File'
             }
 
             .$testScript @testNewParams
@@ -306,7 +304,7 @@ Describe 'Upload to SFTP server' {
                 if ($testFile.Extension -eq '.jpg') {
                     Should -Not -Invoke Set-SFTPItem -ParameterFilter {
                         ($Path -eq "$($testFile.FullName).UploadInProgress") -and
-                        ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
+                        ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                         ($SessionId -eq 1)
                     }
                     Continue
@@ -314,7 +312,7 @@ Describe 'Upload to SFTP server' {
 
                 Should -Invoke Set-SFTPItem -Times 1 -Exactly -ParameterFilter {
                     ($Path -eq "$($testFile.FullName).UploadInProgress") -and
-                    ($Destination -eq $testNewParams.Paths[0].Destination.TrimStart('sftp:')) -and
+                    ($Destination -eq $testNewParams.Paths.Destination.TrimStart('sftp:')) -and
                     ($SessionId -eq 1)
                 }
             }
