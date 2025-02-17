@@ -87,7 +87,7 @@ Describe 'Create an object with Error property when' {
             $testResult = .$testScript @testNewParams
 
             $testResult.Error |
-            should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
@@ -103,7 +103,7 @@ Describe 'Create an object with Error property when' {
             $testResult = .$testScript @testNewParams
 
             $testResult.Error |
-            should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
             Should -Not -Invoke Get-SFTPItem
             Should -Not -Invoke Rename-SFTPFile
@@ -116,7 +116,7 @@ Describe 'Create an object with Error property when' {
         $testResult = .$testScript @testNewParams
 
         $testResult.Error |
-        Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
+            Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
@@ -133,7 +133,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike "*Oops"
+            $testResult.Error | Should -BeLike '*Oops'
 
             $error | Should -HaveCount 0
         }
@@ -148,12 +148,12 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike "*Oops"
+            $testResult.Error | Should -BeLike '*Oops'
 
             $error | Should -HaveCount 0
         } 
     }
-    it 'a duplicate file is in the destination folder and OverWriteFile is false' {
+    It 'a duplicate file is in the destination folder and OverWriteFile is false' {
         Mock Get-SFTPChildItem {
             @{
                 Name        = 'b.txt'
@@ -178,7 +178,18 @@ Describe 'Create an object with Error property when' {
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
-    }  -Tag test
+    }
+}
+Describe 'when there are no files on the SFTP server' {
+    It 'nothing is done' {
+        Mock Get-SFTPChildItem 
+
+        $testResult = .$testScript @testParams
+
+        $testResult | Should -BeNullOrEmpty
+        Should -Not -Invoke Get-SFTPItem
+        Should -Not -Invoke Move-SFTPItem
+    } -Tag test
 }
 Describe 'When files are found on the SFTP server' {
     BeforeAll {
@@ -246,7 +257,7 @@ Describe 'When files are found on the SFTP server' {
     It 'create temp folder on SFTP server' {
         $testResult = .$testScript @testParams
 
-        should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
+        Should -Invoke New-SFTPItem -Times 1 -Exactly -ParameterFilter {
                 ($Path -eq '/report/sftpTransfer/download' ) -and
                 ($ItemType -eq 'Directory') -and
                 ($Recurse)
