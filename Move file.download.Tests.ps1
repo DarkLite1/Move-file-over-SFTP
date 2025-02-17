@@ -217,6 +217,15 @@ Describe 'When a file is found on the SFTP server' {
             }
         }
 
+        Mock Move-SFTPItem {
+            $testNewItemParams = @{
+                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                $testParams.Paths.Destination
+                ItemType = 'File '
+            }
+            New-Item @testNewItemParams
+        }
+    
         $testResult = .$testScript @testParams
     }
     It 'Get list of files on the SFTP server' {
@@ -244,6 +253,9 @@ Describe 'When a file is found on the SFTP server' {
             ($Path -eq '/report/b.txt') -and
             ($Destination -eq '/report/sftpTransfer/download/b.txt' )
         }
+    }
+    It 'Download file from the temp folder on the SFTP server to the temp folder on the local file system' {
+
     }
 } -Tag test
 Describe 'When files are found on the SFTP server' {
