@@ -665,7 +665,6 @@ try {
                                 Write-Verbose "Rename source file to temp file '$($tempFile.UploadFileName)'"
                                 $file |
                                 Rename-Item -NewName $tempFile.UploadFileName
-                                $fileLocked = $false
                             }
                         }
                         catch {
