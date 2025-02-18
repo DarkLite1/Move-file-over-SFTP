@@ -715,11 +715,19 @@ try {
                                     }          
                                 }
                                 catch {
-                                    throw "Failed removing duplicate file from the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
+                                    Save-ErrorMessageHC "Failed removing duplicate file from the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
+
+                                    $Error.RemoveAt(0)
+
+                                    continue
                                 }
                             }
                             else {
-                                throw 'Duplicate file on SFTP server, use Option.OverwriteFile if desired'
+                                Save-ErrorMessageHC 'Duplicate file on SFTP server, use Option.OverwriteFile if desired'
+
+                                $Error.RemoveAt(0)
+
+                                continue
                             }
                         }
                         #endregion
@@ -735,7 +743,11 @@ try {
                             }
                         }
                         catch {
-                            throw "Failed renaming the source file: File in use: $_"
+                            Save-ErrorMessageHC "Failed renaming the source file: File in use: $_"
+
+                            $Error.RemoveAt(0)
+
+                            continue
                         }
                         #endregion
 
@@ -750,9 +762,11 @@ try {
                             Set-SFTPItem @sessionParams @params
                         }
                         catch {
-                            $errorMessage = "Failed to upload file '$($tempFile.UploadFilePath)': $_"
+                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.UploadFilePath)': $_"
+
                             $Error.RemoveAt(0)
-                            throw $errorMessage
+
+                            continue
                         }
                         #endregion
 
@@ -767,9 +781,11 @@ try {
                             Rename-SFTPFile @sessionParams @params
                         }
                         catch {
-                            $errorMessage = "Failed to rename the file on the SFTP server from '$($tempFile.UploadFileName)' to '$($result.FileName)': $_"
+                            Save-ErrorMessageHC "Failed to rename the file on the SFTP server from '$($tempFile.UploadFileName)' to '$($result.FileName)': $_"
+                       
                             $Error.RemoveAt(0)
-                            throw $errorMessage
+
+                            continue
                         }
                         #endregion
 
@@ -780,9 +796,11 @@ try {
                             $tempFile.UploadFilePath | Remove-Item -Force
                         }
                         catch {
-                            $errorMessage = "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
+                            Save-ErrorMessageHC "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
+                            
                             $Error.RemoveAt(0)
-                            throw $errorMessage
+
+                            continue
                         }
                         #endregion
 
@@ -816,8 +834,7 @@ try {
                         }
                         #endregion
 
-                        $result.Errors += $_
-                        Write-Warning $_
+                        Save-ErrorMessageHC $_
                         $Error.RemoveAt(0)
                     }
                     finally {
