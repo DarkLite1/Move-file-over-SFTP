@@ -422,12 +422,10 @@ try {
                         }
 
                         #region Test duplicate file
-                        if (
-                            (-not $OverwriteFile) -and 
-                            ($localFile = $localFilesInDestinationFolder.where(
-                                { $_.Name -eq $result.FileName }
-                            ))
-                        ) {
+                        $duplicateFile = $localFilesInDestinationFolder.where(
+                            { $_.Name -eq $result.FileName }
+                        )
+                        if ((-not $OverwriteFile) -and ($duplicateFile)) {
                             Write-Verbose 'Duplicate file on local file system'
 
                             $result.Errors += @('Duplicate file in destination folder, use OverwriteFile if desired')
@@ -508,6 +506,25 @@ try {
                         }
                         #endregion
 
+                        #region Remove duplicate file
+                        if ($duplicateFile) {
+                            try {
+                                Write-Verbose "Remove duplicate file '$($duplicateFile)'"
+
+                                Start-RetryActionHC -ScriptBlock {
+                                    $duplicateFile | Remove-Item
+                                }    
+                                
+                                $result.Actions += 'removed duplicate file in destination folder'
+                            }
+                            catch {
+                                $M = "Failed to remove duplicate file '$duplicateFile': $_"
+                                $Error.RemoveAt(0)
+                                throw $M
+                            }
+                        }
+                        #endregion
+
                         #region Move file from local temp folder to destination folder
                         try {
                             $params = @{
@@ -525,12 +542,7 @@ try {
                             $result.Actions += 'moved to destination folder'
                         }
                         catch {
-                            if ($_ -like '*Cannot create a file when that file already exists*') {
-                                $M = "Failed to move file '$($params.LiteralPath)' to '$($params.Destination)': File '$($params.Destination)' in use by another process"
-                            }
-                            else {
-                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
-                            }
+                            $M = "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
 
                             $Error.RemoveAt(0)
                             throw $M
@@ -679,16 +691,8 @@ try {
                                             ErrorAction = 'Stop'
                                         }
                                         Remove-SFTPItem @sessionParams @removeParams
-    
-                                        [PSCustomObject]@{
-                                            DateTime    = $result.DateTime
-                                            Source      = $result.Source
-                                            Destination = $result.Destination
-                                            FileName    = $result.FileName
-                                            FileLength  = $result.FileLength
-                                            Actions     = @('Removed duplicate file from SFTP server')
-                                            Errors      = @()
-                                        }
+
+                                        $result.Actions += 'Removed duplicate file from SFTP server'
                                     }          
                                 }
                                 catch {

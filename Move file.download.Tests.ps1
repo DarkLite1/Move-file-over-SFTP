@@ -286,8 +286,8 @@ Describe 'When a duplicate file is in the destination folder and' {
                 New-Item @testNewItemParams
             }
 
-            Mock Move-Item {
-                throw 'Cannot create a file when that file already exists'
+            Mock Remove-Item {
+                throw 'The process cannot access the file because it is being used by another process'
             }
 
             $testNewParams.OverwriteFile = $true
@@ -300,10 +300,10 @@ Describe 'When a duplicate file is in the destination folder and' {
         It 'an error object ic created' {
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Moved | Should -BeFalse
-            $testResult.Errors | Should -BeLike "*Failed to move file*File*b.txt' in use by another process*"
-        }
+            $testResult.Errors | Should -BeLike 'Failed to remove duplicate file*The process cannot access the file because it is being used by another process'
+        } -Tag test
     }
-} 
+}
 Describe 'when a file is in use by another process on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem {
@@ -384,4 +384,4 @@ Describe 'When a download fails' {
         $testResult.Moves | Should -BeFalse
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
-} -Tag test
+}
