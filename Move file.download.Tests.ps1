@@ -130,7 +130,7 @@ Describe 'Create an object with Error property when' {
 
         $testResult = .$testScript @testParams
 
-        $testResult.Error | Should -Be "Failed creating an SFTP session to '$($testNewParams.SftpComputerName)': Failed authenticating"
+        $testResult.Errors | Should -Be "Failed creating an SFTP session to '$($testNewParams.SftpComputerName)': Failed authenticating"
 
         $error | Should -HaveCount 0
 
@@ -148,7 +148,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testNewParams
 
-            $testResult.Error |
+            $testResult.Errors |
                 Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
             Should -Not -Invoke Get-SFTPItem
@@ -164,7 +164,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testNewParams
 
-            $testResult.Error |
+            $testResult.Errors |
                 Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
             Should -Not -Invoke Get-SFTPItem
@@ -177,7 +177,7 @@ Describe 'Create an object with Error property when' {
 
         $testResult = .$testScript @testNewParams
 
-        $testResult.Error |
+        $testResult.Errors |
             Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
 
         Should -Not -Invoke Get-SFTPItem
@@ -195,7 +195,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike 'Failed to download file*Oops'
+            $testResult.Errors | Should -BeLike 'Failed to download file*Oops'
 
             $error | Should -HaveCount 0
         }
@@ -210,7 +210,7 @@ Describe 'Create an object with Error property when' {
 
             $testResult = .$testScript @testParams
 
-            $testResult.Error | Should -BeLike 'Failed to download file*Oops'
+            $testResult.Errors | Should -BeLike 'Failed to download file*Oops'
 
             $error | Should -HaveCount 0
         } 
@@ -238,7 +238,7 @@ Describe 'When a duplicate file is in the destination folder and' {
         }
         It 'an error objects ic created' {
             $testResult.FileName | Should -Be 'b.txt'
-            $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
+            $testResult.Errors | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
         }
         It 'the download is not started' {
             Should -Not -Invoke Get-SFTPItem -Scope Context
@@ -268,7 +268,7 @@ Describe 'When a duplicate file is in the destination folder and' {
         It 'a success objects ic created' {
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Moved | Should -BeTrue
-            $testResult.Error | Should -BeNullOrEmpty
+            $testResult.Errors | Should -BeNullOrEmpty
         }
         It 'the file is no longer in the temp folder on the local file system' {
             '{0}\sftpTransfer\download\b.txt' -f 
@@ -300,7 +300,7 @@ Describe 'When a duplicate file is in the destination folder and' {
         It 'an error object ic created' {
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Moved | Should -BeFalse
-            $testResult.Error | Should -BeLike "*Failed to move file*File*b.txt' in use by another process*"
+            $testResult.Errors | Should -BeLike "*Failed to move file*File*b.txt' in use by another process*"
         }
     }
 } 
@@ -322,7 +322,7 @@ Describe 'when a file is in use by another process on the SFTP server' {
     }
     Context 'it cannot be moved to the temp folder on the sftp server and' {
         It 'an error object is created' {
-            $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
+            $testResult.Errors | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
         }
         It 'the download is not started' {
             Should -Not -Invoke Get-SFTPItem -Scope Describe
@@ -382,6 +382,6 @@ Describe 'When a download fails' {
     }
     It 'an error object is created' {
         $testResult.Moves | Should -BeFalse
-        $testResult.Error | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
+        $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
 } -Tag test
