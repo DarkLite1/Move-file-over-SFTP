@@ -186,6 +186,16 @@ try {
                 throw $errorMessage
             }
         }
+        function Save-ErrorMessageHC {
+            Param (
+                [parameter(Mandatory)]
+                [string]$ErrorMessage
+            )
+
+            Write-Warning $ErrorMessage
+
+            $result.Errors += $ErrorMessage
+        }
 
         try {
             $path = $_
@@ -424,12 +434,11 @@ try {
                         $duplicateFile = $localFilesInDestinationFolder.where(
                             { $_.Name -eq $result.FileName }
                         )
-                        
+
                         #region Test duplicate file
                         if ((-not $OverwriteFile) -and ($duplicateFile)) {
-                            Write-Verbose 'Duplicate file on local file system'
+                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if desired'
 
-                            $result.Errors += @('Duplicate file in destination folder, use OverwriteFile if desired')
                             continue
                         }
                         #endregion
@@ -476,52 +485,61 @@ try {
                             $result.Actions += 'downloaded to local temp folder'
                         }
                         catch {
+                            Save-ErrorMessageHC "Failed to download file 'sftp:$($params.Path)' to '$($params.Destination)': $_"
+
+                            $Error.RemoveAt(0)
+
                             #region remove partially downloaded file
-                            if (Test-Path -LiteralPath $params.Destination -PathType Leaf) {
-                                try {
-                                    Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
-
-                                    $params.Destination | Remove-Item -Force
+                            Start-RetryActionHC -ScriptBlock {
+                                $testPathParams = @{
+                                    LiteralPath = $params.Destination 
+                                    PathType    = 'Leaf'
                                 }
-                                catch {
-                                    $errorMessage = "Failed removing partially downloaded file '$($params.Destination)': $_"
+                                if (Test-Path @testPathParams) {
+                                    try {
+                                        Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
 
-                                    Write-Warning $errorMessage
-
-                                    [PSCustomObject]@{
-                                        DateTime    = $result.DateTime
-                                        Source      = $result.Source
-                                        Destination = $result.Destination
-                                        FileName    = $result.FileName
-                                        FileLength  = $result.FileLength
-                                        Actions     = @()
-                                        Errors      = @($errorMessage)
+                                        $params.Destination | Remove-Item -Force
+                             
+                                        $result.Actions += "removed partially downloaded file '$($params.Destination)'"
                                     }
-                                }
+                                    catch {
+                                        Save-ErrorMessageHC "Failed removing partially downloaded file '$($params.Destination)': $_"
+
+                                        $Error.RemoveAt(0)
+                                    }
+                                } 
                             }
                             #endregion
 
-                            $M = "Failed to download file 'sftp:$($params.Path)' to '$($params.Destination)': $_"
-                            $Error.RemoveAt(0)
-                            throw $M
+                            continue
                         }
                         #endregion
 
                         #region Remove duplicate file
                         if ($duplicateFile) {
                             try {
-                                Write-Verbose "Remove duplicate file '$($duplicateFile)'"
+                                $testPathParams = @{
+                                    LiteralPath = $duplicateFile.FullName
+                                    PathType    = 'Leaf'
+                                }
 
                                 Start-RetryActionHC -ScriptBlock {
-                                    $duplicateFile | Remove-Item
-                                }    
-                                
-                                $result.Actions += 'removed duplicate file in destination folder'
+                                    if (Test-Path @testPathParams) {
+                                        Write-Verbose "Remove duplicate file '$($duplicateFile)'"
+
+                                        $duplicateFile | Remove-Item
+                                    
+                                        $result.Actions += 'removed duplicate file in destination folder'
+                                    }
+                                }
                             }
                             catch {
-                                $M = "Failed to remove duplicate file '$duplicateFile': $_"
+                                Save-ErrorMessageHC "Failed to remove duplicate file '$duplicateFile': $_"
+                    
                                 $Error.RemoveAt(0)
-                                throw $M
+                    
+                                continue
                             }
                         }
                         #endregion
@@ -543,18 +561,18 @@ try {
                             $result.Actions += 'moved to destination folder'
                         }
                         catch {
-                            $M = "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
+                            $result.Errors += "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
 
                             $Error.RemoveAt(0)
-                            throw $M
+
+                            continue
                         }
                         #endregion
 
                         $result.Moved = $true
                     }
                     catch {
-                        $result.Errors += $_
-                        Write-Warning $_
+                        Save-ErrorMessageHC $_
                         $Error.RemoveAt(0)
                     }
                     finally {
