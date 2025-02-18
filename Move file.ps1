@@ -480,6 +480,8 @@ try {
                             #region remove partially downloaded file
                             if (Test-Path -LiteralPath $params.Destination -PathType Leaf) {
                                 try {
+                                    Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
+
                                     $params.Destination | Remove-Item -Force
                                 }
                                 catch {
@@ -500,7 +502,7 @@ try {
                             }
                             #endregion
 
-                            $M = "Failed to download file from SFTP server path '$($params.Path)' to '$($params.Destination)': $_"
+                            $M = "Failed to download file 'sftp:$($params.Path)' to '$($params.Destination)': $_"
                             $Error.RemoveAt(0)
                             throw $M
                         }

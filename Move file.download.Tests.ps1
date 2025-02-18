@@ -302,7 +302,7 @@ Describe 'When a duplicate file is in the destination folder and' {
             $testResult.Moved | Should -BeFalse
             $testResult.Error | Should -BeLike "*Failed to move file*File*b.txt' in use by another process*"
         }
-    }  -Tag test
+    }
 } 
 Describe 'when a file is in use by another process on the SFTP server' {
     BeforeAll {
@@ -353,3 +353,35 @@ Describe 'When there are no files on the SFTP server' {
         $testResult | Should -BeNullOrEmpty
     }
 }
+Describe 'When a download fails' {
+    BeforeAll {
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+            }
+        }
+
+        Mock Get-SFTPItem {
+            $testNewItemParams = @{
+                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                $testParams.Paths.Destination
+                ItemType = 'File'
+            }
+            New-Item @testNewItemParams
+
+            throw 'Oops'
+        }
+        
+        $testResult = .$testScript @testParams
+    }
+    It 'the partially downloaded file is removed in the local temp folder' {
+        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            Should -Not -Exist
+    }
+    It 'an error object is created' {
+        $testResult.Moves | Should -BeFalse
+        $testResult.Error | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
+    }
+} -Tag test
