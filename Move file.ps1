@@ -453,7 +453,7 @@ try {
                             }
                         }
                         catch {
-                            throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)' (File most likely locked): $_"
+                            throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
                         }
                         #endregion
 

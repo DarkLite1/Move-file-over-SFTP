@@ -184,7 +184,7 @@ Describe 'Create an object with Error property when' {
 
         $testResult = .$testScript @testParams
 
-        $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt' (File most likely locked): oops"
+        $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
