@@ -495,7 +495,7 @@ try {
                                         Destination = $result.Destination
                                         FileName    = $result.FileName
                                         FileLength  = $result.FileLength
-                                        Action      = $null
+                                        Actions     = @()
                                         Error       = $errorMessage
                                     }
                                 }
@@ -564,7 +564,7 @@ try {
                         FileName    = $null
                         FileLength  = $null
                         DateTime    = Get-Date
-                        Action      = $null
+                        Actions     = @()
                         Error       = "Path '$($path.Source)' not found on the file system"
                     }
                 }
@@ -686,7 +686,7 @@ try {
                                             Destination = $result.Destination
                                             FileName    = $result.FileName
                                             FileLength  = $result.FileLength
-                                            Action      = 'Removed duplicate file from SFTP server'
+                                            Actions     = @('Removed duplicate file from SFTP server')
                                             Error       = $null
                                         }
                                     }          
@@ -784,7 +784,7 @@ try {
                                     Destination = $result.Destination
                                     FileName    = $tempFile.Name
                                     FileLength  = $result.Length
-                                    Action      = $null
+                                    Actions     = @()
                                     Error       = "Failed to rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)': $_"
                                 }
 
@@ -812,7 +812,7 @@ try {
                 Destination = $path.Destination
                 FileName    = $null
                 FileLength  = $null
-                Action      = $null
+                Actions     = @()
                 Error       = $_
             }
             $Error.RemoveAt(0)
