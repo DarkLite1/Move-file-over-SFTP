@@ -183,8 +183,8 @@ Describe 'Create an object with Error property when' {
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
     }
-    Context 'the file download fails' {
-        It 'Get-SFTPItem creates a warning' {
+    Context 'Get-SFTPItem' {
+        It 'creates a warning' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning
                 # throw 'Oops' 
@@ -199,7 +199,7 @@ Describe 'Create an object with Error property when' {
 
             $error | Should -HaveCount 0
         }
-        It 'Get-SFTPItem throws a terminating warning' {
+        It 'throws a terminating warning' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning
                 # throw 'Oops' 
