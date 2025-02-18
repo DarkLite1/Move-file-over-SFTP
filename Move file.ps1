@@ -443,8 +443,6 @@ try {
                         }
                         #endregion
 
-                        $result.DateTime = Get-Date
-
                         $sftpTempFilePath = '{0}/{1}' -f  
                         $tempDownloadFolderSftpServer, $result.FileName
                         
