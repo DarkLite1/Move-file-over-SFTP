@@ -177,19 +177,32 @@ Describe 'Create an object with Error property when' {
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
     }
-    It 'the file cannot be moved to them temp folder on the SFTP server' {
+} -Tag test
+Describe 'when a file is in use by another process on the SFTP server' {
+    BeforeAll {
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+            }
+        }
+
         Mock Move-SFTPItem {
             throw 'oops'
         }
 
         $testResult = .$testScript @testParams
-
-        $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
-
-        Should -Not -Invoke Get-SFTPItem
-        Should -Not -Invoke Rename-SFTPFile
-    } -Tag test
-}
+    }
+    Context 'it cannot be moved to the temp folder on the sftp server and' {
+        It 'an error object is created' {
+            $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
+        }
+        It 'the download is not started' {
+            Should -Not -Invoke Get-SFTPItem -Scope Describe
+        }
+    }
+} -Tag test
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem 
