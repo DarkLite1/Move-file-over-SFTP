@@ -113,7 +113,7 @@ try {
             [CmdletBinding()]
             Param (
                 [parameter(Mandatory)]
-                [String]$Source,
+                [String]$Path,
                 [parameter(Mandatory)]
                 [String]$Destination
             )
@@ -122,7 +122,7 @@ try {
             $getSftpItemWarningMessages = @()
 
             $params = @{
-                Path            = $Source
+                Path            = $Path
                 Destination     = $Destination
                 WarningVariable = 'getSftpItemWarningMessages'
             }
@@ -464,7 +464,7 @@ try {
                         #region Download to temp folder on local file system
                         try {
                             $params = @{
-                                Source      = $sftpTempFilePath
+                                Path        = $sftpTempFilePath
                                 Destination = $localTempFilePath
                             }
 
