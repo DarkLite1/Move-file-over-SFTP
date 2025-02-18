@@ -215,7 +215,9 @@ Describe 'Create an object with Error property when' {
             $error | Should -HaveCount 0
         } 
     }
-    It 'a duplicate file is in the destination folder and OverWriteFile is false' {
+}
+Describe 'When a duplicate file is in the destination folder and' {
+    BeforeAll {
         Mock Get-SFTPChildItem {
             @{
                 Name        = 'b.txt'
@@ -225,23 +227,51 @@ Describe 'Create an object with Error property when' {
         }
 
         $testNewParams = Copy-ObjectHC $testParams
-        $testNewParams.OverwriteFile = $false
 
-        @(
-            "$($testNewParams.Paths.Destination)\b.txt"
-        ).ForEach(
-            { New-Item -Path $_ -ItemType 'File' }
-        )
-
-        $testResult = .$testScript @testNewParams
-
-        $testResult.FileName | Should -Be 'b.txt'
-        $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
-
-        Should -Not -Invoke Get-SFTPItem
-        Should -Not -Invoke Rename-SFTPFile
+        $testDuplicateFile = New-Item -Path "$($testNewParams.Paths.Destination)\b.txt" -ItemType 'File' -Force
     }
-}
+    Context 'OverWriteFile is false' {
+        BeforeAll {
+            $testNewParams.OverwriteFile = $false
+            
+            $testResult = .$testScript @testNewParams
+        }
+        It 'an error objects ic created' {
+            $testResult.FileName | Should -Be 'b.txt'
+            $testResult.Error | Should -Be 'Duplicate file in destination folder, use OverwriteFile if desired'
+        }
+        It 'the download is not started' {
+            Should -Not -Invoke Get-SFTPItem -Scope Context
+        }
+        It 'the duplicate file is left untouched' {
+            $testDuplicateFile.FullName | Should -Exist
+        }
+    }
+    Context 'OverWriteFile is true' {
+        BeforeAll {
+            Mock Get-SFTPItem {
+                $testNewItemParams = @{
+                    Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                    $testParams.Paths.Destination
+                    ItemType = 'File'
+                }
+                New-Item @testNewItemParams
+            }
+            
+            $testNewParams.OverwriteFile = $true
+            
+            $testResult = .$testScript @testNewParams
+        }
+        It 'an success objects ic created' {
+            $testResult.FileName | Should -Be 'b.txt'
+            $testResult.Moved | Should -BeTrue
+            $testResult.Error | Should -BeNullOrEmpty
+        }
+        It 'the download is not started' {
+            Should -Invoke Get-SFTPItem -Scope Context
+        }
+    }
+} -Tag test
 Describe 'when a file is in use by another process on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem {

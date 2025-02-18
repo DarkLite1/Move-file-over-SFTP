@@ -429,7 +429,7 @@ try {
                             ))
                         ) {
                             Write-Verbose 'Duplicate file on local file system'
-                            
+
                             $result.Error = 'Duplicate file in destination folder, use OverwriteFile if desired'
                             continue
                         }
@@ -507,16 +507,25 @@ try {
                             $params = @{
                                 LiteralPath = $localTempFilePath
                                 Destination = '{0}\{1}' -f $path.destination, $result.FileName
+                                Force       = $true
                             }
 
                             Write-Verbose "Move file '$($params.LiteralPath)' to '$($params.Destination)"
-                            
-                            Move-Item @params
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Move-Item @params
+                            }                            
 
                             $result.Actions += 'File moved'
                         }
                         catch {
-                            $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
+                            if ($_ -like '*Cannot create a file when that file already exists*') {
+                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': File '$($result.FileName)' in use by another process"
+                            }
+                            else {
+                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
+                            }
+
                             $Error.RemoveAt(0)
                             throw $M
                         }
