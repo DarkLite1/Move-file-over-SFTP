@@ -673,30 +673,30 @@ try {
                 }
                 #endregion
 
-                foreach ($file in $filesToUpload) {
+                foreach ($fileToUpload in $filesToUpload) {
                     try {
-                        Write-Verbose "File '$($file.FullName)'"
+                        Write-Verbose "File '$($fileToUpload.FullName)'"
 
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
                             Destination = $path.Destination
-                            FileName    = $file.Name
-                            FileLength  = $file.Length
+                            FileName    = $fileToUpload.Name
+                            FileLength  = $fileToUpload.Length
                             Actions     = @()
                             Moved       = $false
                             Errors      = @()
                         }
 
                         $tempFile = @{
-                            UploadFileName = $file.Name + $PartialFileExtension.Upload
+                            UploadFileName = $fileToUpload.Name + $PartialFileExtension.Upload
                         }
                         $tempFile.UploadFilePath = Join-Path $result.Source $tempFile.UploadFileName
 
                         #region Duplicate file on SFTP server
                         if (
                             $sftpFile = $sftpFiles.where(
-                                { $_.Name -eq $file.Name }, 'First'
+                                { $_.Name -eq $fileToUpload.Name }, 'First'
                             )
                         ) {
                             Write-Verbose 'Duplicate file on SFTP server'
@@ -738,7 +738,7 @@ try {
                         try {
                             Start-RetryActionHC -ScriptBlock {
                                 Write-Verbose "Rename source file to temp file '$($tempFile.UploadFileName)'"
-                                $file |
+                                $fileToUpload |
                                     Rename-Item -NewName $tempFile.UploadFileName
                             }
                         }
@@ -813,10 +813,10 @@ try {
                         ) {
                             try {
                                 Write-Warning 'Upload failed'
-                                Write-Verbose "Rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)'"
+                                Write-Verbose "Rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($fileToUpload.Name)'"
 
                                 $tempFile.UploadFilePath |
-                                    Rename-Item -NewName $file.Name
+                                    Rename-Item -NewName $fileToUpload.Name
                             }
                             catch {
                                 [PSCustomObject]@{
@@ -826,7 +826,7 @@ try {
                                     FileName    = $tempFile.Name
                                     FileLength  = $result.Length
                                     Actions     = @()
-                                    Errors      = @("Failed to rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)': $_")
+                                    Errors      = @("Failed to rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($fileToUpload.Name)': $_")
                                 }
 
                                 $Error.RemoveAt(0)
