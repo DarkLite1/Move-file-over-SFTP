@@ -386,7 +386,7 @@ try {
                             
                         Remove-Item -LiteralPath $incompleteFile.FullName -Force
                             
-                        $result.Action = "Removed incomplete downloaded file '$incompleteFile'"
+                        $result.Actions = "Removed incomplete downloaded file '$incompleteFile'"
                     }
                     catch {
                         $M = "Failed removing incomplete file '$incompleteFile': $_"
@@ -513,10 +513,10 @@ try {
                             
                             Move-Item @params
 
-                            $result.Action += 'File moved'
+                            $result.Actions += 'File moved'
                         }
                         catch {
-                            $M = "Failed to rename the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
+                            $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
                             $Error.RemoveAt(0)
                             throw $M
                         }

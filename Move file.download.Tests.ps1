@@ -255,23 +255,19 @@ Describe 'When a file is found on the SFTP server' {
         }
     }
     It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
-        $testTempFileInDestinationFolder = '{0}\sftpTransfer\download\b.txt' -f $testParams.Paths.Destination
-
         Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq $testTempFileInDestinationFolder )
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
         }
-
-        $testTempFileInDestinationFolder | Should -Exist   
     }
     It 'Move the file from the local temp folder to the destination folder on the local file system' {
-        '{0}\b.txt' -f 
-        $testParams.Paths.Destination | Should -Exist
+        "$($testParams.Paths.Destination)\b.txt" | Should -Exist
     }
     It 'The file is no longer in the temp folder on the local file system' {
         '{0}\sftpTransfer\download\b.txt' -f 
-        $testParams.Paths.Destination | Should -Not -Exist
+        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            Should -Not -Exist
     }
 } -Tag test
 Describe 'When files are found on the SFTP server' {
