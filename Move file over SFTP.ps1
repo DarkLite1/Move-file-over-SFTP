@@ -792,7 +792,10 @@ End {
                     Name       = 'Actions'
                     Expression = { $_.Actions -join ', ' }
                 },
-                'Error'
+                @{
+                    Name       = 'Errors'
+                    Expression = { $_.Errors -join ', ' }
+                }
             }
         }
         #endregion
@@ -901,13 +904,13 @@ End {
 
                 $counter.Action.MovedFiles = $action.Job.Results.Where(
                     {
-                        (-not $_.Error) -and 
+                        (-not $_.Errors) -and 
                         ($_.Moved) 
                     }
                 ).Count
 
                 $counter.Action.Errors = $action.Job.Results.Where(
-                    { $_.Error }).Count
+                    { $_.Errors }).Count
 
                 $counter.Total.Errors += $counter.Action.Errors
                 $counter.Total.Errors += $action.Job.Error.Count
@@ -958,14 +961,14 @@ End {
 
                     $counter.Path.Errors += $action.Job.Results.Where(
                         {
-                        ($_.Error) -and
+                        ($_.Errors) -and
                         ($_.Source -eq $path.Source) -and
                         ($_.Destination -eq $path.Destination)
                         }).Count
 
                     $counter.Path.MovedFiles += $action.Job.Results.Where(
                         {
-                        (-not $_.Error) -and
+                        (-not $_.Errors) -and
                         ($_.Source -eq $path.Source) -and
                         ($_.Destination -eq $path.Destination) -and
                         ($_.Moved)

@@ -418,7 +418,7 @@ try {
                             FileLength  = $fileToDownload.Length
                             Actions     = @()
                             Moved       = $false
-                            Error       = $null
+                            Errors      = @()
                         }
 
                         #region Test duplicate file
@@ -430,7 +430,7 @@ try {
                         ) {
                             Write-Verbose 'Duplicate file on local file system'
 
-                            $result.Error = 'Duplicate file in destination folder, use OverwriteFile if desired'
+                            $result.Errors += @('Duplicate file in destination folder, use OverwriteFile if desired')
                             continue
                         }
                         #endregion
@@ -496,7 +496,7 @@ try {
                                         FileName    = $result.FileName
                                         FileLength  = $result.FileLength
                                         Actions     = @()
-                                        Error       = $errorMessage
+                                        Errors      = @($errorMessage)
                                     }
                                 }
                             }
@@ -540,7 +540,7 @@ try {
                         $result.Moved = $true
                     }
                     catch {
-                        $result.Error = $_
+                        $result.Errors += $_
                         Write-Warning $_
                         $Error.RemoveAt(0)
                     }
@@ -565,7 +565,7 @@ try {
                         FileLength  = $null
                         DateTime    = Get-Date
                         Actions     = @()
-                        Error       = "Path '$($path.Source)' not found on the file system"
+                        Errors      = @("Path '$($path.Source)' not found on the file system")
                     }
                 }
                 #endregion
@@ -654,7 +654,7 @@ try {
                             FileLength  = $file.Length
                             Actions     = @()
                             Moved       = $false
-                            Error       = $null
+                            Errors      = @()
                         }
 
                         $tempFile = @{
@@ -687,7 +687,7 @@ try {
                                             FileName    = $result.FileName
                                             FileLength  = $result.FileLength
                                             Actions     = @('Removed duplicate file from SFTP server')
-                                            Error       = $null
+                                            Errors      = @()
                                         }
                                     }          
                                 }
@@ -785,7 +785,7 @@ try {
                                     FileName    = $tempFile.Name
                                     FileLength  = $result.Length
                                     Actions     = @()
-                                    Error       = "Failed to rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)': $_"
+                                    Errors      = @("Failed to rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($file.Name)': $_")
                                 }
 
                                 $Error.RemoveAt(0)
@@ -793,7 +793,7 @@ try {
                         }
                         #endregion
 
-                        $result.Error = $_
+                        $result.Errors += $_
                         Write-Warning $_
                         $Error.RemoveAt(0)
                     }
@@ -813,7 +813,7 @@ try {
                 FileName    = $null
                 FileLength  = $null
                 Actions     = @()
-                Error       = $_
+                Errors      = @($_)
             }
             $Error.RemoveAt(0)
         }

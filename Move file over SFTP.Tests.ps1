@@ -55,7 +55,7 @@ BeforeAll {
             DateTime    = Get-Date
             Moved       = $true
             Actions     = @('File moved after previous unsuccessful move')
-            Error       = $null
+            Errors      = @()
         }
         [PSCustomObject]@{
             Source      = $testInputFile.Tasks[0].Actions[0].Paths[1].Source
@@ -65,7 +65,7 @@ BeforeAll {
             DateTime    = Get-Date
             Moved       = $true
             Actions     = @('File moved')
-            Error       = $null
+            Errors      = @()
         }
     )
 
@@ -81,7 +81,7 @@ BeforeAll {
             DateTime     = $testData[0].DateTime
             Moved        = $testData[0].Moved
             Actions      = $testData[0].Actions
-            Error        = $null
+            Errors       = $null
         }
         [PSCustomObject]@{
             TaskName     = $testInputFile.Tasks[0].TaskName
@@ -94,7 +94,7 @@ BeforeAll {
             DateTime     = $testData[1].DateTime
             Moved        = $testData[1].Moved
             Actions      = $testData[1].Actions
-            Error        = $null
+            Errors       = $null
         }
     )
 
@@ -916,12 +916,14 @@ Describe 'when the SFTP script runs successfully' {
                 $actualRow.Destination | Should -Be $testRow.Destination
                 $actualRow.DateTime.ToString('yyyyMMdd') |
                     Should -Be $testRow.DateTime.ToString('yyyyMMdd')
-                $actualRow.Actions | Should -Be $testRow.Actions
+                $actualRow.Actions -join ', ' | 
+                    Should -Be ($testRow.Actions -join ', ')
                 $actualRow.FileName | Should -Be $testRow.FileName
                 $actualRow.FileSize | Should -Be $testRow.FileSize
-                $actualRow.Error | Should -Be $testRow.Error
+                $actualRow.Errors -join ', ' | 
+                    Should -Be ($testRow.Errors -join ', ')
             }
-        }
+        } -Tag test
     }
     Context 'send an e-mail' {
         It 'with attachment to the user' {
@@ -985,8 +987,8 @@ Describe 'ExportExcelFile.When' {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Action   = @()
-                    Error    = 'oops'
+                    Actions  = @()
+                    Errors   = 'oops'
                 }
             } -ParameterFilter {
                 $FilePath -eq $testParams.ScriptPath.MoveFile
@@ -1008,9 +1010,9 @@ Describe 'ExportExcelFile.When' {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Moved = $true
-                    Action   = @('upload')
-                    Error    = $null
+                    Moved    = $true
+                    Actions  = @('upload')
+                    Errors   = $null
                 }
             } -ParameterFilter {
                 $FilePath -eq $testParams.ScriptPath.MoveFile
@@ -1031,10 +1033,10 @@ Describe 'ExportExcelFile.When' {
             Mock Invoke-Command {
                 [PSCustomObject]@{
                     Path     = 'a'
-                    Moved = $false
+                    Moved    = $false
                     DateTime = Get-Date
-                    Action   = @()
-                    Error    = 'oops'
+                    Actions  = @()
+                    Errors   = @('oops')
                 }
             } -ParameterFilter {
                 $FilePath -eq $testParams.ScriptPath.MoveFile
@@ -1105,8 +1107,8 @@ Describe 'SendMail.When' {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Action   = @()
-                    Error    = 'oops'
+                    Actions  = @()
+                    Errors   = @('oops')
                 }
             } -ParameterFilter {
                 $FilePath -eq $testParams.ScriptPath.MoveFile
@@ -1122,36 +1124,13 @@ Describe 'SendMail.When' {
 
             Should -Invoke Send-MailHC @testParamFilter
         }
-        It "'OnlyOnErrorOrAction' and there are actions but no errors" {
-            Mock Invoke-Command {
-                [PSCustomObject]@{
-                    Path     = 'a'
-                    DateTime = Get-Date
-                    Moved    = $true
-                    Action   = @('upload')
-                    Error    = $null
-                }
-            } -ParameterFilter {
-                $FilePath -eq $testParams.ScriptPath.MoveFile
-            }
-
-            $testNewInputFile = Copy-ObjectHC $testInputFile
-            $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
-
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
-
-            .$testScript @testParams
-
-            Should -Invoke Send-MailHC @testParamFilter
-        }  -Tag test
         It "'OnlyOnErrorOrAction' and there are errors but no actions" {
             Mock Invoke-Command {
                 [PSCustomObject]@{
                     Path     = 'a'
                     DateTime = Get-Date
-                    Action   = @()
-                    Error    = 'oops'
+                    Actions  = @()
+                    Errors   = @('oops')
                 }
             } -ParameterFilter {
                 $FilePath -eq $testParams.ScriptPath.MoveFile
