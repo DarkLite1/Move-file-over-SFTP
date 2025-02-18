@@ -429,6 +429,7 @@ try {
                             ))
                         ) {
                             Write-Verbose 'Duplicate file on local file system'
+                            
                             $result.Error = 'Duplicate file in destination folder, use OverwriteFile if desired'
                             continue
                         }
