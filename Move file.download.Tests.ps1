@@ -38,7 +38,71 @@ BeforeAll {
         }
     }
 }
+Describe 'When a file is found on the SFTP server' {
+    BeforeAll {
+        Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
 
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+            }
+        }
+
+        Mock Get-SFTPItem {
+            $testNewItemParams = @{
+                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                $testParams.Paths.Destination
+                ItemType = 'File'
+            }
+            New-Item @testNewItemParams
+        }
+    
+        $testResult = .$testScript @testParams
+    }
+    It 'Get list of files on the SFTP server' {
+        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe
+    }
+    It 'Create a temp folder on the SFTP server' {
+        Should -Invoke New-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($Path -eq '/report/sftpTransfer/download' ) -and
+            ($ItemType -eq 'Directory') -and
+            ($Recurse)
+        }
+    }
+    It 'create a temp folder on the local file system' {
+        $testJoinParams = @{
+            Path      = $testParams.Paths.Destination 
+            ChildPath = 'sftpTransfer/download' 
+        }
+        $testTempFolder = Join-Path @testJoinParams
+
+        $testTempFolder | Should -Exist
+    }
+    It 'Move the file from the source to the temp folder on the SFTP server' {
+        Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/b.txt') -and
+            ($Destination -eq '/report/sftpTransfer/download/b.txt' )
+        }
+    }
+    It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
+        Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+        }
+    }
+    It 'Move the file from the local temp folder to the destination folder on the local file system' {
+        "$($testParams.Paths.Destination)\b.txt" | Should -Exist
+    }
+    It 'The file is no longer in the temp folder on the local file system' {
+        '{0}\sftpTransfer\download\b.txt' -f 
+        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            Should -Not -Exist
+    }
+}
 Describe 'Create an object with Error property when' {
     BeforeAll {
         Mock Get-SFTPChildItem {
@@ -227,68 +291,3 @@ Describe 'When there are no files on the SFTP server' {
         $testResult | Should -BeNullOrEmpty
     }
 }
-Describe 'When a file is found on the SFTP server' {
-    BeforeAll {
-        Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
-
-        Mock Get-SFTPChildItem {
-            [PSCustomObject]@{
-                Name        = 'b.txt'
-                FullName    = '/report/b.txt'
-                isDirectory = $false
-            }
-        }
-
-        Mock Get-SFTPItem {
-            $testNewItemParams = @{
-                Path     = '{0}\sftpTransfer\download\b.txt' -f 
-                $testParams.Paths.Destination
-                ItemType = 'File'
-            }
-            New-Item @testNewItemParams
-        }
-    
-        $testResult = .$testScript @testParams
-    }
-    It 'Get list of files on the SFTP server' {
-        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe
-    }
-    It 'Create a temp folder on the SFTP server' {
-        Should -Invoke New-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($Path -eq '/report/sftpTransfer/download' ) -and
-            ($ItemType -eq 'Directory') -and
-            ($Recurse)
-        }
-    }
-    It 'create a temp folder on the local file system' {
-        $testJoinParams = @{
-            Path      = $testParams.Paths.Destination 
-            ChildPath = 'sftpTransfer/download' 
-        }
-        $testTempFolder = Join-Path @testJoinParams
-
-        $testTempFolder | Should -Exist
-    }
-    It 'Move the file from the source to the temp folder on the SFTP server' {
-        Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/b.txt') -and
-            ($Destination -eq '/report/sftpTransfer/download/b.txt' )
-        }
-    }
-    It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
-        Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
-        }
-    }
-    It 'Move the file from the local temp folder to the destination folder on the local file system' {
-        "$($testParams.Paths.Destination)\b.txt" | Should -Exist
-    }
-    It 'The file is no longer in the temp folder on the local file system' {
-        '{0}\sftpTransfer\download\b.txt' -f 
-        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
-            Should -Not -Exist
-    }
-} -Tag test
