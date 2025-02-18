@@ -329,7 +329,7 @@ try {
                         }
                     }
 
-                    Write-Verbose "Found $($sftpServerFilesToDownload.Count) root folder file(s) to download"
+                    Write-Verbose "Found $($sftpServerFilesToDownload.Count) file(s) on the SFTP server to download"
                 }
                 catch {
                     $M = "Failed to select SFTP root files to download in folder '$sftpPath': $_"

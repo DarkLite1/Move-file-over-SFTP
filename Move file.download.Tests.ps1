@@ -210,7 +210,7 @@ Describe 'When a file is found on the SFTP server' {
         Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
 
         Mock Get-SFTPChildItem {
-            @{
+            [PSCustomObject]@{
                 Name        = 'b.txt'
                 FullName    = '/report/b.txt'
                 isDirectory = $false
