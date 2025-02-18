@@ -385,7 +385,7 @@ Describe 'When a download fails' {
             Should -Not -Exist
     }
     It 'an error object is created' {
-        $testResult.Moves | Should -BeFalse
+        $testResult.Moved | Should -BeFalse
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
 }
@@ -408,5 +408,10 @@ Describe 'When a file could not be moved from the temp download folder to the de
     It 'the file is no longer in the temp download folder' {
         "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
+    }
+    It 'a success object is created' {
+        $testResult.Moved | Should -BeTrue
+        $testResult.Actions | Should -Be "moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run"
+        $testResult.Errors | Should -BeNullOrEmpty
     }
 } -Tag test

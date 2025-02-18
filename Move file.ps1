@@ -307,16 +307,16 @@ try {
 
                         Start-RetryActionHC -ScriptBlock {
                             Move-Item @params
-                        }                            
+                        }
 
-                        $result.Actions += 'moved previously downloaded file to destination folder'
+                        $result.Moved = $true
+
+                        $result.Actions += 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
                     }
                     catch {
                         $result.Errors += "Failed to move the previously downloaded file '$($params.LiteralPath)' to '$($params.Destination)': $_"
 
                         $Error.RemoveAt(0)
-
-                        continue
                     }
                     finally {
                         $result
