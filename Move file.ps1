@@ -520,10 +520,10 @@ try {
                         }
                         catch {
                             if ($_ -like '*Cannot create a file when that file already exists*') {
-                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': File '$($result.FileName)' in use by another process"
+                                $M = "Failed to move file '$($params.LiteralPath)' to '$($params.Destination)': File '$($params.Destination)' in use by another process"
                             }
                             else {
-                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($result.FileName)': $_"
+                                $M = "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
                             }
 
                             $Error.RemoveAt(0)

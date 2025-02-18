@@ -247,7 +247,7 @@ Describe 'When a duplicate file is in the destination folder and' {
             $testDuplicateFile.FullName | Should -Exist
         }
     }
-    Context 'OverWriteFile is true' {
+    Context 'OverWriteFile is true and destination file not in use' {
         BeforeAll {
             Mock Get-SFTPItem {
                 $testNewItemParams = @{
@@ -257,21 +257,53 @@ Describe 'When a duplicate file is in the destination folder and' {
                 }
                 New-Item @testNewItemParams
             }
-            
+
             $testNewParams.OverwriteFile = $true
             
             $testResult = .$testScript @testNewParams
         }
-        It 'an success objects ic created' {
+        It 'the download is started' {
+            Should -Invoke Get-SFTPItem -Scope Context
+        }
+        It 'a success objects ic created' {
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Moved | Should -BeTrue
             $testResult.Error | Should -BeNullOrEmpty
         }
-        It 'the download is not started' {
-            Should -Invoke Get-SFTPItem -Scope Context
+        It 'the file is no longer in the temp folder on the local file system' {
+            '{0}\sftpTransfer\download\b.txt' -f 
+            $testParams.Paths.Destination | Should -Not -Exist
         }
     }
-} -Tag test
+    Context 'OverWriteFile is true and destination file is in use' {
+        BeforeAll {
+            Mock Get-SFTPItem {
+                $testNewItemParams = @{
+                    Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                    $testParams.Paths.Destination
+                    ItemType = 'File'
+                }
+                New-Item @testNewItemParams
+            }
+
+            Mock Move-Item {
+                throw 'Cannot create a file when that file already exists'
+            }
+
+            $testNewParams.OverwriteFile = $true
+            
+            $testResult = .$testScript @testNewParams
+        }
+        It 'the download is started' {
+            Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly
+        }
+        It 'an error object ic created' {
+            $testResult.FileName | Should -Be 'b.txt'
+            $testResult.Moved | Should -BeFalse
+            $testResult.Error | Should -BeLike "*Failed to move file*File*b.txt' in use by another process*"
+        }
+    }  -Tag test
+} 
 Describe 'when a file is in use by another process on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem {
