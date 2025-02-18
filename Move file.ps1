@@ -356,7 +356,7 @@ try {
                     }
                 }
                 catch {
-                    $M = "Failed creating temp folder '$tempDownloadFolderSftpServer' on the SFTP server: $_"
+                    $M = "Failed creating folder 'sftp:$tempDownloadFolderSftpServer' $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
@@ -402,7 +402,7 @@ try {
 
                 #region Exit when no files to download
                 if (-not $sftpServerFilesToDownload) {
-                    Write-Verbose 'No files to download in source folder on SFTP server'
+                    Write-Verbose 'No files to download'
                     Write-Verbose 'Exit script'
                     Return
                 }
