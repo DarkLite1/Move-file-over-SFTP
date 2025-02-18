@@ -342,15 +342,14 @@ try {
                 try {
                     $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
 
-                    Write-Verbose "Temp download folder on SFTP server '$tempDownloadFolderSftpServer'"
-
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
                         $_.IsDirectory -and
                         $_.Name -eq $tempDownloadFolderSftpServer
                     }
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
-                        Write-Verbose 'Create temp download folder'
+                        Write-Verbose "Create temp download folder 'sftp:$tempDownloadFolderSftpServer'"
+
                         New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer -ItemType Directory -Recurse
                     }
                 }
@@ -442,19 +441,19 @@ try {
                         
                         #region Move file to temp folder on SFTP server
                         try {
+                            $params = @{
+                                Path        = $fileToDownload.FullName
+                                Destination = $sftpTempFilePath
+                            }
+
+                            Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
+
                             Start-RetryActionHC -ScriptBlock {
-                                $params = @{
-                                    Path        = $fileToDownload.FullName
-                                    Destination = $sftpTempFilePath
-                                }
-
-                                Write-Verbose "Move file '$($params.Path)' to '$($params.Destination)' on the SFTP server"
-
                                 Move-SFTPItem @sessionParams @params
                             }
                         }
                         catch {
-                            throw "Failed renaming file on the SFTP server: $_"
+                            throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)' (File most likely locked): $_"
                         }
                         #endregion
 

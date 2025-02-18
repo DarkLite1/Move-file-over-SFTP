@@ -41,15 +41,12 @@ BeforeAll {
 
 Describe 'Create an object with Error property when' {
     BeforeAll {
-        $testFiles = @(
-            @{
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
                 Name        = 'b.txt'
                 FullName    = '/report/b.txt'
                 isDirectory = $false
             }
-        )
-        Mock Get-SFTPChildItem {
-            $testFiles
         }
     }
     It 'authentication to the SFTP server fails' {
@@ -180,6 +177,18 @@ Describe 'Create an object with Error property when' {
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
     }
+    It 'the file cannot be moved to them temp folder on the SFTP server' {
+        Mock Move-SFTPItem {
+            throw 'oops'
+        }
+
+        $testResult = .$testScript @testParams
+
+        $testResult.Error | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt' (File most likely locked): oops"
+
+        Should -Not -Invoke Get-SFTPItem
+        Should -Not -Invoke Rename-SFTPFile
+    } -Tag test
 }
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
@@ -269,7 +278,7 @@ Describe 'When a file is found on the SFTP server' {
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
     }
-} -Tag test
+} #-Tag test
 Describe 'When files are found on the SFTP server' {
     BeforeAll {
         $testNewParams = Copy-ObjectHC $testParams
