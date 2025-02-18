@@ -496,7 +496,7 @@ try {
                             }
                             #endregion
 
-                            $M = "Failed to download file from SFTP server path '$($params.Source)' to '$($params.Destination)': $_"
+                            $M = "Failed to download file from SFTP server path '$($params.Path)' to '$($params.Destination)': $_"
                             $Error.RemoveAt(0)
                             throw $M
                         }
