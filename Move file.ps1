@@ -484,11 +484,11 @@ try {
                                     Write-Warning $errorMessage
 
                                     [PSCustomObject]@{
-                                        DateTime    = Get-Date
-                                        Source      = $path.Source
-                                        Destination = $path.Destination
-                                        FileName    = $fileToDownload.Name
-                                        FileLength  = $fileToDownload.Length
+                                        DateTime    = $result.DateTime
+                                        Source      = $result.Source
+                                        Destination = $result.Destination
+                                        FileName    = $result.FileName
+                                        FileLength  = $result.FileLength
                                         Action      = $null
                                         Error       = $errorMessage
                                     }
