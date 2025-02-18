@@ -452,6 +452,8 @@ try {
                             Start-RetryActionHC -ScriptBlock {
                                 Move-SFTPItem @sessionParams @params
                             }
+
+                            $result.Actions += 'File moved to SFTP temp folder'
                         }
                         catch {
                             throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
@@ -471,6 +473,8 @@ try {
                             Write-Verbose "Download file 'sftp:$($params.Path)' to '$($params.Destination)'"
 
                             Get-SFTPItemHC @params
+
+                            $result.Actions += 'downloaded to local temp folder'
                         }
                         catch {
                             #region remove partially downloaded file
@@ -516,7 +520,7 @@ try {
                                 Move-Item @params
                             }                            
 
-                            $result.Actions += 'File moved'
+                            $result.Actions += 'moved to destination folder'
                         }
                         catch {
                             if ($_ -like '*Cannot create a file when that file already exists*') {
