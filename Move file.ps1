@@ -448,7 +448,7 @@ try {
                                     Destination = $sftpTempFilePath
                                 }
 
-                                Write-Verbose "Move file '$($params.Path)' to temp folder '$($params.Destination)' on the SFTP server"
+                                Write-Verbose "Move file '$($params.Path)' to '$($params.Destination)' on the SFTP server"
 
                                 Move-SFTPItem @sessionParams @params
                             }
