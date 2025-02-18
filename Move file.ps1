@@ -231,13 +231,26 @@ try {
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
 
+                $joinPath = @{
+                    Path      = $path.Destination 
+                    ChildPath = $tempFolder.download
+                }
+                $localTempDownloadFolder = Join-Path @joinPath
+
                 #region Get all files and folders on local file system
                 try {
                     $localFilesAndFoldersInDestination = Get-ChildItem -LiteralPath $path.Destination -Recurse
 
-                    $localFilesInDestinationFolder = $localFilesAndFoldersInDestination | Where-Object {
+                    $localFilesInDestinationFolder = 
+                    $localFilesAndFoldersInDestination | Where-Object {
                         (-not $_.PSIsContainer) -and
                         $_.Directory.FullName -eq $path.Destination
+                    }
+                    
+                    $localFilesInTempDownloadFolder = 
+                    $localFilesAndFoldersInDestination | Where-Object {
+                        (-not $_.PSIsContainer) -and
+                        $_.Directory.FullName -eq $localTempDownloadFolder
                     }
                 }
                 catch {
@@ -246,12 +259,6 @@ try {
                 #endregion
 
                 #region Create temp folder on local file system
-                $joinPath = @{
-                    Path      = $path.Destination 
-                    ChildPath = $tempFolder.download
-                }
-                $localTempDownloadFolder = Join-Path @joinPath
-                
                 $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination | Where-Object {
                     ($_.PSIsContainer) -and
                     ($_.FullName -eq $localTempDownloadFolder)
@@ -267,6 +274,52 @@ try {
                         $M = "Failed creating local temporary download folder '$localTempDownloadFolder': $_"
                         $Error.RemoveAt(0)
                         throw $M        
+                    }
+                }
+                #endregion
+
+                #region Move previously completely downloaded files
+                # that could not be moved on the previous run
+                # due to file in use in the destination folder
+                foreach (
+                    $localFileInTempDownloadFolder in 
+                    $localFilesInTempDownloadFolder
+                ) {
+                    try {
+                        $result = [PSCustomObject]@{
+                            DateTime    = Get-Date
+                            Source      = $localFileInTempDownloadFolder.Directory.FullName
+                            Destination = $localFileInTempDownloadFolder.Directory.FullName.Replace('\sftpTransfer\download', '')
+                            FileName    = $localFileInTempDownloadFolder.Name
+                            FileLength  = $localFileInTempDownloadFolder.Length
+                            Actions     = @()
+                            Moved       = $false
+                            Errors      = @()
+                        }
+
+                        $params = @{
+                            LiteralPath = Join-Path $result.Source $result.FileName
+                            Destination = $result.Destination
+                            Force       = $true
+                        }
+
+                        Write-Verbose "Move previously downloaded file '$($params.LiteralPath)' to '$($params.Destination)"
+
+                        Start-RetryActionHC -ScriptBlock {
+                            Move-Item @params
+                        }                            
+
+                        $result.Actions += 'moved previously downloaded file to destination folder'
+                    }
+                    catch {
+                        $result.Errors += "Failed to move the previously downloaded file '$($params.LiteralPath)' to '$($params.Destination)': $_"
+
+                        $Error.RemoveAt(0)
+
+                        continue
+                    }
+                    finally {
+                        $result
                     }
                 }
                 #endregion

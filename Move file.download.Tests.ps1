@@ -304,8 +304,8 @@ Describe 'When a duplicate file is in the destination folder and' {
         }
         It 'the file in the local temp folder stays in place' {
             "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
-            Should -Exist
-        } -Tag test
+                Should -Exist
+        }
     }
 }
 Describe 'when a file is in use by another process on the SFTP server' {
@@ -389,3 +389,24 @@ Describe 'When a download fails' {
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
 }
+Describe 'When a file could not be moved from the temp download folder to the destination folder on the local file system because it was in use during  the previous run' {
+    BeforeAll {
+        Mock Get-SFTPChildItem
+        
+        $testNewParams = Copy-ObjectHC $testParams
+
+        New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download" -ItemType Directory
+
+        New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
+
+        $testResult = .$testScript @testParams
+    }
+    It 'the file is moved to the destination folder' {
+        "$($testNewParams.Paths.Destination)\b.txt" | 
+            Should -Exist
+    }
+    It 'the file is no longer in the temp download folder' {
+        "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            Should -Not -Exist
+    }
+} -Tag test
