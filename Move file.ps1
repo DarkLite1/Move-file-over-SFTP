@@ -421,10 +421,11 @@ try {
                             Errors      = @()
                         }
 
-                        #region Test duplicate file
                         $duplicateFile = $localFilesInDestinationFolder.where(
                             { $_.Name -eq $result.FileName }
                         )
+                        
+                        #region Test duplicate file
                         if ((-not $OverwriteFile) -and ($duplicateFile)) {
                             Write-Verbose 'Duplicate file on local file system'
 
