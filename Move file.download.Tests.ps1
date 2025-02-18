@@ -301,6 +301,10 @@ Describe 'When a duplicate file is in the destination folder and' {
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Moved | Should -BeFalse
             $testResult.Errors | Should -BeLike 'Failed to remove duplicate file*The process cannot access the file because it is being used by another process'
+        }
+        It 'the file in the local temp folder stays in place' {
+            "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            Should -Exist
         } -Tag test
     }
 }
