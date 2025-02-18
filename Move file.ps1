@@ -249,6 +249,8 @@ try {
 
                 if (-not ($isLocalTempDownloadFolderCreated)) {
                     try {
+                        Write-Verbose "Create folder '$localTempDownloadFolder '"
+
                         $null = New-Item -Path $localTempDownloadFolder -ItemType Directory
                     }
                     catch {
@@ -348,7 +350,7 @@ try {
                     }
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
-                        Write-Verbose "Create temp download folder 'sftp:$tempDownloadFolderSftpServer'"
+                        Write-Verbose "Create folder 'sftp:$tempDownloadFolderSftpServer'"
 
                         New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer -ItemType Directory -Recurse
                     }
@@ -408,8 +410,6 @@ try {
 
                 foreach ($fileToDownload in $sftpServerFilesToDownload) {
                     try {
-                        Write-Verbose "File '$($fileToDownload.FullName)'"
-
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
@@ -467,7 +467,7 @@ try {
                                 Destination = $localTempFilePath
                             }
 
-                            Write-Verbose "Download file from SFTP server path '$($params.Path)' to '$($params.Destination)'"
+                            Write-Verbose "Download file 'sftp:$($params.Path)' to '$($params.Destination)'"
 
                             Get-SFTPItemHC @params
                         }
