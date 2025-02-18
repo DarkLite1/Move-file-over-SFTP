@@ -468,7 +468,7 @@ try {
                                 Destination = $localTempFilePath
                             }
 
-                            Write-Verbose "Download file from SFTP server path '$($params.Source)' to '$($params.Destination)'"
+                            Write-Verbose "Download file from SFTP server path '$($params.Path)' to '$($params.Destination)'"
 
                             Get-SFTPItemHC @params
                         }
