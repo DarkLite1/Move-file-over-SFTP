@@ -299,13 +299,22 @@ try {
 
                         $params = @{
                             LiteralPath = Join-Path $result.Source $result.FileName
-                            Destination = $result.Destination
+                            Destination = Join-Path $result.Destination $result.FileName
                             Force       = $true
                         }
 
                         Write-Verbose "Move previously downloaded file '$($params.LiteralPath)' to '$($params.Destination)"
 
                         Start-RetryActionHC -ScriptBlock {
+                            $testPathParams = @{
+                                LiteralPath = $params.Destination
+                                PathType    = 'Leaf'
+                            }
+                            if (Test-Path @testPathParams) {
+                                # remove-item throws the error file in use
+                                Remove-Item -LiteralPath $params.Destination
+                            }
+                            # move-item has an error 'Cannot create file'
                             Move-Item @params
                         }
 
@@ -606,6 +615,15 @@ try {
                             Write-Verbose "Move file '$($params.LiteralPath)' to '$($params.Destination)"
 
                             Start-RetryActionHC -ScriptBlock {
+                                $testPathParams = @{
+                                    LiteralPath = $params.Destination
+                                    PathType    = 'Leaf'
+                                }
+                                if (Test-Path @testPathParams) {
+                                    # remove-item throws the error file in use
+                                    Remove-Item -LiteralPath $params.Destination
+                                }
+                                # move-item has an error 'Cannot create file'
                                 Move-Item @params
                             }                            
 
