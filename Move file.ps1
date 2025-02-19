@@ -119,21 +119,64 @@ try {
             )
 
             $WarningPreference = 'Continue'
-            $getSftpItemWarningMessages = @()
+            $warningMessages = @()
 
             $params = @{
                 Path            = $Path
                 Destination     = $Destination
-                WarningVariable = 'getSftpItemWarningMessages'
+                ErrorVariable   = 'errorMessages'
+                WarningVariable = 'warningMessages'
             }
             Get-SFTPItem @sessionParams @params
 
-            if ($getSftpItemWarningMessages) {
-                foreach ($warning in $getSftpItemWarningMessages) {
-                    throw $warning
-                }
+            foreach ($warningMessage in $warningMessages) {
+                throw $warningMessage
             }
-        }       
+        
+            foreach ($errorMessage in $errorMessages) {
+                throw $errorMessage
+            }
+        }
+        function Get-SFTPChildItemHC {
+            <# 
+                .SYNOPSIS
+                    List folder content on SFTP server
+
+                .DESCRIPTION
+                    Get-SFTPChildItem does not throw an error, only a non 
+                    terminating error
+
+                .LINK
+                    https://github.com/darkoperator/Posh-SSH/issues/607
+            #>
+
+            [CmdletBinding()]
+            Param (
+                [parameter(Mandatory)]
+                [String]$Path
+            )
+
+            $WarningPreference = 'Continue'
+
+            $warningMessages = @()
+            $errorMessages = @()
+
+            $params = @{
+                Path            = $Path
+                Recurse         = $true
+                ErrorVariable   = 'errorMessages'
+                WarningVariable = 'warningMessages'
+            }
+            Get-SFTPChildItem @sessionParams @params
+            
+            foreach ($warningMessage in $warningMessages) {
+                throw $warningMessage
+            }
+        
+            foreach ($errorMessage in $errorMessages) {
+                throw $errorMessage
+            }
+        }
         function Start-RetryActionHC {
             <# 
                 .SYNOPSIS
@@ -368,13 +411,7 @@ try {
 
                 #region Get folder content on SFTP server
                 try {
-                    # https://github.com/darkoperator/Posh-SSH/issues/607
-                    # ErrorAction Stop not respected
-                    $errorMessage = $null
-
-                    $sftpServerFolderContent = Get-SFTPChildItem @sessionParams -Path $sftpPath -Recurse -ErrorVariable 'errorMessage'
-
-                    if ($errorMessage) { throw $errorMessage }
+                    $sftpServerFolderContent = Get-SFTPChildItemHC -Path $sftpPath
                 }
                 catch {
                     $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"

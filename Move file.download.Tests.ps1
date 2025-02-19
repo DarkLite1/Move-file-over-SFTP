@@ -405,7 +405,27 @@ Describe 'When a download fails' {
         $testResult.Moved | Should -BeFalse
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
-} -Tag test
+    Context 'on the next run, the file in the SFTP temp folder is' {
+        BeforeAll {
+            Mock Get-SFTPChildItem {
+                [PSCustomObject]@{
+                    Name        = 'b.txt'
+                    FullName    = '/report/sftpTransfer/download/b.txt'
+                    isDirectory = $false
+                }
+            }
+    
+            $testResult = .$testScript @testParams
+        }
+        It 'downloaded again' {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                ($SessionId -eq 1) -and
+                ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+                ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+            }
+        }
+    } -Tag test
+}
 Describe 'When a file could not be moved from the temp download folder to the destination folder on the local file system because it was in use during  the previous run' {
     BeforeAll {
         Mock Get-SFTPChildItem
