@@ -325,7 +325,7 @@ Describe 'when a file is in use by another process on the SFTP server' {
         $testResult = .$testScript @testParams
     }
     It 'the file cannot be moved to the SFTP temp folder' {
-        should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+        Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/b.txt') -and
             ($Destination -eq '/report/sftpTransfer/download/b.txt')
@@ -337,8 +337,7 @@ Describe 'when a file is in use by another process on the SFTP server' {
     It 'the download is not started' {
         Should -Not -Invoke Get-SFTPItem -Scope Describe
     }
-} -Tag test
-
+}
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem 
@@ -390,11 +389,23 @@ Describe 'When a download fails' {
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
     }
+    Context 'the moved file is still present in the SFTP temp folder because' {
+        It 'the file was moved the SFTP temp folder' {
+            Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/b.txt') -and
+            ($Destination -eq '/report/sftpTransfer/download/b.txt')
+            }
+        }
+        It 'and the file was not deleted on the SFTP server' {
+            Should -Not -Invoke Remove-SFTPItem -Scope Describe
+        }
+    }
     It 'an error object is created' {
         $testResult.Moved | Should -BeFalse
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
-}
+} -Tag test
 Describe 'When a file could not be moved from the temp download folder to the destination folder on the local file system because it was in use during  the previous run' {
     BeforeAll {
         Mock Get-SFTPChildItem
@@ -420,4 +431,4 @@ Describe 'When a file could not be moved from the temp download folder to the de
         $testResult.Actions | Should -Be 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
         $testResult.Errors | Should -BeNullOrEmpty
     }
-} -Tag test
+}
