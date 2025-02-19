@@ -432,8 +432,7 @@ Describe 'When a previous download failed during transferring' {
             ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
         }
     }
-} -Tag test
-
+}
 Describe 'When a file could not be moved from the local temp download folder to the local destination folder because it was in use during the previous run' {
     BeforeAll {
         Mock Get-SFTPChildItem
