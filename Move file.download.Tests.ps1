@@ -406,7 +406,7 @@ Describe 'When a download fails' {
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
 }
-Describe 'When a previous download failed during transferring' {
+Describe 'When a previous download failed during transfer' {
     BeforeAll {
         Mock Get-SFTPChildItem {
             [PSCustomObject]@{
