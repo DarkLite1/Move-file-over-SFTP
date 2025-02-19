@@ -414,6 +414,8 @@ Describe 'When a download fails' {
                     isDirectory = $false
                 }
             }
+
+            Write-Verbose 'SECOND RUN'
     
             $testResult = .$testScript @testParams
         }
@@ -426,7 +428,7 @@ Describe 'When a download fails' {
         }
     } -Tag test
 }
-Describe 'When a file could not be moved from the temp download folder to the destination folder on the local file system because it was in use during  the previous run' {
+Describe 'When a file could not be moved from the local temp download folder to the local destination folder because it was in use during the previous run' {
     BeforeAll {
         Mock Get-SFTPChildItem
         
