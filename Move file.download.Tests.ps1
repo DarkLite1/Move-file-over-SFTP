@@ -405,29 +405,35 @@ Describe 'When a download fails' {
         $testResult.Moved | Should -BeFalse
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
-    Context 'on the next run, the file in the SFTP temp folder is' {
-        BeforeAll {
-            Mock Get-SFTPChildItem {
-                [PSCustomObject]@{
-                    Name        = 'b.txt'
-                    FullName    = '/report/sftpTransfer/download/b.txt'
-                    isDirectory = $false
-                }
-            }
-
-            Write-Verbose 'SECOND RUN'
-    
-            $testResult = .$testScript @testParams
-        }
-        It 'downloaded again' {
-            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-                ($SessionId -eq 1) -and
-                ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-                ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
-            }
-        }
-    } -Tag test
 }
+Describe 'When a previous download failed during transferring' {
+    BeforeAll {
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
+                Name        = 'b.txt'
+                FullName    = '/report/sftpTransfer/download/b.txt'
+                isDirectory = $false
+            }
+        }
+
+        $testResult = .$testScript @testParams
+    }
+    It 'the file list on the SFTP server is retrieved recursively' {
+        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/') -and
+            ($Recurse)
+        }
+    }
+    It 'the previously failed file is downloaded again' {
+        Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+        }
+    }
+} -Tag test
+
 Describe 'When a file could not be moved from the local temp download folder to the local destination folder because it was in use during the previous run' {
     BeforeAll {
         Mock Get-SFTPChildItem

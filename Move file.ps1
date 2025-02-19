@@ -322,8 +322,9 @@ try {
                 #endregion
 
                 #region Move previously completely downloaded files
-                # that could not be moved on the previous run
-                # due to file in use in the destination folder
+                # to the destination folder, as they could not be moved
+                # during the previous run due to "file in use" in the 
+                # destination folder
                 foreach (
                     $localFileInTempDownloadFolder in 
                     $localFilesInTempDownloadFolder
@@ -420,12 +421,19 @@ try {
                 }
                 #endregion
 
+                $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
+
                 #region Select files to download on SFTP server
                 try {
-                    # Only select files on root level
+                    # In parent folder and temp download folder
+                    # as they contain previously failed downloads
+                    # due to transfer issues
                     $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
                         (-not $_.isDirectory) -and
-                        ($_.FullName -eq "$($sftpPath)$($_.Name)") 
+                        (
+                            ($_.FullName -eq "$($sftpPath)$($_.Name)") -or 
+                            ($_.FullName -like "$tempDownloadFolderSftpServer/*")
+                        )
                     }
 
                     if ($FileExtensions) {
@@ -451,8 +459,6 @@ try {
 
                 #region Create temp folder on SFTP server
                 try {
-                    $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
-
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
                         $_.IsDirectory -and
                         $_.Name -eq $tempDownloadFolderSftpServer
