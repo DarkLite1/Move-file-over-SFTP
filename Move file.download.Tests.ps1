@@ -308,7 +308,7 @@ Describe 'When a duplicate file is in the destination folder and' {
         }
     }
 }
-Describe 'when a file is in use by another process on the SFTP server' {
+Describe 'when the source file on the SFTP server is in use' {
     BeforeAll {
         Mock Get-SFTPChildItem {
             [PSCustomObject]@{
