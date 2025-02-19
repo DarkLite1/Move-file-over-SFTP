@@ -536,12 +536,18 @@ try {
                             Errors      = @()
                         }
 
-                        $duplicateFile = $localFilesInDestinationFolder.where(
-                            { $_.Name -eq $result.FileName }
-                        )
+                        $duplicateFile = $localFilesInDestinationFolder |
+                            Where-Object { $_.Name -eq $result.FileName }
+
+                        $failedDownloadedFile = $localFilesInTempDownloadFolder | Where-Object {
+                            $_.Name -eq $result.FileName
+                        }
 
                         #region Test duplicate file
-                        if ((-not $OverwriteFile) -and ($duplicateFile)) {
+                        if (
+                            (-not $OverwriteFile) -and 
+                            ($duplicateFile -or $failedDownloadedFile)
+                        ) {
                             Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if desired'
 
                             continue
