@@ -393,6 +393,9 @@ Describe 'When a download fails' {
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
     }
+    It 'the destination folder is left untouched' {
+        $testParams.Paths.Destination | Should -Exist
+    }
     Context 'the moved file is still present in the SFTP temp folder because' {
         It 'the file was moved from the SFTP source folder to the SFTP temp folder' {
             Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
@@ -411,7 +414,7 @@ Describe 'When a download fails' {
     }
 }
 Describe 'Previously failed download' {
-    Context 'when there is a file in the sftp temp folder because of file transfer issues' {
+    Context 'when there is a file in the sftp temp folder because of file transfer issues during the previous run' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 [PSCustomObject]@{
@@ -433,7 +436,7 @@ Describe 'Previously failed download' {
             }
         }
     }
-    Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process' {
+    Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process ' {
         BeforeAll {
             Mock Get-SFTPChildItem
             
