@@ -597,7 +597,8 @@ try {
                             catch {
                                 throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
                             }
-                        } else {
+                        }
+                        else {
                             $result.Actions += 'file not moved as it was in the SFTP temp folder from a previously failed download'
                         }
                         #endregion
@@ -625,25 +626,71 @@ try {
 
                             $Error.RemoveAt(0)
 
-                            #region remove partially downloaded file
-                            Start-RetryActionHC -ScriptBlock {
-                                $testPathParams = @{
-                                    LiteralPath = $params.Destination 
-                                    PathType    = 'Leaf'
-                                }
-                                if (Test-Path @testPathParams) {
-                                    try {
-                                        Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
-
+                            #region remove partially downloaded file in local temp folder
+                            $testPathParams = @{
+                                LiteralPath = $params.Destination 
+                                PathType    = 'Leaf'
+                            }
+                            if (Test-Path @testPathParams) {
+                                try {
+                                    Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
+                                    
+                                    Start-RetryActionHC -ScriptBlock {
                                         $params.Destination | Remove-Item -Force
+                                    }
                              
-                                        $result.Actions += "removed partially downloaded file '$($params.Destination)'"
-                                    }
-                                    catch {
-                                        Save-ErrorMessageHC "Failed removing partially downloaded file '$($params.Destination)': $_"
+                                    $result.Actions += "removed partially downloaded file '$($params.Destination)'"
+                                }
+                                catch {
+                                    Save-ErrorMessageHC "Failed removing partially downloaded file '$($params.Destination)': $_"
 
-                                        $Error.RemoveAt(0)
+                                    $Error.RemoveAt(0)
+                                } 
+                            }
+                            #endregion
+
+                            continue
+                        }
+                        #endregion
+
+                        #region Remove SFTP temp file
+                        try {
+                            $params = @{
+                                Path = $sftpTempFilePath
+                            }
+
+                            Write-Verbose "Remove file 'sftp:$($params.Path)'"
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Remove-SFTPItem @sessionParams @params
+                            }
+
+                            $result.Actions += 'removed file in SFTP temp folder'
+                        }
+                        catch {
+                            Save-ErrorMessageHC "Failed to remove file 'sftp:$sftpTempFilePath', most likely the file is in use: $_"
+
+                            $Error.RemoveAt(0)
+
+                            #region Remove local temp file
+                            $testPathParams = @{
+                                LiteralPath = $localTempFilePath
+                                PathType    = 'Leaf'
+                            }
+                            if (Test-Path @testPathParams) {
+                                try {
+                                    Write-Verbose "Remove file '$localTempFilePath'"
+                                    
+                                    Start-RetryActionHC -ScriptBlock {
+                                        $localTempFilePath | Remove-Item -Force
                                     }
+                         
+                                    $result.Actions += "removed file '$localTempFilePath', because we could't remove the file on the SFTP server"
+                                }
+                                catch {
+                                    Save-ErrorMessageHC "Failed to remove file '$localTempFilePath', because we could't remove the file on the SFTP server: $_"
+
+                                    $Error.RemoveAt(0)
                                 } 
                             }
                             #endregion

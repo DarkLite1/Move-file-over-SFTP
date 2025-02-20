@@ -125,11 +125,12 @@ Describe 'When a file is found on the SFTP server' {
             It '<_>' -ForEach @(
                 'file moved to SFTP temp folder',
                 'downloaded to local temp folder',
+                'removed file in SFTP temp folder',
                 'moved to destination folder'
             ) {
                 $testResult.Actions | Should -Contain $_
             }
-        }
+        } -Tag test
         It 'Moved' {
             $testResult.Moved | Should -BeTrue
         }
