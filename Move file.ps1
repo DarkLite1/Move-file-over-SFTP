@@ -513,17 +513,22 @@ try {
                             ($_.FullName -eq "$tempDownloadFolderSftpServer/$($result.FileName)")
                         }
 
-                        if (
-                            (-not $OverwriteFile) -and 
-                            (
-                                $duplicateFileInDestinationFolder -or 
-                                $duplicateFileInSftpTempFolder -or
-                                $duplicateFileInLocalTempFolder
-                            )
-                        ) {
-                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if desired'
+                        if (-not $OverwriteFile) {
+                            if ($duplicateFileInDestinationFolder) {
+                                Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
 
-                            continue
+                                continue
+                            }
+                            if ($duplicateFileInSftpTempFolder) {
+                                Save-ErrorMessageHC "Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired"
+
+                                continue
+                            }
+                            if ($duplicateFileInLocalTempFolder) {
+                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)' due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired'"
+
+                                continue
+                            }
                         }
                         #endregion
 
