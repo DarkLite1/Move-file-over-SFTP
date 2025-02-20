@@ -466,9 +466,14 @@ try {
                 #endregion
 
                 #region Remove duplicate files on sftp server from download list
-                $duplicatesInSftpTempFolder = $sftpServerFilesToDownload | Group-Object Name | Where-Object { $_.Count -ge 2 }
+                $duplicatesFilesInSftpSourceAndTempFolder = 
+                $sftpServerFilesToDownload | Group-Object Name | Where-Object { 
+                    $_.Count -ge 2 
+                }
 
-                foreach ($duplicate in $duplicatesInSftpTempFolder) {
+                foreach (
+                    $duplicate in $duplicatesFilesInSftpSourceAndTempFolder
+                ) {
                     Write-Verbose "Duplicate file '$($duplicate.Name)' in SFTP source folder and SFTP temp folder"
 
                     if (-not $OverwriteFile) {
@@ -582,7 +587,7 @@ try {
 
                             $result.Actions += 'file moved to SFTP temp folder'
 
-                            if ($duplicatesInSftpTempFolder.Name -contains $result.FileName) {
+                            if ($duplicatesFilesInSftpSourceAndTempFolder.Name -contains $result.FileName) {
                                 $result.Actions += 'overwritten duplicate file in SFTP temp folder'
                             }
                         }
