@@ -500,6 +500,7 @@ try {
                             Errors      = @()
                         }
 
+                        #region Test duplicate file
                         $duplicateFileInDestinationFolder = $localFilesInDestinationFolder |
                             Where-Object { $_.Name -eq $result.FileName }
 
@@ -512,7 +513,6 @@ try {
                             ($_.FullName -eq "$tempDownloadFolderSftpServer/$($result.FileName)")
                         }
 
-                        #region Test duplicate file
                         if (
                             (-not $OverwriteFile) -and 
                             (
