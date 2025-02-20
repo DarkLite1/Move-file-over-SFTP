@@ -433,7 +433,7 @@ Describe 'Previously failed download' {
             }
         }
     }
-    Context 'when there is a file in the local temp folder because of file in use in the destination folder' {
+    Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process' {
         BeforeAll {
             Mock Get-SFTPChildItem
             
