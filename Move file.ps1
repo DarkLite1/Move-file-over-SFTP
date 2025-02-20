@@ -488,14 +488,14 @@ try {
                             Errors      = @("Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired")
                         }
 
-                        #region remove all duplicates from download list
+                        #region remove duplicate files from sftp download list
                         $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
                             $_.Name -ne $duplicate.Name
                         }
                         #endregion
                     }
                     else {
-                        #region remove duplicate in sftp temp folder from download list
+                        #region remove the temp duplicate file from the sftp download list
                         $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
                             $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
                         }
