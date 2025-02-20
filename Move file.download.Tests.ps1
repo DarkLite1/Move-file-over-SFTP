@@ -88,7 +88,8 @@ Describe 'When a file is found on the SFTP server' {
         Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/b.txt') -and
-            ($Destination -eq '/report/sftpTransfer/download/b.txt' )
+            ($Destination -eq '/report/sftpTransfer/download/b.txt' ) -and
+            ($Force)
         }
     }
     It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
@@ -316,7 +317,12 @@ Describe 'When a duplicate file' {
     Describe 'is in the sftp temp folder and' {
         BeforeAll {
             Mock Get-SFTPChildItem {
-                @{
+                [PSCustomObject]@{
+                    Name        = 'b.txt'
+                    FullName    = '/report/b.txt'
+                    isDirectory = $false
+                }
+                [PSCustomObject]@{
                     Name        = 'b.txt'
                     FullName    = '/report/sftpTransfer/download/b.txt'
                     isDirectory = $false
@@ -337,7 +343,7 @@ Describe 'When a duplicate file' {
             It 'an error object is created' {
                 $testResult.FileName | Should -Be 'b.txt'
                 $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
-            }
+            } -Tag test
         }
         Context 'OverWriteFile is true' {
             BeforeAll {
@@ -353,8 +359,8 @@ Describe 'When a duplicate file' {
                 }
             }
         }
-    } -Tag test
-} 
+    }
+}
 Describe 'when the source file on the SFTP server is in use' {
     BeforeAll {
         Mock Get-SFTPChildItem {

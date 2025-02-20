@@ -413,6 +413,14 @@ try {
                 #region Get folder content on SFTP server
                 try {
                     $sftpServerFolderContent = Get-SFTPChildItemHC -Path $sftpPath
+
+                    $sftpServerFiles = $sftpServerFolderContent | Where-Object {
+                        -not $_.isDirectory
+                    }
+
+                    # $sftpFilesInSourceFolder = $sftpServerFiles | Where-Object {
+                    #     $_.FullName -eq "$sftpPath$($_.Name)"
+                    # }
                 }
                 catch {
                     $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
@@ -430,12 +438,9 @@ try {
                     previously failed downloading due to transfer issues 
                 #>
                 try {
-                    $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
-                        (-not $_.isDirectory) -and
-                        (
-                            ($_.FullName -eq "$sftpPath$($_.Name)") -or 
-                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
-                        )
+                    $sftpServerFilesToDownload = $sftpServerFiles | Where-Object {
+                        ($_.FullName -eq "$sftpPath$($_.Name)") -or 
+                        ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
                     }
 
                     if ($FileExtensions) {
@@ -504,16 +509,16 @@ try {
                         $duplicateFileInDestinationFolder = $localFilesInDestinationFolder |
                             Where-Object { $_.Name -eq $result.FileName }
 
-                        $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder | Where-Object {
-                            $_.Name -eq $result.FileName
-                        }
-
-                        $duplicateFileInSftpTempFolder = $sftpServerFolderContent | Where-Object {
-                            (-not $_.isDirectory) -and
-                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($result.FileName)")
-                        }
-
                         if (-not $OverwriteFile) {
+                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder | Where-Object {
+                                $_.Name -eq $result.FileName
+                            }
+    
+                            $duplicateFileInSftpTempFolder = ($sftpServerFilesToDownload | Where-Object { 
+                                    $_.Name -eq $result.FileName 
+                                }
+                            ).Count -ge 2
+
                             if ($duplicateFileInDestinationFolder) {
                                 Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
 
@@ -540,6 +545,7 @@ try {
                             $params = @{
                                 Path        = $fileToDownload.FullName
                                 Destination = $sftpTempFilePath
+                                Force       = $true
                             }
 
                             Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
