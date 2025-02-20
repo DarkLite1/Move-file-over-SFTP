@@ -608,41 +608,40 @@ try {
 
                         #region Download file to local temp folder
                         try {
-                            $params = @{
-                                Path        = $sftpTempFilePath
-                                Destination = $localTempFilePath
-                            }
-
-                            Write-Verbose "Download file 'sftp:$($params.Path)' to '$($params.Destination)'"
+                            Write-Verbose "Download file 'sftp:$sftpTempFilePath' to '$localTempFilePath'"
 
                             Start-RetryActionHC -ScriptBlock {
+                                $params = @{
+                                    Path        = $sftpTempFilePath
+                                    Destination = $localTempFilePath
+                                }
                                 Get-SFTPItemHC @params
                             }
 
                             $result.Actions += 'downloaded to local temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to download file 'sftp:$($params.Path)' to '$($params.Destination)': $_"
+                            Save-ErrorMessageHC "Failed to download file 'sftp:$sftpTempFilePath' to '$localTempFilePath': $_"
 
                             $Error.RemoveAt(0)
 
-                            #region remove partially downloaded file in local temp folder
+                            #region Remove local temp file
                             $testPathParams = @{
-                                LiteralPath = $params.Destination 
+                                LiteralPath = $localTempFilePath
                                 PathType    = 'Leaf'
                             }
                             if (Test-Path @testPathParams) {
                                 try {
-                                    Write-Verbose "Remove partially downloaded file '$($params.Destination)'"
+                                    Write-Verbose "Remove file '$localTempFilePath'"
                                     
                                     Start-RetryActionHC -ScriptBlock {
-                                        $params.Destination | Remove-Item -Force
+                                        $localTempFilePath | Remove-Item -Force
                                     }
                              
-                                    $result.Actions += "removed partially downloaded file '$($params.Destination)'"
+                                    $result.Actions += "removed partially downloaded file '$localTempFilePath'"
                                 }
                                 catch {
-                                    Save-ErrorMessageHC "Failed removing partially downloaded file '$($params.Destination)': $_"
+                                    Save-ErrorMessageHC "Failed removing partially downloaded file '$localTempFilePath': $_"
 
                                     $Error.RemoveAt(0)
                                 } 
