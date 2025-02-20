@@ -628,7 +628,7 @@ try {
                         $localTempFilePath = '{0}\{1}' -f 
                         $localTempDownloadFolder, $result.FileName
 
-                        #region Download file to local temp folder
+                        #region Download SFTP file to local temp folder
                         try {
                             Write-Verbose "Download file 'sftp:$sftpTempFilePath' to '$localTempFilePath'"
 
@@ -705,7 +705,7 @@ try {
                         }
                         #endregion
 
-                        #region Move file from local temp folder to destination folder
+                        #region Move local temp file to destination folder
                         try {
                             $params = @{
                                 LiteralPath = $localTempFilePath
