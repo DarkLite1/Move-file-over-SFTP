@@ -607,6 +607,7 @@ try {
                                     Path        = $fileToDownload.FullName
                                     Destination = $sftpTempFilePath
                                     Force       = $true
+                                    Verbose     = $false
                                 }
 
                                 Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
