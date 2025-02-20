@@ -96,7 +96,7 @@ Describe 'When a file is found on the SFTP server' {
         Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" ) -and
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" ) -and
             ($Force)
         }
     }
@@ -397,7 +397,7 @@ Describe 'When a duplicate file' {
                 Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-                    ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+                    ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
                 }
             }
             It 'a single success object is created' {
@@ -538,7 +538,7 @@ Describe 'Previously failed download' {
             Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
             }
         }
         It 'a single success object is created' {

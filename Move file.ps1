@@ -246,7 +246,7 @@ try {
                         Start-Sleep -Seconds $WaitSecondsBetweenAttempts
                     }
                     else {
-                        Write-Warning "Attempt $($attempt.count)/$AttemptCount failed"
+                        Write-Warning "Attempt $($attempt.count)/$AttemptCount failed: $_"
                     }
                     $errorMessage = $_
                     $Error.RemoveAt(0)
@@ -561,6 +561,8 @@ try {
 
                 foreach ($fileToDownload in $sftpServerFilesToDownload) {
                     try {
+                        Write-Verbose "File to download '$($fileToDownload.FullName)'"
+
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
@@ -641,7 +643,7 @@ try {
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
                                     Path        = $sftpTempFilePath
-                                    Destination = $localTempFilePath
+                                    Destination = $localTempDownloadFolder
                                 }
                                 Get-SFTPItemHC @params
                             }
