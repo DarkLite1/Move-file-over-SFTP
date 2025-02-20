@@ -465,6 +465,29 @@ try {
                 }
                 #endregion
 
+                #region Remove duplicate files on sftp server
+                if (-not $OverwriteFile) {
+                    $duplicatesInSftpTempFolder = $sftpServerFilesToDownload | Group-Object Name | Where-Object { $_.Count -ge 2 }
+
+                    foreach ($duplicate in $duplicatesInSftpTempFolder) {
+                        [PSCustomObject]@{
+                            DateTime    = Get-Date
+                            Source      = $path.Source
+                            Destination = $path.Destination
+                            FileName    = $duplicate.Name
+                            FileLength  = $duplicate.Group[0].Length
+                            Actions     = @()
+                            Moved       = $false
+                            Errors      = @("Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired")
+                        }
+
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
+                            $_.Name -ne $duplicate.Name
+                        }
+                    }
+                }
+                #endregion
+
                 #region Create temp folder on SFTP server
                 try {
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
@@ -515,21 +538,12 @@ try {
                                 $_.Name -eq $result.FileName
                             }
     
-                            $duplicateFileInSftpTempFolder = ($sftpServerFilesToDownload | Where-Object { 
-                                    $_.Name -eq $result.FileName 
-                                }
-                            ).Count -ge 2
-
                             if ($duplicateFileInDestinationFolder) {
                                 Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
 
                                 continue
                             }
-                            if ($duplicateFileInSftpTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired"
-
-                                continue
-                            }
+                        
                             if ($duplicateFileInLocalTempFolder) {
                                 Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)' due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired'"
 

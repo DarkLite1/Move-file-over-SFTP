@@ -99,7 +99,7 @@ Describe 'When a file is found on the SFTP server' {
             ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" ) -and
             ($Force)
         }
-    } -Tag test
+    }
     It 'Move the file from the local temp folder to the destination folder on the local file system' {
         "$($testParams.Paths.Destination)\b.txt" | Should -Exist
     }
@@ -341,7 +341,8 @@ Describe 'When a duplicate file' {
             It 'the download is not started' {
                 Should -Not -Invoke Get-SFTPItem -Scope Context
             }
-            It 'an error object is created' {
+            It 'an single error object is created' {
+                $testResult | Should -HaveCount 1
                 $testResult.FileName | Should -Be 'b.txt'
                 $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
             } -Tag test
