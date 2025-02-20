@@ -71,30 +71,30 @@ BeforeAll {
 
     $testExportedExcelRows = @(
         [PSCustomObject]@{
-            TaskName     = $testInputFile.Tasks[0].TaskName
-            SftpServer   = $testInputFile.Tasks[0].Sftp.ComputerName
-            ComputerName = $testInputFile.Tasks[0].Actions[0].ComputerName
-            Source       = $testData[0].Source
-            Destination  = $testData[0].Destination
-            FileName     = $testData[0].FileName
-            FileSize     = $testData[0].FileLength / 1KB
-            DateTime     = $testData[0].DateTime
-            Moved        = $testData[0].Moved
-            Actions      = $testData[0].Actions
-            Errors       = $null
+            TaskName        = $testInputFile.Tasks[0].TaskName
+            SftpServer      = $testInputFile.Tasks[0].Sftp.ComputerName
+            ComputerName    = $testInputFile.Tasks[0].Actions[0].ComputerName
+            SourcePath      = $testData[0].Source
+            DestinationPath = $testData[0].Destination
+            FileName        = $testData[0].FileName
+            FileSize        = $testData[0].FileLength / 1KB
+            DateTime        = $testData[0].DateTime
+            Moved           = $testData[0].Moved
+            Actions         = $testData[0].Actions -join ', '
+            Errors          = $null
         }
         [PSCustomObject]@{
-            TaskName     = $testInputFile.Tasks[0].TaskName
-            SftpServer   = $testInputFile.Tasks[0].Sftp.ComputerName
-            ComputerName = $testInputFile.Tasks[0].Actions[0].ComputerName
-            Source       = $testData[1].Source
-            Destination  = $testData[1].Destination
-            FileName     = $testData[1].FileName
-            FileSize     = $testData[1].FileLength / 1KB
-            DateTime     = $testData[1].DateTime
-            Moved        = $testData[1].Moved
-            Actions      = $testData[1].Actions
-            Errors       = $null
+            TaskName        = $testInputFile.Tasks[0].TaskName
+            SftpServer      = $testInputFile.Tasks[0].Sftp.ComputerName
+            ComputerName    = $testInputFile.Tasks[0].Actions[0].ComputerName
+            SourcePath      = $testData[1].Source
+            DestinationPath = $testData[1].Destination
+            FileName        = $testData[1].FileName
+            FileSize        = $testData[1].FileLength / 1KB
+            DateTime        = $testData[1].DateTime
+            Moved           = $testData[1].Moved
+            Actions         = $testData[1].Actions -join ', '
+            Errors          = $null
         }
     )
 
@@ -908,12 +908,13 @@ Describe 'when the SFTP script runs successfully' {
         It 'with the correct data in the rows' {
             foreach ($testRow in $testExportedExcelRows) {
                 $actualRow = $actual | Where-Object {
-                    $_.Source -eq $testRow.Source
+                    $_.SourcePath -eq $testRow.SourcePath
                 }
                 $actualRow.TaskName | Should -Be $testRow.TaskName
                 $actualRow.SftpServer | Should -Be $testRow.SftpServer
                 $actualRow.ComputerName | Should -Be $testRow.ComputerName
-                $actualRow.Destination | Should -Be $testRow.Destination
+                $actualRow.DestinationPath | Should -Be $testRow.DestinationPath
+                $actualRow.Moved | Should -Be $testRow.Moved
                 $actualRow.DateTime.ToString('yyyyMMdd') |
                     Should -Be $testRow.DateTime.ToString('yyyyMMdd')
                 $actualRow.Actions -join ', ' | 

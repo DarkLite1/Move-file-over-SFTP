@@ -781,13 +781,20 @@ End {
                     Name       = 'ComputerName'
                     Expression = { $action.ComputerName }
                 },
-                'Source',
-                'Destination',
+                @{
+                    Name       = 'SourcePath'
+                    Expression = { $_.Source }
+                },
+                @{
+                    Name       = 'DestinationPath'
+                    Expression = { $_.Destination }
+                },
                 'FileName',
                 @{
                     Name       = 'FileSize'
                     Expression = { $_.FileLength / 1KB }
                 },
+                'Moved',
                 @{
                     Name       = 'Actions'
                     Expression = { $_.Actions -join ', ' }
