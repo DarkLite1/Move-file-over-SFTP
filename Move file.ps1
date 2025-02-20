@@ -466,10 +466,12 @@ try {
                 #endregion
 
                 #region Remove duplicate files on sftp server from download list
-                if (-not $OverwriteFile) {
-                    $duplicatesInSftpTempFolder = $sftpServerFilesToDownload | Group-Object Name | Where-Object { $_.Count -ge 2 }
+                $duplicatesInSftpTempFolder = $sftpServerFilesToDownload | Group-Object Name | Where-Object { $_.Count -ge 2 }
 
-                    foreach ($duplicate in $duplicatesInSftpTempFolder) {
+                foreach ($duplicate in $duplicatesInSftpTempFolder) {
+                    Write-Verbose "Duplicate file '$($duplicate.Name)' in SFTP source folder and SFTP temp folder"
+
+                    if (-not $OverwriteFile) {
                         [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
@@ -481,9 +483,18 @@ try {
                             Errors      = @("Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired")
                         }
 
+                        #region remove all duplicates from download list
                         $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
                             $_.Name -ne $duplicate.Name
                         }
+                        #endregion
+                    }
+                    else {
+                        #region remove duplicate in sftp temp folder from download list
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
+                            $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
+                        }
+                        #endregion
                     }
                 }
                 #endregion
@@ -569,7 +580,11 @@ try {
                                 Move-SFTPItem @sessionParams @params
                             }
 
-                            $result.Actions += 'File moved to SFTP temp folder'
+                            $result.Actions += 'file moved to SFTP temp folder'
+
+                            if ($duplicatesInSftpTempFolder.Name -contains $result.FileName) {
+                                $result.Actions += 'overwritten duplicate file in SFTP temp folder'
+                            }
                         }
                         catch {
                             throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"

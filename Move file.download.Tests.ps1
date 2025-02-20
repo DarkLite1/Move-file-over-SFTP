@@ -315,7 +315,7 @@ Describe 'When a duplicate file' {
             }
         }
     }
-    Describe 'is in the sftp temp folder and' {
+    Describe 'is in the sftp source and sftp temp folder and' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 [PSCustomObject]@{
@@ -345,10 +345,12 @@ Describe 'When a duplicate file' {
                 $testResult | Should -HaveCount 1
                 $testResult.FileName | Should -Be 'b.txt'
                 $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
-            } -Tag test
+            }
         }
         Context 'OverWriteFile is true' {
             BeforeAll {
+                Mock Move-Item
+
                 $testNewParams.OverwriteFile = $true
             
                 $testResult = .$testScript @testNewParams
@@ -360,7 +362,13 @@ Describe 'When a duplicate file' {
                     ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
                 }
             }
-        }
+            It 'a single success object is created' {
+                $testResult | Should -HaveCount 1
+                $testResult.FileName | Should -Be 'b.txt'
+                $testResult.Errors | Should -BeNullOrEmpty
+                $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
+            }
+        } -Tag test
     }
 }
 Describe 'when the source file on the SFTP server is in use' {
