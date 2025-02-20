@@ -538,17 +538,20 @@ try {
                             Errors      = @()
                         }
 
-                        $duplicateFile = $localFilesInDestinationFolder |
+                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder |
                             Where-Object { $_.Name -eq $result.FileName }
 
-                        $failedDownloadedFile = $localFilesInTempDownloadFolder | Where-Object {
+                        $duplicateFileNotMovedToDestinationFolder = $localFilesInTempDownloadFolder | Where-Object {
                             $_.Name -eq $result.FileName
                         }
 
                         #region Test duplicate file
                         if (
                             (-not $OverwriteFile) -and 
-                            ($duplicateFile -or $failedDownloadedFile)
+                            (
+                                $duplicateFileInDestinationFolder -or 
+                                $duplicateFileNotMovedToDestinationFolder
+                            )
                         ) {
                             Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if desired'
 
@@ -628,25 +631,25 @@ try {
                         #endregion
 
                         #region Remove duplicate file
-                        if ($duplicateFile) {
+                        if ($duplicateFileInDestinationFolder) {
                             try {
                                 $testPathParams = @{
-                                    LiteralPath = $duplicateFile.FullName
+                                    LiteralPath = $duplicateFileInDestinationFolder.FullName
                                     PathType    = 'Leaf'
                                 }
 
                                 Start-RetryActionHC -ScriptBlock {
                                     if (Test-Path @testPathParams) {
-                                        Write-Verbose "Remove duplicate file '$($duplicateFile)'"
+                                        Write-Verbose "Remove duplicate file '$($duplicateFileInDestinationFolder)'"
 
-                                        $duplicateFile | Remove-Item
+                                        $duplicateFileInDestinationFolder | Remove-Item
                                     
                                         $result.Actions += 'removed duplicate file in destination folder'
                                     }
                                 }
                             }
                             catch {
-                                Save-ErrorMessageHC "Failed to remove duplicate file '$duplicateFile': $_"
+                                Save-ErrorMessageHC "Failed to remove duplicate file '$duplicateFileInDestinationFolder': $_"
                     
                                 $Error.RemoveAt(0)
                     
