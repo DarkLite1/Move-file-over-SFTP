@@ -479,44 +479,6 @@ try {
                 }
                 #endregion
 
-                #region Remove incomplete downloaded files in local temp folder
-                <# 
-                $localIncompleteDownloadedFiles = $localFilesAndFoldersInDestination | Where-Object {
-                    (-not $_.PSIsContainer) -and
-                    ($_.Parent -eq $localTempDownloadFolder)
-                }
-
-                foreach (
-                    $incompleteFile in $localIncompleteDownloadedFiles
-                ) {
-                    try {
-                        Write-Verbose "Remove incomplete downloaded file '$incompleteFile'"
-
-                        $result = [PSCustomObject]@{
-                            DateTime    = Get-Date
-                            Source      = $path.Source
-                            Destination = $path.Destination
-                            FileName    = $incompleteFile.Name
-                            FileLength  = $incompleteFile.Length
-                            Actions      = @()
-                            Error       = $null
-                        }
-                            
-                        Remove-Item -LiteralPath $incompleteFile.FullName -Force
-                            
-                        $result.Actions = "Removed incomplete downloaded file '$incompleteFile'"
-                    }
-                    catch {
-                        $M = "Failed removing incomplete file '$incompleteFile': $_"
-                        $Error.RemoveAt(0)
-                    }
-                    finally {
-                        $result
-                    }
-                }
-#>
-                #endregion
-
                 #region Exit when no files to download
                 if (-not $sftpServerFilesToDownload) {
                     Write-Verbose 'No files to download'
@@ -541,7 +503,7 @@ try {
                         $duplicateFileInDestinationFolder = $localFilesInDestinationFolder |
                             Where-Object { $_.Name -eq $result.FileName }
 
-                        $duplicateFileNotMovedToDestinationFolder = $localFilesInTempDownloadFolder | Where-Object {
+                        $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder | Where-Object {
                             $_.Name -eq $result.FileName
                         }
 
@@ -550,7 +512,7 @@ try {
                             (-not $OverwriteFile) -and 
                             (
                                 $duplicateFileInDestinationFolder -or 
-                                $duplicateFileNotMovedToDestinationFolder
+                                $duplicateFileInLocalTempFolder
                             )
                         ) {
                             Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if desired'
