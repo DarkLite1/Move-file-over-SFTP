@@ -433,8 +433,8 @@ try {
                     $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
                         (-not $_.isDirectory) -and
                         (
-                            ($_.FullName -eq "$($sftpPath)$($_.Name)") -or 
-                            ($_.FullName -like "$tempDownloadFolderSftpServer/*")
+                            ($_.FullName -eq "$sftpPath$($_.Name)") -or 
+                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
                         )
                     }
 
