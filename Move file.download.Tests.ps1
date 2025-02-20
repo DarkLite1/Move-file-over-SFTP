@@ -276,6 +276,7 @@ Describe 'When a duplicate file' {
                 $testResult.FileName | Should -Be 'b.txt'
                 $testResult.Moved | Should -BeTrue
                 $testResult.Errors | Should -BeNullOrEmpty
+                $testResult.Actions | Should -Contain 'removed duplicate file in destination folder'
             }
             It 'the file is no longer in the temp folder on the local file system' {
                 '{0}\sftpTransfer\download\b.txt' -f 
