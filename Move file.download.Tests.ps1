@@ -61,8 +61,12 @@ Describe 'When a file is found on the SFTP server' {
     
         $testResult = .$testScript @testParams
     }
-    It 'Get list of files on the SFTP server' {
-        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe
+    It 'Get list of files on the SFTP server recursively' {
+        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($SessionId -eq 1) -and
+            ($Path -eq '/report/') -and
+            ($Recurse)
+        }
     }
     It 'Create a temp folder on the SFTP server' {
         Should -Invoke New-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
@@ -406,30 +410,27 @@ Describe 'When a download fails' {
         $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
     }
 }
-Describe 'When a previous download failed during transfer' {
-    BeforeAll {
-        Mock Get-SFTPChildItem {
-            [PSCustomObject]@{
-                Name        = 'b.txt'
-                FullName    = '/report/sftpTransfer/download/b.txt'
-                isDirectory = $false
+Describe 'Previously failed download' {
+    Context 'when there is a file is in the sftp temp folder' {
+        BeforeAll {
+            Mock Get-SFTPChildItem {
+                [PSCustomObject]@{
+                    Name        = 'b.txt'
+                    FullName    = '/report/sftpTransfer/download/b.txt'
+                    isDirectory = $false
+                }
             }
-        }
 
-        $testResult = .$testScript @testParams
-    }
-    It 'the file list on the SFTP server is retrieved recursively' {
-        Should -Invoke Get-SFTPChildItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/') -and
-            ($Recurse)
+            $testParams.OverwriteFile = $true
+
+            $testResult = .$testScript @testParams
         }
-    }
-    It 'the previously failed file is downloaded again' {
-        Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+        It 'the file is downloaded again' {
+            Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
             ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+            }
         }
     }
 }

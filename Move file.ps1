@@ -507,11 +507,17 @@ try {
                             $_.Name -eq $result.FileName
                         }
 
+                        $duplicateFileInSftpTempFolder = $sftpServerFolderContent | Where-Object {
+                            (-not $_.isDirectory) -and
+                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($result.FileName)")
+                        }
+
                         #region Test duplicate file
                         if (
                             (-not $OverwriteFile) -and 
                             (
                                 $duplicateFileInDestinationFolder -or 
+                                $duplicateFileInSftpTempFolder -or
                                 $duplicateFileInLocalTempFolder
                             )
                         ) {
