@@ -501,7 +501,7 @@ try {
                 foreach (
                     $duplicate in $duplicatesFilesInSftpSourceAndTempFolder
                 ) {
-                    Write-Verbose "Duplicate file '$($duplicate.Name)' in SFTP source folder and SFTP temp folder"
+                    Write-Verbose "Duplicate file '$($duplicate.Name)' in 'sftp:$sftpPath' and 'sftp:$tempDownloadFolderSftpServer'"
 
                     if (-not $OverwriteFile) {
                         [PSCustomObject]@{
@@ -535,7 +535,7 @@ try {
                 try {
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
                         $_.IsDirectory -and
-                        $_.Name -eq $tempDownloadFolderSftpServer
+                        $_.FullName -eq $tempDownloadFolderSftpServer
                     }
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
