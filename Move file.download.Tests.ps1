@@ -96,9 +96,10 @@ Describe 'When a file is found on the SFTP server' {
         Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
+            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" ) -and
+            ($Force)
         }
-    }
+    } -Tag test
     It 'Move the file from the local temp folder to the destination folder on the local file system' {
         "$($testParams.Paths.Destination)\b.txt" | Should -Exist
     }

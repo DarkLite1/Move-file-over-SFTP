@@ -126,6 +126,7 @@ try {
                 Destination     = $Destination
                 ErrorVariable   = 'errorMessages'
                 WarningVariable = 'warningMessages'
+                Force           = $true
             }
             Get-SFTPItem @sessionParams @params
 
