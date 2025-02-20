@@ -465,7 +465,7 @@ try {
                 }
                 #endregion
 
-                #region Remove duplicate files on sftp server
+                #region Remove duplicate files on sftp server from download list
                 if (-not $OverwriteFile) {
                     $duplicatesInSftpTempFolder = $sftpServerFilesToDownload | Group-Object Name | Where-Object { $_.Count -ge 2 }
 
