@@ -614,7 +614,9 @@ try {
 
                             Write-Verbose "Download file 'sftp:$($params.Path)' to '$($params.Destination)'"
 
-                            Get-SFTPItemHC @params
+                            Start-RetryActionHC -ScriptBlock {
+                                Get-SFTPItemHC @params
+                            }
 
                             $result.Actions += 'downloaded to local temp folder'
                         }
