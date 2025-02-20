@@ -530,7 +530,7 @@ try {
                         $sftpTempFilePath = '{0}/{1}' -f  
                         $tempDownloadFolderSftpServer, $result.FileName
                         
-                        #region Move file to temp folder on SFTP server
+                        #region Move file to SFTP temp folder
                         try {
                             $params = @{
                                 Path        = $fileToDownload.FullName
@@ -553,7 +553,7 @@ try {
                         $localTempFilePath = '{0}\{1}' -f 
                         $localTempDownloadFolder, $result.FileName
 
-                        #region Download to temp folder on local file system
+                        #region Download file to local temp folder
                         try {
                             $params = @{
                                 Path        = $sftpTempFilePath
