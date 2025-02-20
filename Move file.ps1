@@ -165,6 +165,7 @@ try {
             $params = @{
                 Path            = $Path
                 Recurse         = $true
+                Verbose         = $false
                 ErrorVariable   = 'errorMessages'
                 WarningVariable = 'warningMessages'
             }
@@ -440,6 +441,8 @@ try {
 
                 #region Get folder content on SFTP server
                 try {
+                    Write-Verbose "Get folder content 'sftp:$SftpPath'"
+
                     $sftpServerFolderContent = Get-SFTPChildItemHC -Path $sftpPath
 
                     $sftpServerFiles = $sftpServerFolderContent | Where-Object {
@@ -842,7 +845,14 @@ try {
 
                 #region Get all SFTP files
                 try {
-                    $sftpFiles = Get-SFTPChildItem @sessionParams -Path $SftpPath -File
+                    Write-Verbose "Get folder content 'sftp:$SftpPath'"
+
+                    $params = @{
+                        Path    = $SftpPath 
+                        File    = $true
+                        Verbose = $false
+                    }
+                    $sftpFiles = Get-SFTPChildItem @sessionParams @params
                 }
                 catch {
                     $errorMessage = "Failed retrieving SFTP files: $_"
