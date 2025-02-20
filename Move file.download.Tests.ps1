@@ -394,7 +394,7 @@ Describe 'When a download fails' {
             Should -Not -Exist
     }
     Context 'the moved file is still present in the SFTP temp folder because' {
-        It 'the file was moved the SFTP temp folder' {
+        It 'the file was moved from the SFTP source folder to the SFTP temp folder' {
             Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/b.txt') -and
