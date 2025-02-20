@@ -424,10 +424,12 @@ try {
                 $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
 
                 #region Select files to download on SFTP server
+                <# 
+                    Files in sftp source folder and files in the sftp temp 
+                    download folder as this folder contains files that 
+                    previously failed downloading due to transfer issues 
+                #>
                 try {
-                    # In parent folder and temp download folder
-                    # as they contain previously failed downloads
-                    # due to transfer issues
                     $sftpServerFilesToDownload = $sftpServerFolderContent | Where-Object {
                         (-not $_.isDirectory) -and
                         (
