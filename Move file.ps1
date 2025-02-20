@@ -654,13 +654,12 @@ try {
 
                         #region Remove SFTP temp file
                         try {
-                            $params = @{
-                                Path = $sftpTempFilePath
-                            }
-
-                            Write-Verbose "Remove file 'sftp:$($params.Path)'"
-
+                            Write-Verbose "Remove file 'sftp:$sftpTempFilePath'"
+                            
                             Start-RetryActionHC -ScriptBlock {
+                                $params = @{
+                                    Path = $sftpTempFilePath
+                                }
                                 Remove-SFTPItem @sessionParams @params
                             }
 
