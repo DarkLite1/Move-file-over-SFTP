@@ -411,7 +411,7 @@ Describe 'When a download fails' {
     }
 }
 Describe 'Previously failed download' {
-    Context 'when there is a file is in the sftp temp folder' {
+    Context 'when there is a file in the sftp temp folder because of file transfer issues' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 [PSCustomObject]@{
@@ -433,30 +433,30 @@ Describe 'Previously failed download' {
             }
         }
     }
-}
-Describe 'When a file could not be moved from the local temp download folder to the local destination folder because it was in use during the previous run' {
-    BeforeAll {
-        Mock Get-SFTPChildItem
-        
-        $testNewParams = Copy-ObjectHC $testParams
-
-        New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download" -ItemType Directory
-
-        New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
-
-        $testResult = .$testScript @testParams
-    }
-    It 'the file is moved to the destination folder' {
-        "$($testNewParams.Paths.Destination)\b.txt" | 
-            Should -Exist
-    }
-    It 'the file is no longer in the temp download folder' {
-        "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
-            Should -Not -Exist
-    }
-    It 'a success object is created' {
-        $testResult.Moved | Should -BeTrue
-        $testResult.Actions | Should -Be 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
-        $testResult.Errors | Should -BeNullOrEmpty
+    Context 'when there is a file in the local temp folder because of file in use in the destination folder' {
+        BeforeAll {
+            Mock Get-SFTPChildItem
+            
+            $testNewParams = Copy-ObjectHC $testParams
+    
+            New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download" -ItemType Directory
+    
+            New-Item -Path "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
+    
+            $testResult = .$testScript @testParams
+        }
+        It 'the file is moved to the destination folder' {
+            "$($testNewParams.Paths.Destination)\b.txt" | 
+                Should -Exist
+        }
+        It 'the file is no longer in the temp download folder' {
+            "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                Should -Not -Exist
+        }
+        It 'a success object is created' {
+            $testResult.Moved | Should -BeTrue
+            $testResult.Actions | Should -Be 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
+            $testResult.Errors | Should -BeNullOrEmpty
+        }
     }
 }
