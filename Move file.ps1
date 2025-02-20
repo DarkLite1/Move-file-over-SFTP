@@ -626,24 +626,24 @@ try {
                             $Error.RemoveAt(0)
 
                             #region Remove local temp file
-                            $testPathParams = @{
-                                LiteralPath = $localTempFilePath
-                                PathType    = 'Leaf'
-                            }
-                            if (Test-Path @testPathParams) {
-                                try {
-                                    Write-Verbose "Remove file '$localTempFilePath'"
-                                    
-                                    Start-RetryActionHC -ScriptBlock {
-                                        $localTempFilePath | Remove-Item -Force
-                                    }
-                             
-                                    $result.Actions += "removed partially downloaded file '$localTempFilePath'"
+                            Start-RetryActionHC -ScriptBlock {
+                                $testPathParams = @{
+                                    LiteralPath = $localTempFilePath
+                                    PathType    = 'Leaf'
                                 }
-                                catch {
-                                    Save-ErrorMessageHC "Failed removing partially downloaded file '$localTempFilePath': $_"
-
-                                    $Error.RemoveAt(0)
+                                if (Test-Path @testPathParams) {
+                                    try {
+                                        Write-Verbose "Remove file '$localTempFilePath'"
+                                    
+                                        $localTempFilePath | Remove-Item -Force
+                                        
+                                        $result.Actions += "removed partially downloaded file '$localTempFilePath'"
+                                    }
+                                    catch {
+                                        Save-ErrorMessageHC "Failed removing partially downloaded file '$localTempFilePath': $_"
+                                        
+                                        $Error.RemoveAt(0)
+                                    }
                                 } 
                             }
                             #endregion
@@ -671,25 +671,25 @@ try {
                             $Error.RemoveAt(0)
 
                             #region Remove local temp file
-                            $testPathParams = @{
-                                LiteralPath = $localTempFilePath
-                                PathType    = 'Leaf'
-                            }
-                            if (Test-Path @testPathParams) {
-                                try {
-                                    Write-Verbose "Remove file '$localTempFilePath'"
-                                    
-                                    Start-RetryActionHC -ScriptBlock {
-                                        $localTempFilePath | Remove-Item -Force
-                                    }
-                         
-                                    $result.Actions += "removed file '$localTempFilePath', because we could't remove the file on the SFTP server"
+                            Start-RetryActionHC -ScriptBlock {
+                                $testPathParams = @{
+                                    LiteralPath = $localTempFilePath
+                                    PathType    = 'Leaf'
                                 }
-                                catch {
-                                    Save-ErrorMessageHC "Failed to remove file '$localTempFilePath', because we could't remove the file on the SFTP server: $_"
+                                if (Test-Path @testPathParams) {
+                                    try {
+                                        Write-Verbose "Remove file '$localTempFilePath'"
+                                    
+                                        $localTempFilePath | Remove-Item -Force
+                                        
+                                        $result.Actions += "removed file '$localTempFilePath', because we could't remove the file on the SFTP server"
+                                    }
+                                    catch {
+                                        Save-ErrorMessageHC "Failed to remove file '$localTempFilePath', because we could't remove the file on the SFTP server: $_"
 
-                                    $Error.RemoveAt(0)
-                                } 
+                                        $Error.RemoveAt(0)
+                                    } 
+                                }
                             }
                             #endregion
 
