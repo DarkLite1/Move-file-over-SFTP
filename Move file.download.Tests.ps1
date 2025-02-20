@@ -56,7 +56,7 @@ Describe 'When a file is found on the SFTP server' {
                 $testParams.Paths.Destination
                 ItemType = 'File'
             }
-            New-Item @testNewItemParams
+            $null = New-Item @testNewItemParams
         }
     
         $testResult = .$testScript @testParams
@@ -107,6 +107,35 @@ Describe 'When a file is found on the SFTP server' {
         '{0}\sftpTransfer\download\b.txt' -f 
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
+    }
+    Context 'a success object is created with property' {
+        It 'DateTime' {
+            $testResult.DateTime | Should -Not -BeNullOrEmpty
+        }
+        It 'Source' {
+            $testResult.Source | Should -Be $testParams.Paths.Source
+        }
+        It 'Destination' {
+            $testResult.Destination | Should -Be $testParams.Paths.Destination
+        }
+        It 'FileName' {
+            $testResult.FileName | Should -Be 'b.txt'
+        }
+        Context 'Actions' {
+            It '<_>' -ForEach @(
+                'file moved to SFTP temp folder',
+                'downloaded to local temp folder',
+                'moved to destination folder'
+            ) {
+                $testResult.Actions | Should -Contain $_
+            }
+        }
+        It 'Moved' {
+            $testResult.Moved | Should -BeTrue
+        }
+        It 'Errors' {
+            $testResult.Errors | Should -BeNullOrEmpty
+        }
     }
 }
 Describe 'Create an object with Error property when' {
@@ -262,7 +291,7 @@ Describe 'When a duplicate file' {
                         $testParams.Paths.Destination
                         ItemType = 'File'
                     }
-                    New-Item @testNewItemParams
+                    $null = New-Item @testNewItemParams
                 }
 
                 $testNewParams.OverwriteFile = $true
@@ -291,7 +320,7 @@ Describe 'When a duplicate file' {
                         $testParams.Paths.Destination
                         ItemType = 'File'
                     }
-                    New-Item @testNewItemParams
+                    $null = New-Item @testNewItemParams
                 }
 
                 Mock Remove-Item {
@@ -369,7 +398,7 @@ Describe 'When a duplicate file' {
                 $testResult.Errors | Should -BeNullOrEmpty
                 $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
             }
-        } -Tag test
+        }
     }
 }
 Describe 'when the source file on the SFTP server is in use' {
@@ -442,7 +471,7 @@ Describe 'When a download fails' {
                 $testParams.Paths.Destination
                 ItemType = 'File'
             }
-            New-Item @testNewItemParams
+            $null = New-Item @testNewItemParams
 
             throw 'Oops'
         }
@@ -484,6 +513,15 @@ Describe 'Previously failed download' {
                 }
             }
 
+            Mock Get-SFTPItem {
+                $testNewItemParams = @{
+                    Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                    $testParams.Paths.Destination
+                    ItemType = 'File'
+                }
+                $null = New-Item @testNewItemParams
+            }
+
             $testParams.OverwriteFile = $true
 
             $testResult = .$testScript @testParams
@@ -494,6 +532,12 @@ Describe 'Previously failed download' {
             ($Path -eq '/report/sftpTransfer/download/b.txt') -and
             ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
             }
+        }
+        It 'a single success object is created' {
+            $testResult | Should -HaveCount 1
+            $testResult.FileName | Should -Be 'b.txt'
+            $testResult.Errors | Should -BeNullOrEmpty
+            $testResult.Actions | Should -Contain 'file not moved as it was in the SFTP temp folder from a previously failed download'
         }
     }
     Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process ' {
@@ -518,7 +562,7 @@ Describe 'Previously failed download' {
         }
         It 'a success object is created' {
             $testResult.Moved | Should -BeTrue
-            $testResult.Actions | Should -Be 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
+            $testResult.Actions | Should -Contain 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
             $testResult.Errors | Should -BeNullOrEmpty
         }
     }

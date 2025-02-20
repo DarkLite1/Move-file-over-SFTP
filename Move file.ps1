@@ -572,27 +572,33 @@ try {
                         $tempDownloadFolderSftpServer, $result.FileName
                         
                         #region Move file to SFTP temp folder
-                        try {
-                            $params = @{
-                                Path        = $fileToDownload.FullName
-                                Destination = $sftpTempFilePath
-                                Force       = $true
+                        if (
+                            $fileToDownload.FullName -ne "$tempDownloadFolderSftpServer/$($result.FileName)"
+                        ) {
+                            try {
+                                $params = @{
+                                    Path        = $fileToDownload.FullName
+                                    Destination = $sftpTempFilePath
+                                    Force       = $true
+                                }
+
+                                Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
+
+                                Start-RetryActionHC -ScriptBlock {
+                                    Move-SFTPItem @sessionParams @params
+                                }
+
+                                $result.Actions += 'file moved to SFTP temp folder'
+
+                                if ($duplicatesFilesInSftpSourceAndTempFolder.Name -contains $result.FileName) {
+                                    $result.Actions += 'overwritten duplicate file in SFTP temp folder'
+                                }
                             }
-
-                            Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
-
-                            Start-RetryActionHC -ScriptBlock {
-                                Move-SFTPItem @sessionParams @params
+                            catch {
+                                throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
                             }
-
-                            $result.Actions += 'file moved to SFTP temp folder'
-
-                            if ($duplicatesFilesInSftpSourceAndTempFolder.Name -contains $result.FileName) {
-                                $result.Actions += 'overwritten duplicate file in SFTP temp folder'
-                            }
-                        }
-                        catch {
-                            throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
+                        } else {
+                            $result.Actions += 'file not moved as it was in the SFTP temp folder from a previously failed download'
                         }
                         #endregion
 
