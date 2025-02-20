@@ -178,22 +178,27 @@ try {
                 throw $errorMessage
             }
         }
-        function Remove-LocalTempDownloadFileHC {
+        function Remove-LocalFileHC {
+            Param (
+                [parameter(Mandatory)]
+                [string]$Path
+            )
+
             Start-RetryActionHC -ScriptBlock {
                 $testPathParams = @{
-                    LiteralPath = $localTempFilePath
+                    LiteralPath = $Path
                     PathType    = 'Leaf'
                 }
                 if (Test-Path @testPathParams) {
                     try {
-                        Write-Verbose "Remove file '$localTempFilePath'"
+                        Write-Verbose "Remove file '$Path'"
                     
-                        $localTempFilePath | Remove-Item -Force
+                        $Path | Remove-Item -Force
                         
-                        $result.Actions += "removed file '$localTempFilePath'"
+                        $result.Actions += "removed file '$Path'"
                     }
                     catch {
-                        Save-ErrorMessageHC "Failed to remove file '$localTempFilePath': $_"
+                        Save-ErrorMessageHC "Failed to remove file '$Path': $_"
 
                         $Error.RemoveAt(0)
                     } 
@@ -647,7 +652,7 @@ try {
 
                             $Error.RemoveAt(0)
 
-                            Remove-LocalTempDownloadFileHC
+                            Remove-LocalFileHC -Path $localTempFilePath
 
                             continue
                         }
@@ -671,7 +676,7 @@ try {
 
                             $Error.RemoveAt(0)
 
-                            Remove-LocalTempDownloadFileHC
+                            Remove-LocalFileHC -Path $localTempFilePath
 
                             continue
                         }
