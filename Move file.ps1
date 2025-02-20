@@ -178,6 +178,28 @@ try {
                 throw $errorMessage
             }
         }
+        function Remove-LocalTempDownloadFileHC {
+            Start-RetryActionHC -ScriptBlock {
+                $testPathParams = @{
+                    LiteralPath = $localTempFilePath
+                    PathType    = 'Leaf'
+                }
+                if (Test-Path @testPathParams) {
+                    try {
+                        Write-Verbose "Remove file '$localTempFilePath'"
+                    
+                        $localTempFilePath | Remove-Item -Force
+                        
+                        $result.Actions += "removed file '$localTempFilePath'"
+                    }
+                    catch {
+                        Save-ErrorMessageHC "Failed to remove file '$localTempFilePath': $_"
+
+                        $Error.RemoveAt(0)
+                    } 
+                }
+            }
+        }
         function Start-RetryActionHC {
             <# 
                 .SYNOPSIS
@@ -240,7 +262,7 @@ try {
 
             $result.Errors += $ErrorMessage
         }
-
+ 
         try {
             $path = $_
 
@@ -625,28 +647,7 @@ try {
 
                             $Error.RemoveAt(0)
 
-                            #region Remove local temp file
-                            Start-RetryActionHC -ScriptBlock {
-                                $testPathParams = @{
-                                    LiteralPath = $localTempFilePath
-                                    PathType    = 'Leaf'
-                                }
-                                if (Test-Path @testPathParams) {
-                                    try {
-                                        Write-Verbose "Remove file '$localTempFilePath'"
-                                    
-                                        $localTempFilePath | Remove-Item -Force
-                                        
-                                        $result.Actions += "removed partially downloaded file '$localTempFilePath'"
-                                    }
-                                    catch {
-                                        Save-ErrorMessageHC "Failed removing partially downloaded file '$localTempFilePath': $_"
-                                        
-                                        $Error.RemoveAt(0)
-                                    }
-                                } 
-                            }
-                            #endregion
+                            Remove-LocalTempDownloadFileHC
 
                             continue
                         }
@@ -670,28 +671,7 @@ try {
 
                             $Error.RemoveAt(0)
 
-                            #region Remove local temp file
-                            Start-RetryActionHC -ScriptBlock {
-                                $testPathParams = @{
-                                    LiteralPath = $localTempFilePath
-                                    PathType    = 'Leaf'
-                                }
-                                if (Test-Path @testPathParams) {
-                                    try {
-                                        Write-Verbose "Remove file '$localTempFilePath'"
-                                    
-                                        $localTempFilePath | Remove-Item -Force
-                                        
-                                        $result.Actions += "removed file '$localTempFilePath', because we could't remove the file on the SFTP server"
-                                    }
-                                    catch {
-                                        Save-ErrorMessageHC "Failed to remove file '$localTempFilePath', because we could't remove the file on the SFTP server: $_"
-
-                                        $Error.RemoveAt(0)
-                                    } 
-                                }
-                            }
-                            #endregion
+                            Remove-LocalTempDownloadFileHC
 
                             continue
                         }
