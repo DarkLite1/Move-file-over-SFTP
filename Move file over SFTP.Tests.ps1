@@ -924,7 +924,7 @@ Describe 'when the SFTP script runs successfully' {
                 $actualRow.Errors -join ', ' | 
                     Should -Be ($testRow.Errors -join ', ')
             }
-        } -Tag test
+        }
     }
     Context 'send an e-mail' {
         It 'with attachment to the user' {
@@ -1207,6 +1207,6 @@ Describe 'ReportOnly' {
             ($Subject -eq '2 moved') -and
             ($Message -like "*Summary of all SFTP actions <b>executed today</b>*table*$($testInputFile.Tasks[0].TaskName)*$($testInputFile.Tasks[0].Sftp.ComputerName)*Source*Destination*Result*$($testInputFile.Tasks[0].Actions[0].Paths[0].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[0].Destination)*1 moved*$($testInputFile.Tasks[0].Actions[0].Paths[1].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[1].Destination)*1 moved*2 moved on $($testInputFile.Tasks[0].Actions[0].ComputerName)*")
             }
-        }
+        }  -Tag test
     }
 }

@@ -867,12 +867,19 @@ End {
                                 $path in
                                 $action.Paths.where(
                                     {
-                                        ($_.Source -eq $row.Source) -and
-                                        ($_.Destination -eq $row.Destination)
+                                        ($_.Source -eq $row.SourcePath) -and
+                                        ($_.Destination -eq $row.DestinationPath)
                                     }, 'First'
                                 )
                             ) {
-                                $action.Job.Results += $row
+                                $action.Job.Results += $row | Select-Object -Property *, @{
+                                    Name       = 'Source'
+                                    Expression = { $_.SourcePath }
+                                }, 
+                                @{
+                                    Name       = 'Destination'
+                                    Expression = { $_.DestinationPath }
+                                }
                             }
                         }
                     }
@@ -910,14 +917,12 @@ End {
                 }
 
                 $counter.Action.MovedFiles = $action.Job.Results.Where(
-                    {
-                        (-not $_.Errors) -and 
-                        ($_.Moved) 
-                    }
+                    { $_.Moved }
                 ).Count
 
                 $counter.Action.Errors = $action.Job.Results.Where(
-                    { $_.Errors }).Count
+                    { $_.Errors }
+                ).Count
 
                 $counter.Total.Errors += $counter.Action.Errors
                 $counter.Total.Errors += $action.Job.Error.Count
@@ -975,7 +980,6 @@ End {
 
                     $counter.Path.MovedFiles += $action.Job.Results.Where(
                         {
-                        (-not $_.Errors) -and
                         ($_.Source -eq $path.Source) -and
                         ($_.Destination -eq $path.Destination) -and
                         ($_.Moved)
