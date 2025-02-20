@@ -385,8 +385,15 @@ Describe 'When a duplicate file' {
             
                 $testResult = .$testScript @testNewParams
             }
-            It 'the file is downloaded again' {
-                Should -Invoke Get-SFTPItem -Scope Context -ParameterFilter {
+            It 'the file in the sftp temp folder is overwritten' {
+                Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                    ($SessionId -eq 1) -and
+                    ($Path -eq '/report/b.txt') -and
+                    ($Destination -eq '/report/sftpTransfer/download/b.txt')
+                }
+            }
+            It 'the new file is downloaded' {
+                Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/sftpTransfer/download/b.txt') -and
                     ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" )
