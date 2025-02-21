@@ -639,7 +639,7 @@ try {
                             }
                         }
                         else {
-                            $result.Actions += 'file not moved as it was in the SFTP temp folder from a previously failed download'
+                            $result.Actions += 'file not moved from the SFTP source folder to the SFTP temp folder as it was already in the SFTP temp SFTP folder due to a previously failed download'
                         }
                         #endregion
 

@@ -545,7 +545,7 @@ Describe 'Previously failed download' {
             $testResult | Should -HaveCount 1
             $testResult.FileName | Should -Be 'b.txt'
             $testResult.Errors | Should -BeNullOrEmpty
-            $testResult.Actions | Should -Contain 'file not moved as it was in the SFTP temp folder from a previously failed download'
+            $testResult.Actions | Should -Contain 'file not moved from the SFTP source folder to the SFTP temp folder as it was already in the SFTP temp SFTP folder due to a previously failed download'
         }
     }
     Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process ' {
