@@ -521,7 +521,7 @@ try {
                         #endregion
                     }
                     else {
-                        #region remove the temp duplicate file from the sftp download list
+                        #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
                         $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
                             $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
                         }
