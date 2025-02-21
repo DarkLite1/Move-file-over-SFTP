@@ -570,7 +570,7 @@ Describe 'Previously failed download' {
         }
         It 'a success object is created' {
             $testResult.Moved | Should -BeTrue
-            $testResult.Actions | Should -Contain 'moved previously downloaded file to destination folder, as the file in the destination file was in use during the previous run'
+            $testResult.Actions | Should -Contain 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
             $testResult.Errors | Should -BeNullOrEmpty
         }
     }
