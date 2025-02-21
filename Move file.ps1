@@ -590,7 +590,7 @@ try {
                             }
                         
                             if ($duplicateFileInLocalTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)' due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired'"
+                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired'"
 
                                 continue
                             }
