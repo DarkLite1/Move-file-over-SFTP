@@ -448,10 +448,6 @@ try {
                     $sftpServerFiles = $sftpServerFolderContent | Where-Object {
                         -not $_.isDirectory
                     }
-
-                    # $sftpFilesInSourceFolder = $sftpServerFiles | Where-Object {
-                    #     $_.FullName -eq "$sftpPath$($_.Name)"
-                    # }
                 }
                 catch {
                     $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
