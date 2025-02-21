@@ -774,12 +774,26 @@ End {
                     Expression = { $task.TaskName }
                 },
                 @{
-                    Name       = 'SftpServer'
-                    Expression = { $task.Sftp.ComputerName }
+                    Name       = 'SourceComputer'
+                    Expression = { 
+                        if ($_.Source.startsWith('sftp')) {
+                            $task.Sftp.ComputerName 
+                        }
+                        else {
+                            $action.ComputerName
+                        }
+                    }
                 },
                 @{
-                    Name       = 'ComputerName'
-                    Expression = { $action.ComputerName }
+                    Name       = 'DestinationComputer'
+                    Expression = { 
+                        if ($_.Source.startsWith('sftp')) {
+                            $action.ComputerName
+                        }
+                        else {
+                            $task.Sftp.ComputerName 
+                        }
+                    }
                 },
                 @{
                     Name       = 'SourcePath'
@@ -850,35 +864,55 @@ End {
 
                 Write-Verbose 'Add results from Excel file'
 
-                foreach ($row in $excelFile) {
-                    foreach (
-                        $task in
-                        $Tasks.where({ $_.TaskName -eq $row.TaskName }, 'First')
-                    ) {
-                        Write-Verbose "Task '$($task.TaskName)'"
+                foreach ($task in $Tasks) {
+                    Write-Verbose "Task '$($task.TaskName)'"
 
-                        foreach (
-                            $action in
-                            $task.Actions.where(
-                                { $_.ComputerName -eq $row.ComputerName }, 'First'
-                            )
-                        ) {
-                            foreach (
-                                $path in
-                                $action.Paths.where(
-                                    {
-                                        ($_.Source -eq $row.SourcePath) -and
-                                        ($_.Destination -eq $row.DestinationPath)
-                                    }, 'First'
+                    foreach ($action in $task.Actions) {
+                        Write-Verbose "Action ComputerName '$($action.ComputerName)'"
+
+                        foreach ($path in $action.Paths) {
+                            Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
+
+                            $excelFileJobResults = $excelFile | Where-Object {
+                                ($path.Source -eq $_.SourcePath) -and
+                                ($path.Destination -eq $_.DestinationPath) -and (
+                                    ($_.SourcePath.startsWith('sftp') -and $action.ComputerName -eq $_.DestinationComputer) -or
+                                    ($_.DestinationPath.startsWith('sftp') -and $action.ComputerName -eq $_.SourceComputer)
                                 )
-                            ) {
-                                $action.Job.Results += $row | Select-Object -Property *, @{
-                                    Name       = 'Source'
-                                    Expression = { $_.SourcePath }
-                                }, 
-                                @{
-                                    Name       = 'Destination'
-                                    Expression = { $_.DestinationPath }
+                            }
+
+                            if (-not $excelFileJobResults) {
+                                continue
+                            }
+
+                            $action.Job.Results += $excelFileJobResults | Select-Object -Property *, @{
+                                Name       = 'Source'
+                                Expression = { $_.SourcePath }
+                            }, 
+                            @{
+                                Name       = 'Destination'
+                                Expression = { $_.DestinationPath }
+                            }, 
+                            @{
+                                Name       = 'ComputerName'
+                                Expression = { 
+                                    if ($_.SourcePath.startsWith('sftp')) {
+                                        $_.DestinationComputer 
+                                    }
+                                    else {
+                                        $_.SourceComputer 
+                                    }
+                                }
+                            },
+                            @{
+                                Name       = 'SftpServer'
+                                Expression = { 
+                                    if ($_.SourcePath.startsWith('sftp')) {
+                                        $_.SourceComputer 
+                                    }
+                                    else {
+                                        $_.DestinationComputer 
+                                    }
                                 }
                             }
                         }
