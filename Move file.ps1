@@ -342,9 +342,7 @@ try {
                         $null = New-Item -Path $localTempDownloadFolder -ItemType Directory
                     }
                     catch {
-                        $M = "Failed creating local temporary download folder '$localTempDownloadFolder': $_"
-                        $Error.RemoveAt(0)
-                        throw $M        
+                        throw "Failed creating local temporary download folder '$localTempDownloadFolder': $_"
                     }
                 }
                 #endregion
@@ -635,7 +633,11 @@ try {
                                 }
                             }
                             catch {
-                                throw "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
+                                $result.Errors += "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
+
+                                $Error.RemoveAt(0)
+
+                                continue
                             }
                         }
                         else {
