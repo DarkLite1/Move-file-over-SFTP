@@ -165,7 +165,6 @@ try {
             $params = @{
                 Path            = $Path
                 Recurse         = $true
-                Verbose         = $false
                 ErrorVariable   = 'errorMessages'
                 WarningVariable = 'warningMessages'
             }
@@ -272,7 +271,7 @@ try {
         try {
             $path = $_
 
-            Write-Verbose "Source '$($path.Source)' Destination '$($path.Destination)'"
+            Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
 
             #region Set defaults
             # workaround for https://github.com/PowerShell/PowerShell/issues/16894
@@ -416,6 +415,7 @@ try {
                         AcceptKey         = $true
                         Force             = $true
                         ConnectionTimeout = 60
+                        Verbose           = $false
                     }
 
                     if ($SftpOpenSshKeyFile) {
@@ -426,6 +426,7 @@ try {
 
                     $sessionParams = @{
                         SessionId = $sftpSession.SessionID
+                        Verbose   = $false
                     }
 
                     Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
@@ -608,7 +609,6 @@ try {
                                     Path        = $fileToDownload.FullName
                                     Destination = $sftpTempFilePath
                                     Force       = $true
-                                    Verbose     = $false
                                 }
 
                                 Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
@@ -844,9 +844,8 @@ try {
                     Write-Verbose "Get folder content 'sftp:$SftpPath'"
 
                     $params = @{
-                        Path    = $SftpPath 
-                        File    = $true
-                        Verbose = $false
+                        Path = $SftpPath 
+                        File = $true
                     }
                     $sftpFiles = Get-SFTPChildItem @sessionParams @params
                 }
@@ -1047,10 +1046,9 @@ try {
                 Write-Verbose 'Close SFTP session'
 
                 $params = @{
-                    SessionId   = $sessionParams.SessionID
                     ErrorAction = 'Ignore'
                 }
-                $null = Remove-SFTPSession @params
+                $null = Remove-SFTPSession @sessionParams @params
             }
             #endregion
         }
