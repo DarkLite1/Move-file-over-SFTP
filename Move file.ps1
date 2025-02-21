@@ -361,12 +361,23 @@ try {
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $localFileInTempDownloadFolder.Directory.FullName
-                            Destination = $localFileInTempDownloadFolder.Directory.FullName.Replace('\sftpTransfer\download', '')
+                            Destination = $path.Destination
                             FileName    = $localFileInTempDownloadFolder.Name
                             FileLength  = $localFileInTempDownloadFolder.Length
                             Actions     = @()
                             Moved       = $false
                             Errors      = @()
+                        }
+
+                        if (
+                            (-not $OverwriteFile) -and    
+                            ($localFilesInDestinationFolder.Name -contains $localFileInTempDownloadFolder.Name)
+                        ) {
+                            Write-Verbose "Duplicate file '$($localFileInTempDownloadFolder.Name)' in '$localTempDownloadFolder' and '$($path.Destination)', use OverWrite if desired"
+
+                            $result.Errors += @("Duplicate file '$($localFileInTempDownloadFolder.Name)' in folder '$localTempDownloadFolder' and '$($path.Destination)', most likely due to previously failed download, use OverwriteFile if desired")
+
+                            Continue
                         }
 
                         $params = @{
