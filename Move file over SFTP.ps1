@@ -998,7 +998,23 @@ End {
                 }
                 #endregion
 
-                foreach ($path in $action.Paths) {
+                $actionPaths = $action.Paths
+
+                #region Get temp moved files too
+                $jobResultPaths = $action.Job.Results.Where(
+                    { 
+                        ($actionPaths.Source -notcontains $_.Source) -or
+                        ($actionPaths.Destination -notcontains $_.Destination) 
+                    }
+                )
+
+                $allPaths = $jobResultPaths + $actionPaths | 
+                Sort-Object -Property {
+                    '{0}-{1}' -f $_.Source, $_.Destination
+                } -Unique
+                #endregion
+
+                foreach ($path in $allPaths) {
                     #region Counter
                     $counter.Path = @{
                         MovedFiles = 0
