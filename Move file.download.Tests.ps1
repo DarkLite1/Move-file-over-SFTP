@@ -635,70 +635,157 @@ Describe 'When a file is locked' {
         }
     }
     Context 'in the destination folder' {
-        BeforeAll {
-            Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
-
-            Mock Get-SFTPChildItem {
-                [PSCustomObject]@{
-                    Name        = 'b.txt'
-                    FullName    = '/report/b.txt'
-                    isDirectory = $false
-                }
-            }
-
-            $testFile = @{
-                localTempPath   = '{0}\sftpTransfer\download\b.txt' -f 
-                $testParams.Paths.Destination
-                destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination
-            }
+        Context 'on the first run' {
+            BeforeAll {
+                Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
     
-            Mock Get-SFTPItem {
+                Mock Get-SFTPChildItem {
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/b.txt'
+                        isDirectory = $false
+                    }
+                }
+    
+                $testFile = @{
+                    localTempPath   = '{0}\sftpTransfer\download\b.txt' -f 
+                    $testParams.Paths.Destination
+                    destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination
+                }
+        
+                Mock Get-SFTPItem {
+                    $testNewItemParams = @{
+                        Path     = $testFile.localTempPath
+                        ItemType = 'File'
+                    }
+                    $null = New-Item @testNewItemParams
+                }
+    
                 $testNewItemParams = @{
-                    Path     = $testFile.localTempPath
+                    Path     = $testFile.destinationPath
                     ItemType = 'File'
                 }
                 $null = New-Item @testNewItemParams
+    
+                $testLockedFile = Lock-FileHC -Path $testFile.destinationPath
+    
+                $testParams.OverwriteFile = $true
+    
+                $testResult = .$testScript @testParams
+    
+                Unlock-FileHC -LockedFile $testLockedFile
             }
-
-            $testNewItemParams = @{
-                Path     = $testFile.destinationPath
-                ItemType = 'File'
+            It 'the destination file could not be removed' {
+                $testFile.destinationPath | Should -Exist
             }
-            $null = New-Item @testNewItemParams
+            It 'the downloaded file is left in the local temp folder' {
+                $testFile.localTempPath | Should -Exist
+            }
+            Context 'an error object is created with property' {
+                It 'Source' {
+                    $testResult.Source | Should -Not -BeNullOrEmpty
+                }
+                It 'Destination' {
+                    $testResult.Destination | Should -Not -BeNullOrEmpty
+                }
+                It 'FileName' {
+                    $testResult.FileName | Should -Be 'b.txt'
+                }
+                It 'Moved' {
+                    $testResult.Moved | Should -BeFalse
+                }
+                It 'Errors' {
+                    $testResult.Errors | Should -BeLike "Failed to remove duplicate file '*\f2\b.txt': The process cannot access the file '*\f2\b.txt' because it is being used by another process."
+                }
+                It 'Actions' {
+                    $testActions = @(
+                        'file moved to SFTP temp folder',
+                        'downloaded to local temp folder',
+                        'removed file in SFTP temp folder'
+                    )
+                        
+                    $testActions | ForEach-Object {
+                        $testResult.Actions | Should -Contain $_
+                    }
 
-            $testLockedFile = Lock-FileHC -Path $testFile.destinationPath
-
-            $testParams.OverwriteFile = $true
-
-            $testResult = .$testScript @testParams
-
-            Unlock-FileHC -LockedFile $testLockedFile
+                    $testResult.Actions | Should -HaveCount $testActions.Count
+                }
+            }
         }
-        It 'the destination file could not be removed' {
-            $testFile.destinationPath | Should -Exist
+        Context 'on the second run when the file is unlocked' {
+            BeforeAll {
+                Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
+    
+                Mock Get-SFTPChildItem {
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/b.txt'
+                        isDirectory = $false
+                    }
+                }
+    
+                $testFile = @{
+                    localTempPath   = '{0}\sftpTransfer\download\b.txt' -f 
+                    $testParams.Paths.Destination
+                    destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination
+                }
+        
+                Mock Get-SFTPItem {
+                    $testNewItemParams = @{
+                        Path     = $testFile.localTempPath
+                        ItemType = 'File'
+                    }
+                    $null = New-Item @testNewItemParams
+                }
+    
+                $testNewItemParams = @{
+                    Path     = $testFile.destinationPath
+                    ItemType = 'File'
+                }
+                $null = New-Item @testNewItemParams
+    
+                $testParams.OverwriteFile = $true
+    
+                $testResult = .$testScript @testParams
+            }
+            It 'the downloaded file is in the local temp folder is removed' {
+                $testFile.localTempPath | Should -Not -Exist
+            }
+            It 'the destination file is overwritten' {
+                $testFile.destinationPath | Should -Exist
+            }
+            Context 'a success object is created with property' {
+                It 'Source' {
+                    $testResult.Source | Should -Not -BeNullOrEmpty
+                }
+                It 'Destination' {
+                    $testResult.Destination | Should -Not -BeNullOrEmpty
+                }
+                It 'FileName' {
+                    $testResult.FileName | Should -Be 'b.txt'
+                }
+                It 'Moved' {
+                    $testResult.Moved | Should -BeTrue
+                }
+                It 'Errors' {
+                    $testResult.Errors | Should -BeNullOrEmpty
+                }
+                It 'Actions' {
+                    $testActions = @(
+                        'file moved to SFTP temp folder',
+                        'downloaded to local temp folder',
+                        'removed file in SFTP temp folder',
+                        'removed duplicate file in destination folder',
+                        'moved to destination folder'
+                    )
+                        
+                    $testActions | ForEach-Object {
+                        $testResult.Actions | Should -Contain $_
+                    }
+
+                    $testResult.Actions | Should -HaveCount $testActions.Count
+                }
+            }
         }
-        It 'the downloaded file is left in the local temp folder' {
-            $testFile.localTempPath | Should -Exist
-        }
-        Context 'an error object is created with property' {
-            It 'Source' {
-                $testResult.Source | Should -Not -BeNullOrEmpty
-            }
-            It 'Destination' {
-                $testResult.Destination | Should -Not -BeNullOrEmpty
-            }
-            It 'FileName' {
-                $testResult.FileName | Should -Be 'b.txt'
-            }
-            It 'Moved' {
-                $testResult.Moved | Should -BeFalse
-            }
-            It 'Errors' {
-                $testResult.Errors | Should -BeLike "Failed to remove duplicate file '*\f2\b.txt': The process cannot access the file '*\f2\b.txt' because it is being used by another process."
-            }
-            It 'Moved' {
-                $testResult.Moved | Should -BeFalse
-            }
-        }
-    }
-} -Tag test
+    } -Tag test
+}
