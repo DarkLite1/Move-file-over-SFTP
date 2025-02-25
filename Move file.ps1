@@ -941,10 +941,9 @@ try {
                 }
                 #endregion
 
-
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
-                        Write-Verbose "File '$($fileToUpload.FullName)'"
+                        Write-Verbose "File to upload '$($fileToUpload.FullName)'"
 
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
@@ -957,10 +956,81 @@ try {
                             Errors      = @()
                         }
 
+                        #region Incomplete uploaded file
+                        <# 
+                         - File in sftp temp folder and in local temp folder
+                            > upload incomplete
+                            > upload again 
+                        #>
+                        $isIncompleteUploadedFile = $false
+
+                        if (
+                            ($sftpFilesInTempUploadFolder.Name -contains $result.FileName) -and
+                            ($sftpFilesInUploadFolder.Name -contains $result.FileName)
+                        ) {
+                            $isIncompleteUploadedFile = $true
+                        }
+                        #endregion
+
+                        #region Upload completed but could not be moved
+                        <# 
+                        - File in sftp temp folder but not in local temp folder
+                            > upload complete
+                            > move to destination
+                        #>
+                        $isUploadedFileThatFailedToMoveToDestination = $false
+                        
+                        if (
+                            ($sftpFilesInTempUploadFolder.Name -contains $result.FileName) -and
+                            ($localTempUploadFolder.Name -notContains $result.FileName)
+                        ) {
+                            $isUploadedFileThatFailedToMoveToDestination = $true
+                        }
+                        #endregion
+
+                        #region Duplicate file in sftp destination folder
+                        $isDuplicateFileInSftpDestinationFolder = $false
+
+                        if (
+                            $sftpFilesInUploadFolder.Name -contains $result.FileName
+                        ) {
+                            $isDuplicateFileInSftpDestinationFolder = $true
+                        }
+                        #endregion
+
+                        #region Test duplicate file
+                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
+                            { $_.Name -eq $result.FileName }
+                        )
+
+                        if (-not $OverwriteFile) {
+                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder.where(
+                                { $_.Name -eq $result.FileName }
+                            )
+
+                            if ($duplicateFileInDestinationFolder) {
+                                Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
+
+                                continue
+                            }
+    
+                            if ($duplicateFileInLocalTempFolder) {
+                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
+
+                                continue
+                            }
+                        }
+                        #endregion
+
+                        $sftpTempFilePath = '{0}/{1}' -f  
+                        $tempDownloadFolderSftpServer, $result.FileName
+
                         $tempFile = @{
                             UploadFileName = $fileToUpload.Name + $PartialFileExtension.Upload
                         }
                         $tempFile.UploadFilePath = Join-Path $result.Source $tempFile.UploadFileName
+
+
 
                         #region Duplicate file on SFTP server
                         if (
@@ -1001,37 +1071,28 @@ try {
                         }
                         #endregion
 
-                        $result.DateTime = Get-Date
-
-                        #region Rename source file to temp file
-                        try {
-                            Start-RetryActionHC -ScriptBlock {
-                                Write-Verbose "Rename source file to temp file '$($tempFile.UploadFileName)'"
-                                $fileToUpload |
-                                    Rename-Item -NewName $tempFile.UploadFileName
-                            }
-                        }
-                        catch {
-                            Save-ErrorMessageHC "Failed renaming the source file: File in use: $_"
-
-                            $Error.RemoveAt(0)
-
-                            continue
-                        }
-                        #endregion
-
                         #region Upload temp file to SFTP server
                         try {
                             $params = @{
                                 Path        = $tempFile.UploadFilePath
                                 Destination = $SftpPath
+                                Force       = $true
                             }
 
                             Write-Verbose 'Upload temp file'
-                            Set-SFTPItem @sessionParams @params
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Set-SFTPItem @sessionParams @params
+                            }
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.UploadFilePath)': $_"
+                            $errorMessage = $_
+
+                            if ($_ -like '*Failure*') {
+                                $errorMessage = "Most like likely the destination file '$($params.Destination)/$($result.FileName)' is in use by another process: $_"
+                            }
+
+                            Save-ErrorMessageHC "Failed to upload file '$($params.Path)': $errorMessage"
 
                             $Error.RemoveAt(0)
 

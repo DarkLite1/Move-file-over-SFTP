@@ -29,16 +29,36 @@ BeforeAll {
     Mock Rename-SFTPFile
     Mock Remove-SFTPItem
     Mock Remove-SFTPSession
+    Mock Test-SFTPPath
     Mock New-SFTPSession {
         [PSCustomObject]@{
             SessionID = 1
         }
     }
-    Mock Test-SFTPPath {
-        $true
+}
+
+Describe 'When a file is in the source folder' {
+    BeforeAll {
+        Mock Get-SFTPChildItem 
+
+        $testNewItemParams = @{
+            Path     = $testParams.Paths.Source
+            Name     = 'b.txt'
+            ItemType = 'File'
+        }
+        $testFile = New-Item @testNewItemParams
+
+        $testResult = .$testScript @testParams
+    }
+
+    it 'is uploaded to the sftp temp folder' {
+        Should -Invoke Set-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
+            ($Path -eq $testFile.FullName) -and
+            ($Destination -eq 'sftp:/data/')
+        }
     }
 }
-Describe 'Upload to SFTP server' {
+Describe 'When a file is found in the source folder' {
     BeforeAll {
         $testSource = @{
             Folder   = (New-Item 'TestDrive:/f3' -ItemType 'Directory').FullName
@@ -55,7 +75,7 @@ Describe 'Upload to SFTP server' {
             $testResult = .$testScript @testNewParams
 
             $testResult.Error |
-            Should -Be "Path '$($testNewParams.Paths.Source)' not found on the file system"
+                Should -Be "Path '$($testNewParams.Paths.Source)' not found on the file system"
         }
         It 'the SFTP path does not exist' {
             $testNewParams = Copy-ObjectHC $testParams
@@ -73,7 +93,7 @@ Describe 'Upload to SFTP server' {
             $testResult = .$testScript @testNewParams
 
             $testResult.Error |
-            Should -Be "Path '/notExisting/' not found on the SFTP server"
+                Should -Be "Path '/notExisting/' not found on the SFTP server"
         }
         It 'the upload fails' {
             $testNewParams = Copy-ObjectHC $testParams
@@ -164,7 +184,7 @@ Describe 'Upload to SFTP server' {
         It 'call Rename-SFTPFile to rename the temp file' {
             $testFiles | ForEach-Object {
                 Should -Invoke Rename-SFTPFile -Times 1 -Exactly -Scope Context -ParameterFilter {
-                    ($Path -eq ($testNewParams.Paths.Destination.TrimStart('sftp:') + $_.Name + ".UploadInProgress")) -and
+                    ($Path -eq ($testNewParams.Paths.Destination.TrimStart('sftp:') + $_.Name + '.UploadInProgress')) -and
                     ($NewName -eq $_.Name) -and
                     ($SessionId -eq 1)
                 }
