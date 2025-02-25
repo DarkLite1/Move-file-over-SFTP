@@ -831,17 +831,17 @@ try {
                     previously failed uploading due to transfer issues 
                 #>
                 try {
-                    $localFilesToUpload = $localFilesInSourceFolder + $localFilesInTempUploadFolder
+                    $filesToUpload = $localFilesInSourceFolder + $localFilesInTempUploadFolder
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
 
-                        $localFilesToUpload = $localFilesToUpload.where(
+                        $filesToUpload = $filesToUpload.where(
                             { $FileExtensions -contains $_.Extension }
                         )
                     }
 
-                    Write-Verbose "Found $($localFilesToUpload.Count) file(s) to upload"
+                    Write-Verbose "Found $($filesToUpload.Count) file(s) to upload"
                 }
                 catch {
                     $M = "Failed to select files to to upload: $_"
