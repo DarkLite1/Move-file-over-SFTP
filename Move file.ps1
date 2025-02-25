@@ -773,42 +773,89 @@ try {
             else {
                 Write-Verbose 'Upload to SFTP server'
 
-                #region Test source folder exists
-                Write-Verbose 'Test if source folder exists'
+                $joinPath = @{
+                    Path      = $path.Source 
+                    ChildPath = $tempFolder.upload
+                }
+                $localTempUploadFolder = Join-Path @joinPath
 
-                if (-not (
-                        Test-Path -LiteralPath $path.Source -PathType 'Container')
-                ) {
-                    return [PSCustomObject]@{
-                        Source      = $path.Source
-                        Destination = $path.Destination
-                        FileName    = $null
-                        FileLength  = $null
-                        DateTime    = Get-Date
-                        Actions     = @()
-                        Errors      = @("Path '$($path.Source)' not found on the file system")
+                #region Get all files and folders on local file system
+                try {
+                    $localFilesAndFoldersInSource = @(
+                        Get-ChildItem -LiteralPath $path.Source -Recurse
+                    )
+
+                    $localFilesInSourceFolder = 
+                    $localFilesAndFoldersInSource.Where(
+                        {
+                            (-not $_.PSIsContainer) -and
+                            $_.Directory.FullName -eq $path.Source
+                        }
+                    )
+                    
+                    $localFilesInTempUploadFolder = 
+                    $localFilesAndFoldersInSource.Where(
+                        {
+                            (-not $_.PSIsContainer) -and
+                            $_.Directory.FullName -eq $localTempUploadFolder
+                        }
+                    )
+                }
+                catch {
+                    throw "Path '$($path.Source)' not found on the file system"
+                }
+                #endregion
+
+                #region Create temp folder on local file system
+                $isLocalTempUploadFolderCreated = $localFilesAndFoldersInSource | Where-Object {
+                    ($_.PSIsContainer) -and
+                    ($_.FullName -eq $localTempUploadFolder)
+                }
+                
+                if (-not ($isLocalTempUploadFolderCreated)) {
+                    try {
+                        Write-Verbose "Create folder '$localTempUploadFolder '"
+                
+                        $null = New-Item -Path $localTempUploadFolder -ItemType Directory
+                    }
+                    catch {
+                        throw "Failed creating local temporary upload folder '$localTempUploadFolder': $_"
                     }
                 }
                 #endregion
 
-                #region Get files to upload
-                Write-Verbose 'Get files in source folder'
+                #region Select files to upload
+                <# 
+                    Files in the local source folder and files in the local 
+                    temp upload folder, as this folder contains files that 
+                    previously failed uploading due to transfer issues 
+                #>
+                try {
+                    $localFilesToUpload = $localFilesInSourceFolder + $localFilesInTempUploadFolder
 
-                $filesToUpload = Get-ChildItem -LiteralPath $path.Source -File
+                    if ($FileExtensions) {
+                        Write-Verbose "Select files with extension '$FileExtensions'"
 
-                if ($FileExtensions) {
-                    $filesToUpload = $filesToUpload | Where-Object {
-                        $FileExtensions -contains $_.Extension
+                        $localFilesToUpload = $localFilesToUpload.where(
+                            { $FileExtensions -contains $_.Extension }
+                        )
                     }
-                }
 
+                    Write-Verbose "Found $($localFilesToUpload.Count) file(s) to upload"
+                }
+                catch {
+                    $M = "Failed to select files to to upload: $_"
+                    $Error.RemoveAt(0)
+                    throw $M
+                }
+                #endregion
+
+                #region Exit when there are no files to upload
                 if (-not $filesToUpload) {
                     Write-Verbose 'No files to upload'
                     Write-Verbose 'Exit script'
                     return
                 }
-
-                Write-Verbose "Found $($filesToUpload.Count) file(s) to upload"
                 #endregion
 
                 #region Open SFTP session
