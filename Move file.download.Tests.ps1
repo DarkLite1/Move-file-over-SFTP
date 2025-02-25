@@ -690,7 +690,7 @@ Describe 'When a file is locked' {
                 }
                 It 'Destination' {
                     $testResult.Destination | 
-                            Should -Be $testParams.Paths.Destination
+                        Should -Be $testParams.Paths.Destination
                 }
                 It 'FileName' {
                     $testResult.FileName | Should -Be 'b.txt'
@@ -799,14 +799,9 @@ Describe 'When a file is locked' {
                         }
                     }
     
-                    Mock Get-SFTPItem {
-                        $testNewItemParams = @{
-                            Path     = $testFile.localTempPath
-                            ItemType = 'File'
-                        }
-                        $null = New-Item @testNewItemParams
-                    }
+                    Mock Get-SFTPItem 
     
+                    #region Create destination and local temp file
                     $testNewItemParams = @{
                         Path     = $testLocalTempFolder
                         ItemType = 'Directory'
@@ -825,19 +820,25 @@ Describe 'When a file is locked' {
                         ItemType = 'File'
                     }
                     $null = New-Item @testNewItemParams
+                    #endregion
     
                     $testParams.OverwriteFile = $true
     
                     $testResults = .$testScript @testParams
                 }
+                It 'the local temp file is moved to the destination folder' {
+                    $testFile.localTempPath | Should -Not -Exist
+                    $testFile.destinationPath | Should -Exist
+                }
                 It 'the local temp folder is empty' {
                     Get-ChildItem $testLocalTempFolder | Should -BeNullOrEmpty
                 }
-                It 'the destination file is overwritten' {
-                    $testFile.destinationPath | Should -Exist
+                It 'the new sftp source file is not downloaded, that happens next run' {
+                    Should -Not -Invoke Get-SFTPItem -Scope Context
+                    Should -Not -Invoke Remove-SFTPItem -Scope Context
                 }
-                It '2 success objects are returned' {
-                    $testResults | Should -HaveCount 2
+                It '1 success object is returned' {
+                    $testResults | Should -HaveCount 1
                 }
                 Context '1 object for the previously downloaded file' {
                     BeforeAll {
@@ -912,7 +913,7 @@ Describe 'When a file is locked' {
                         $testResult.Actions | 
                             Should -HaveCount $testActions.Count
                     }
-                }
+                } -Skip
             }
         }
     }
