@@ -880,6 +880,7 @@ try {
 
                     $sessionParams = @{
                         SessionId = $sftpSession.SessionID
+                        Verbose   = $false
                     }
                 }
                 catch {
@@ -891,30 +892,36 @@ try {
 
                 $sftpPath = $path.Destination.TrimStart('sftp:')
 
-                #region Test SFTP path exists
-                Write-Verbose "Test if SFTP path '$sftpPath' exists"
-
-                if (-not (Test-SFTPPath @sessionParams -Path $sftpPath)) {
-                    throw "Path '$sftpPath' not found on the SFTP server"
-                }
-                #endregion
-
-                #region Get all SFTP files
+                $tempUploadFolderSftpServer = "$($sftpPath)$($tempFolder.upload)"
+                #region Get folder content on SFTP server
                 try {
                     Write-Verbose "Get folder content 'sftp:$SftpPath'"
 
-                    $params = @{
-                        Path = $SftpPath 
-                        File = $true
-                    }
-                    $sftpFiles = Get-SFTPChildItem @sessionParams @params
+                    $sftpServerFolderContent = @(
+                        Get-SFTPChildItemHC -Path $sftpPath
+                    )
+
+                    $sftpFilesInTempUploadFolder = $sftpServerFolderContent.Where(
+                        { 
+                            (-not $_.isDirectory ) -and
+                            ($_.FullName -eq "$tempUploadFolderSftpServer/$($_.Name)")
+                        }
+                    )
+
+                    $sftpFilesInUploadFolder = $sftpServerFolderContent.Where(
+                        { 
+                            (-not $_.isDirectory ) -and
+                            ($_.FullName -eq "$sftpPath/$($_.Name)")
+                        }
+                    )
                 }
                 catch {
-                    $errorMessage = "Failed retrieving SFTP files: $_"
+                    $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
                     $Error.RemoveAt(0)
-                    throw $errorMessage
+                    throw $M
                 }
                 #endregion
+
 
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
