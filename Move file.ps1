@@ -310,19 +310,25 @@ try {
 
                 #region Get all files and folders on local file system
                 try {
-                    $localFilesAndFoldersInDestination = Get-ChildItem -LiteralPath $path.Destination -Recurse
+                    $localFilesAndFoldersInDestination = @(
+                        Get-ChildItem -LiteralPath $path.Destination -Recurse
+                    )
 
                     $localFilesInDestinationFolder = 
-                    $localFilesAndFoldersInDestination | Where-Object {
-                        (-not $_.PSIsContainer) -and
-                        $_.Directory.FullName -eq $path.Destination
-                    }
+                    $localFilesAndFoldersInDestination.Where(
+                        {
+                            (-not $_.PSIsContainer) -and
+                            $_.Directory.FullName -eq $path.Destination
+                        }
+                    )
                     
                     $localFilesInTempDownloadFolder = 
-                    $localFilesAndFoldersInDestination | Where-Object {
-                        (-not $_.PSIsContainer) -and
-                        $_.Directory.FullName -eq $localTempDownloadFolder
-                    }
+                    $localFilesAndFoldersInDestination.Where(
+                        {
+                            (-not $_.PSIsContainer) -and
+                            $_.Directory.FullName -eq $localTempDownloadFolder
+                        }
+                    )
                 }
                 catch {
                     throw "Path '$($path.Destination)' not found on the file system"
@@ -330,10 +336,12 @@ try {
                 #endregion
 
                 #region Create temp folder on local file system
-                $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination | Where-Object {
-                    ($_.PSIsContainer) -and
-                    ($_.FullName -eq $localTempDownloadFolder)
-                }
+                $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination.Where(
+                    {
+                        ($_.PSIsContainer) -and
+                        ($_.FullName -eq $localTempDownloadFolder)
+                    }
+                )
 
                 if (-not ($isLocalTempDownloadFolderCreated)) {
                     try {
@@ -453,11 +461,13 @@ try {
                 try {
                     Write-Verbose "Get folder content 'sftp:$SftpPath'"
 
-                    $sftpServerFolderContent = Get-SFTPChildItemHC -Path $sftpPath
+                    $sftpServerFolderContent = @(
+                        Get-SFTPChildItemHC -Path $sftpPath
+                    )
 
-                    $sftpServerFiles = $sftpServerFolderContent | Where-Object {
-                        -not $_.isDirectory
-                    }
+                    $sftpServerFiles = $sftpServerFolderContent.Where(
+                        { -not $_.isDirectory }
+                    )
                 }
                 catch {
                     $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
@@ -475,10 +485,12 @@ try {
                     previously failed downloading due to transfer issues 
                 #>
                 try {
-                    $sftpServerFilesToDownload = $sftpServerFiles | Where-Object {
-                        ($_.FullName -eq "$sftpPath$($_.Name)") -or 
-                        ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
-                    }
+                    $sftpServerFilesToDownload = $sftpServerFiles.where(
+                        {
+                            ($_.FullName -eq "$sftpPath$($_.Name)") -or 
+                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
+                        }
+                    )
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
@@ -487,9 +499,9 @@ try {
                             $FileExtensions | ForEach-Object { "$_$" }
                         ) -join '|'
 
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
-                            $_.Name -match $fileExtensionFilter
-                        }
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                            { $_.Name -match $fileExtensionFilter }
+                        )
                     }
 
                     Write-Verbose "Found $($sftpServerFilesToDownload.Count) file(s) on the SFTP server to download"
@@ -525,16 +537,18 @@ try {
                         }
 
                         #region remove duplicate files from sftp download list
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
-                            $_.Name -ne $duplicate.Name
-                        }
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                            { $_.Name -ne $duplicate.Name }
+                        )
                         #endregion
                     }
                     else {
                         #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload | Where-Object {
-                            $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
-                        }
+                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                            {
+                                $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
+                            }
+                        )
                         #endregion
                     }
                 }
@@ -542,10 +556,12 @@ try {
 
                 #region Create temp folder on SFTP server
                 try {
-                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent | Where-Object {
-                        $_.IsDirectory -and
-                        $_.FullName -eq $tempDownloadFolderSftpServer
-                    }
+                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent.where(
+                        {
+                            $_.IsDirectory -and
+                            $_.FullName -eq $tempDownloadFolderSftpServer
+                        }
+                    )
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
                         Write-Verbose "Create folder 'sftp:$tempDownloadFolderSftpServer'"
@@ -584,13 +600,14 @@ try {
                         }
 
                         #region Test duplicate file
-                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder |
-                            Where-Object { $_.Name -eq $result.FileName }
+                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
+                            { $_.Name -eq $result.FileName }
+                        )
 
                         if (-not $OverwriteFile) {
-                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder | Where-Object {
-                                $_.Name -eq $result.FileName
-                            }
+                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder.where(
+                                { $_.Name -eq $result.FileName }
+                            )
     
                             if ($duplicateFileInDestinationFolder) {
                                 Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
@@ -807,10 +824,12 @@ try {
                 #endregion
 
                 #region Create temp folder on local file system
-                $isLocalTempUploadFolderCreated = $localFilesAndFoldersInSource | Where-Object {
-                    ($_.PSIsContainer) -and
-                    ($_.FullName -eq $localTempUploadFolder)
-                }
+                $isLocalTempUploadFolderCreated = $localFilesAndFoldersInSource.where(
+                    {
+                        ($_.PSIsContainer) -and
+                        ($_.FullName -eq $localTempUploadFolder)
+                    }
+                )
                 
                 if (-not ($isLocalTempUploadFolderCreated)) {
                     try {
