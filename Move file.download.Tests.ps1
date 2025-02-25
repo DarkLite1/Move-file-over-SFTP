@@ -787,5 +787,5 @@ Describe 'When a file is locked' {
                 }
             }
         }
-    } -Tag test
+    }
 }
