@@ -130,7 +130,7 @@ Describe 'When a file is found on the SFTP server' {
             ) {
                 $testResult.Actions | Should -Contain $_
             }
-        } -Tag test
+        }
         It 'Moved' {
             $testResult.Moved | Should -BeTrue
         }
@@ -409,36 +409,6 @@ Describe 'When a duplicate file' {
         }
     }
 }
-Describe 'when the source file on the SFTP server is in use' {
-    BeforeAll {
-        Mock Get-SFTPChildItem {
-            [PSCustomObject]@{
-                Name        = 'b.txt'
-                FullName    = '/report/b.txt'
-                isDirectory = $false
-            }
-        }
-
-        Mock Move-SFTPItem {
-            throw 'oops'
-        }
-
-        $testResult = .$testScript @testParams
-    }
-    It 'the file cannot be moved to the SFTP temp folder' {
-        Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/b.txt') -and
-            ($Destination -eq '/report/sftpTransfer/download/b.txt')
-        }
-    }
-    It 'an error object is created' {
-        $testResult.Errors | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
-    }
-    It 'the download is not started' {
-        Should -Not -Invoke Get-SFTPItem -Scope Describe
-    }
-}
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
         Mock Get-SFTPChildItem 
@@ -575,3 +545,160 @@ Describe 'Previously failed download' {
         }
     }
 }
+Describe 'When a file is locked' {
+    BeforeAll {
+        function Lock-FileHC {
+            <# 
+                .SYNOPSIS
+                    Lock a file
+        
+                .EXAMPLE
+                    $file = 'C:\file.txt'
+        
+                    # lock a file
+                    $lockedFile = Lock-FileHC -Path $file
+        
+                    # unlock a file
+                    Unlock-FileHC -LockedFile $lockedFile -Verbose
+            #>
+            Param (
+                [Parameter(Mandatory)]
+                [ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+                [string]$Path
+            )
+        
+            try {
+                Write-Verbose "Lock file '$Path'"
+                [System.io.File]::Open($Path, 'Open', 'Read', 'None')
+            }
+            catch {
+                throw "Failed to lock file '$Path': $_"
+            }
+        }
+        
+        function Unlock-FileHC {
+            <# 
+                .SYNOPSIS
+                    Unlock a file
+        
+                .EXAMPLE
+                    $file = 'C:\file.txt'
+        
+                    # lock a file
+                    $lockedFile = Lock-FileHC -Path $file
+        
+                    # unlock a file
+                    Unlock-FileHC -LockedFile $lockedFile -Verbose
+            #>
+            Param (
+                [Parameter(Mandatory)]
+                [System.IO.FileStream]$LockedFile
+            )
+        
+            try {
+                Write-Verbose "Unlock file '$LockedFile'"
+                $LockedFile.Close()
+            }
+            catch {
+                throw "Failed to unlock file: $_"
+            }
+        }
+    }
+    Context 'in the sftp source folder' {
+        BeforeAll {
+            Mock Get-SFTPChildItem {
+                [PSCustomObject]@{
+                    Name        = 'b.txt'
+                    FullName    = '/report/b.txt'
+                    isDirectory = $false
+                }
+            }
+    
+            Mock Move-SFTPItem {
+                throw 'oops'
+            }
+    
+            $testResult = .$testScript @testParams
+        }
+        It 'the file cannot be moved to the SFTP temp folder' {
+            Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                ($SessionId -eq 1) -and
+                ($Path -eq '/report/b.txt') -and
+                ($Destination -eq '/report/sftpTransfer/download/b.txt')
+            }
+        }
+        It 'an error object is created' {
+            $testResult.Errors | Should -Be "Failed moving file 'sftp:/report/b.txt' to 'sftp:/report/sftpTransfer/download/b.txt', file most likely in use by another process: oops"
+        }
+        It 'the download is not started' {
+            Should -Not -Invoke Get-SFTPItem -Scope Context
+        }
+    }
+    Context 'in the destination folder' {
+        BeforeAll {
+            Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
+
+            Mock Get-SFTPChildItem {
+                [PSCustomObject]@{
+                    Name        = 'b.txt'
+                    FullName    = '/report/b.txt'
+                    isDirectory = $false
+                }
+            }
+
+            $testFile = @{
+                localTempPath   = '{0}\sftpTransfer\download\b.txt' -f 
+                $testParams.Paths.Destination
+                destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination
+            }
+    
+            Mock Get-SFTPItem {
+                $testNewItemParams = @{
+                    Path     = $testFile.localTempPath
+                    ItemType = 'File'
+                }
+                $null = New-Item @testNewItemParams
+            }
+
+            $testNewItemParams = @{
+                Path     = $testFile.destinationPath
+                ItemType = 'File'
+            }
+            $null = New-Item @testNewItemParams
+
+            $testLockedFile = Lock-FileHC -Path $testFile.destinationPath
+
+            $testParams.OverwriteFile = $true
+
+            $testResult = .$testScript @testParams
+
+            Unlock-FileHC -LockedFile $testLockedFile
+        }
+        It 'the destination file could not be removed' {
+            $testFile.destinationPath | Should -Exist
+        }
+        It 'the downloaded file is left in the local temp folder' {
+            $testFile.localTempPath | Should -Exist
+        }
+        Context 'an error object is created with property' {
+            It 'Source' {
+                $testResult.Source | Should -Not -BeNullOrEmpty
+            }
+            It 'Destination' {
+                $testResult.Destination | Should -Not -BeNullOrEmpty
+            }
+            It 'FileName' {
+                $testResult.FileName | Should -Be 'b.txt'
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeFalse
+            }
+            It 'Errors' {
+                $testResult.Errors | Should -BeLike "Failed to remove duplicate file '*\f2\b.txt': The process cannot access the file '*\f2\b.txt' because it is being used by another process."
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeFalse
+            }
+        }
+    }
+} -Tag test
