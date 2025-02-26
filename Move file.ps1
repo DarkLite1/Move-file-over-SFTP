@@ -403,11 +403,9 @@ try {
                             (-not $OverwriteFile) -and    
                             ($localFilesInDestinationFolder.Name -contains $localTempFile.Name)
                         ) {
-                            $errorMessage = "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
+                            $result.Errors += "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
 
-                            $result.Errors += $errorMessage
-
-                            Write-Warning $errorMessage
+                            Write-Warning $result.Errors[0]
 
                             Continue
                         }
@@ -437,11 +435,15 @@ try {
 
                         $result.Actions += 'moved previously downloaded file to the destination folder'
 
+                        Write-Verbose $result.Actions[0]
+
                         $result.Moved = $true
                     }
                     catch {
                         $result.Errors += "Failed to move the previously downloaded file to the destination folder: $_"
 
+                        Write-Warning $result.Errors[0]
+                            
                         $Error.RemoveAt(0)
                     }
                     finally {
