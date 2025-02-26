@@ -710,34 +710,6 @@ try {
                         }
                         #endregion
 
-                        #region Remove duplicate file
-                        if ($duplicateFileInDestinationFolder) {
-                            try {
-                                $testPathParams = @{
-                                    LiteralPath = $duplicateFileInDestinationFolder.FullName
-                                    PathType    = 'Leaf'
-                                }
-
-                                Start-RetryActionHC -ScriptBlock {
-                                    if (Test-Path @testPathParams) {
-                                        Write-Verbose "Remove duplicate file '$($duplicateFileInDestinationFolder)'"
-
-                                        $duplicateFileInDestinationFolder | Remove-Item
-                                    
-                                        Save-ActionMessageHC 'removed duplicate file in destination folder'
-                                    }
-                                }
-                            }
-                            catch {
-                                Save-ErrorMessageHC "Failed to remove duplicate file '$duplicateFileInDestinationFolder': $_"
-                    
-                                $Error.RemoveAt(0)
-                    
-                                continue
-                            }
-                        }
-                        #endregion
-
                         #region Move local temp file to destination folder
                         try {
                             $params = @{
@@ -756,15 +728,17 @@ try {
                                 if (Test-Path @testPathParams) {
                                     # remove-item throws the error file in use
                                     Remove-Item -LiteralPath $params.Destination
+                                    
+                                    Save-ActionMessageHC 'removed duplicate destination file'
                                 }
                                 # move-item has an error 'Cannot create file'
                                 Move-Item @params
-                            }                            
 
-                            Save-ActionMessageHC 'moved to destination folder'
+                                Save-ActionMessageHC 'temp file moved to destination folder'
+                            }                            
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
+                            Save-ErrorMessageHC "Failed to move temp file to destination folder: $_"
 
                             $Error.RemoveAt(0)
 
