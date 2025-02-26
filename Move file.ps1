@@ -405,7 +405,7 @@ try {
                         ) {
                             $errorMessage = "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
 
-                            $result.Errors += @($errorMessage)
+                            $result.Errors += $errorMessage
 
                             Write-Warning $errorMessage
 
