@@ -619,7 +619,7 @@ try {
 
                         #region Test duplicate file in destination folder
                         $isDuplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
-                            $fileToDownload.Name -eq $_.Name
+                            { $fileToDownload.Name -eq $_.Name }
                         )
 
                         if (
