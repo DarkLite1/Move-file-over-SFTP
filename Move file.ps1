@@ -680,6 +680,10 @@ try {
                                 Get-SFTPItemHC @params
                             }
 
+                            if ($isTempFile) {
+                                Save-ActionMessageHC 'previously moved file to temp folder'    
+                            }
+
                             Save-ActionMessageHC 'downloaded to local temp folder'
                         }
                         catch {
