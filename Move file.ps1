@@ -554,6 +554,20 @@ try {
                 }
                 #endregion
 
+                #region Remove downloaded temp files from download list
+                <# 
+                    When a file is in the local temp download folder
+                    it is completely downloaded. Files on the sftp server
+                    with the same name will be downloaded during the 
+                    next run.
+                 #>
+                if ($localFilesInTempDownloadFolder) {
+                    $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                        { -not $localFilesInTempDownloadFolder.Name.contains($_.Name) }
+                    )
+                }
+                #endregion
+
                 #region Create temp folder on SFTP server
                 try {
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent.where(

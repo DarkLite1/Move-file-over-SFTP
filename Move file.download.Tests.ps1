@@ -824,7 +824,7 @@ Describe 'When a file is locked' {
     
                     $testParams.OverwriteFile = $true
     
-                    $testResults = .$testScript @testParams
+                    $testResult = .$testScript @testParams
                 }
                 It 'the local temp file is moved to the destination folder' {
                     $testFile.localTempPath | Should -Not -Exist
@@ -837,12 +837,12 @@ Describe 'When a file is locked' {
                     Should -Not -Invoke Get-SFTPItem -Scope Context
                     Should -Not -Invoke Remove-SFTPItem -Scope Context
                 }
-                It '1 success object is returned' {
-                    $testResults | Should -HaveCount 1
+                It 'a single success object is returned' {
+                    $testResult | Should -HaveCount 1
                 }
                 Context '1 object for the previously downloaded file' {
                     BeforeAll {
-                        $testResult = $testResults | Where-Object {
+                        $testResult = $testResult | Where-Object {
                             $_.Source -eq $testLocalTempFolder
                         }
                     }
@@ -875,46 +875,7 @@ Describe 'When a file is locked' {
                             Should -HaveCount $testActions.Count
                     }
                 }
-                Context '1 object for the newly downloaded file' {
-                    BeforeAll {
-                        $testResult = $testResults | Where-Object {
-                            $_.Source -eq 'sftp:/report/'
-                        }
-                    }
-                    It 'Source' {
-                        $testResult.Source | Should -Be 'sftp:/report/'
-                    }
-                    It 'Destination' {
-                        $testResult.Destination | 
-                            Should -Be $testParams.Paths.Destination
-                    }
-                    It 'FileName' {
-                        $testResult.FileName | Should -Be 'b.txt'
-                    }
-                    It 'Moved' {
-                        $testResult.Moved | Should -BeTrue
-                    }
-                    It 'Errors' {
-                        $testResult.Errors | Should -BeNullOrEmpty
-                    }
-                    It 'Actions' {
-                        $testActions = @(
-                            'file moved to SFTP temp folder',
-                            'downloaded to local temp folder',
-                            'removed file in SFTP temp folder',
-                            'removed duplicate file in destination folder',
-                            'moved to destination folder'
-                        )
-                            
-                        $testActions | ForEach-Object {
-                            $testResult.Actions | Should -Contain $_
-                        }
-    
-                        $testResult.Actions | 
-                            Should -HaveCount $testActions.Count
-                    }
-                } -Skip
             }
-        }
+        } -Tag test
     }
-} -Tag test
+}
