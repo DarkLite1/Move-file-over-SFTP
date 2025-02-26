@@ -403,9 +403,7 @@ try {
                             (-not $OverwriteFile) -and    
                             ($localFilesInDestinationFolder.Name -contains $localTempFile.Name)
                         ) {
-                            $result.Errors += "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
-
-                            Write-Warning $result.Errors[0]
+                            Save-ErrorMessageHC "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
 
                             Continue
                         }
@@ -442,10 +440,8 @@ try {
                         $result.Moved = $true
                     }
                     catch {
-                        $result.Errors += "Failed to move the previously downloaded file to the destination folder: $_"
+                        Save-ErrorMessageHC "Failed to move the previously downloaded file to the destination folder: $_"
 
-                        Write-Warning $result.Errors[0]
-                            
                         $Error.RemoveAt(0)
                     }
                     finally {
@@ -545,76 +541,6 @@ try {
                 }
                 #endregion
 
-                ###################   DELETE  ###########
-                #region Remove duplicate sftp files from download list
-                <# 
-                    Files moved to the SFTP temp folder during a previous run, 
-                    but not successfully downloaded, will be re-downloaded in 
-                    this run.
-                    
-                    If a file with the same name exists in both the SFTP source 
-                    and SFTP temp folder, the temp file will be downloaded 
-                    first, followed by the source file in the next run of the 
-                    script.
-                #>
-                if ($sftpServerTempFiles -and $sftpServerSourceFiles) {
-                    foreach ($sourceFile in $sftpServerSourceFiles) {
-                        $duplicateSftpFile = $sftpServerTempFiles.where(
-                            $sourceFile.Name -eq $_.Name
-                        )
-
-                        if (-not $duplicateSftpFile) {
-                            continue
-                        }
-
-                        Write-Verbose "Duplicate file '$duplicateSftpFile' in 'sftp:$sftpPath' and 'sftp:$($tempFolder.sftp)'"
-
-                        if (-not $OverwriteFile) {
-                            [PSCustomObject]@{
-                                DateTime    = Get-Date
-                                Source      = $path.Source
-                                Destination = $path.Destination
-                                FileName    = $duplicate.Name
-                                FileLength  = $duplicate.Group[0].Length
-                                Actions     = @()
-                                Moved       = $false
-                                Errors      = @("Duplicate file in the sftp temp folder '$($tempFolder.sftp)' due to previously failed download, use OverwriteFile if desired")
-                            }
-
-                            #region remove duplicate files from sftp download list
-                            $filesToDownload = $filesToDownload.where(
-                                { $_.Name -ne $duplicate.Name }
-                            )
-                            #endregion
-                        }
-                        else {
-                            #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
-                            $filesToDownload = $filesToDownload.where(
-                                {
-                                    $_.FullName -ne "$($tempFolder.sftp)/$($duplicate.Name)"
-                                }
-                            )
-                            #endregion
-                        }
-                    }
-                }
-                #endregion
-
-                ###################   DELETE  ###########
-                #region Remove downloaded temp files from download list
-                <# 
-                    When a file is in the local temp download folder
-                    it is completely downloaded. Files on the sftp server
-                    with the same name will be downloaded during the 
-                    next run.
-                 #>
-                if ($localFilesInTempDownloadFolder) {
-                    $filesToDownload = $filesToDownload.where(
-                        { -not $localFilesInTempDownloadFolder.Name.contains($_.Name) }
-                    )
-                }
-                #endregion
-
                 #region Create temp folder on SFTP server
                 try {
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent.where(
@@ -676,34 +602,25 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
-                        #region Test duplicate file
-                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
-                            { $_.Name -eq $result.FileName }
+                        #region Test duplicate file in destination folder
+                        $isDuplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
+                            $fileToDownload.Name -eq $_.Name
                         )
 
-                        if (-not $OverwriteFile) {
-                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder.where(
-                                { $_.Name -eq $result.FileName }
-                            )
-    
-                            if ($duplicateFileInDestinationFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
+                        if (
+                            $isDuplicateFileInDestinationFolder -and 
+                            (-not $OverwriteFile)
+                        ) {
+                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
 
-                                continue
-                            }
-                        
-                            if ($duplicateFileInLocalTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($tempFolder.local)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
-
-                                continue
-                            }
+                            Continue
                         }
                         #endregion
-                     
+
                         #region Move file to SFTP temp folder
-                        if (
-                            $fileToDownload.FullName -ne "$($tempFolder.sftp)/$($result.FileName)"
-                        ) {
+                        $isTempFile = $fileToDownload.FullName -eq $tempFile.sftp
+                        
+                        if (-not $isTempFile) {
                             try {
                                 $params = @{
                                     Path        = $fileToDownload.FullName
@@ -719,20 +636,15 @@ try {
 
                                 $result.Actions += 'file moved to SFTP temp folder'
 
-                                if ($duplicatesFilesInSftpSourceAndTempFolder.Name -contains $result.FileName) {
-                                    $result.Actions += 'overwritten duplicate file in SFTP temp folder'
-                                }
+                                Write-Verbose $result.Actions[0]
                             }
                             catch {
-                                $result.Errors += "Failed moving file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)', file most likely in use by another process: $_"
+                                Save-ErrorMessageHC "Failed moving file to sftp temp folder, because it was most likely in use by another process: $_"
 
                                 $Error.RemoveAt(0)
 
                                 continue
                             }
-                        }
-                        else {
-                            $result.Actions += 'file not moved from the SFTP source folder to the SFTP temp folder as it was already in the SFTP temp SFTP folder due to a previously failed download'
                         }
                         #endregion
 
@@ -839,7 +751,7 @@ try {
                             $result.Actions += 'moved to destination folder'
                         }
                         catch {
-                            $result.Errors += "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
+                            Save-ErrorMessageHC "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
 
                             $Error.RemoveAt(0)
 
