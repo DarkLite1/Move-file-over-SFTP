@@ -195,7 +195,7 @@ try {
                     
                         $Path | Remove-Item -Force
                         
-                        $result.Actions += "removed file '$Path'"
+                        Save-ActionMessageHC "removed file '$Path'"
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove file '$Path': $_"
@@ -268,9 +268,24 @@ try {
                 [string]$ErrorMessage
             )
 
-            Write-Warning $ErrorMessage
+            Write-Warning "Add error: $ErrorMessage"
 
             $result.Errors += $ErrorMessage
+        }
+        function Save-ActionMessageHC {
+            <# 
+                .SYNOPSIS
+                    Add an action message to the result object and log
+                    a verbose message.
+            #>
+            Param (
+                [parameter(Mandatory)]
+                [string]$ActionMessage
+            )
+
+            Write-Verbose "Add action: $ActionMessage"
+
+            $result.Actions += $ActionMessage
         }
  
         try {
@@ -429,17 +444,13 @@ try {
                                 # remove-item throws the error file in use
                                 Remove-Item -LiteralPath $params.Destination
 
-                                $result.Actions += 'removed duplicate file in destination folder'
-                                
-                                Write-Verbose $result.Actions[0]
+                                Save-ActionMessageHC 'removed duplicate file in destination folder'
                             }
                             # move-item has an error 'Cannot create file'
                             Move-Item @params
                         }
 
-                        $result.Actions += 'moved previously downloaded file to the destination folder'
-
-                        Write-Verbose $result.Actions[0]
+                        Save-ActionMessageHC 'moved previously downloaded file to the destination folder'
 
                         $result.Moved = $true
                     }
@@ -638,9 +649,7 @@ try {
                                     Move-SFTPItem @sessionParams @params
                                 }
 
-                                $result.Actions += 'file moved to SFTP temp folder'
-
-                                Write-Verbose $result.Actions[0]
+                                Save-ActionMessageHC 'file moved to SFTP temp folder'
                             }
                             catch {
                                 Save-ErrorMessageHC "Failed moving file to sftp temp folder, because it was most likely in use by another process: $_"
@@ -664,7 +673,7 @@ try {
                                 Get-SFTPItemHC @params
                             }
 
-                            $result.Actions += 'downloaded to local temp folder'
+                            Save-ActionMessageHC 'downloaded to local temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)': $_"
@@ -688,7 +697,7 @@ try {
                                 Remove-SFTPItem @sessionParams @params
                             }
 
-                            $result.Actions += 'removed file in SFTP temp folder'
+                            Save-ActionMessageHC 'removed file in SFTP temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to remove file 'sftp:$($tempFile.sftp)', most likely the file is in use: $_"
@@ -715,7 +724,7 @@ try {
 
                                         $duplicateFileInDestinationFolder | Remove-Item
                                     
-                                        $result.Actions += 'removed duplicate file in destination folder'
+                                        Save-ActionMessageHC 'removed duplicate file in destination folder'
                                     }
                                 }
                             }
@@ -752,7 +761,7 @@ try {
                                 Move-Item @params
                             }                            
 
-                            $result.Actions += 'moved to destination folder'
+                            Save-ActionMessageHC 'moved to destination folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move the file '$($params.LiteralPath)' to '$($params.Destination)': $_"
@@ -1032,7 +1041,7 @@ try {
                                         }
                                         Remove-SFTPItem @sessionParams @removeParams
 
-                                        $result.Actions += 'Removed duplicate file from SFTP server'
+                                        Save-ActionMessageHC 'Removed duplicate file from SFTP server'
                                     }          
                                 }
                                 catch {
