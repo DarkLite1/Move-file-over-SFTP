@@ -392,7 +392,7 @@ try {
                             Destination = $path.Destination
                             FileName    = $localTempFile.Name
                             FileLength  = $localTempFile.Length
-                            Actions     = @('Previously downloaded file')
+                            Actions     = @()
                             Moved       = $false
                             Errors      = @()
                         }
@@ -403,7 +403,7 @@ try {
                         ) {
                             Write-Verbose "Duplicate file '$($result.FileName)' in '$($result.Source)' and '$($result.Destination)', use OverWrite if desired"
 
-                            $result.Errors += @("Duplicate file in local temp source folder and destination folder, most likely due to previous failure or OverwriteFile being false")
+                            $result.Errors += @("In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed")
 
                             Continue
                         }
@@ -424,12 +424,14 @@ try {
                             if (Test-Path @testPathParams) {
                                 # remove-item throws the error file in use
                                 Remove-Item -LiteralPath $params.Destination
+
+                                $result.Actions += 'removed duplicate file in destination folder'
                             }
                             # move-item has an error 'Cannot create file'
                             Move-Item @params
                         }
 
-                        $result.Actions += 'file moved to destination folder'
+                        $result.Actions += 'moved previously downloaded file to the destination folder'
 
                         $result.Moved = $true
                     }
