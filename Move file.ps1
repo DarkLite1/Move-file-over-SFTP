@@ -428,6 +428,8 @@ try {
                                 Remove-Item -LiteralPath $params.Destination
 
                                 $result.Actions += 'removed duplicate file in destination folder'
+                                
+                                Write-Verbose $result.Actions[0]
                             }
                             # move-item has an error 'Cannot create file'
                             Move-Item @params
