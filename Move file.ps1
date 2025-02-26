@@ -381,8 +381,7 @@ try {
                     now be moved to the destination folder.
                     
                     Files get stuck in the local temp folder when the file in 
-                    the the destination folder was in use during the previous
-                    run.
+                    the destination folder was in use during the previous run.
                 #>
                 foreach (
                     $localTempFile in 
