@@ -457,6 +457,8 @@ try {
 
                 $sftpPath = $path.Source.TrimStart('sftp:')
 
+                $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
+
                 #region Get folder content on SFTP server
                 try {
                     Write-Verbose "Get folder content 'sftp:$SftpPath'"
@@ -465,8 +467,18 @@ try {
                         Get-SFTPChildItemHC -Path $sftpPath
                     )
 
-                    $sftpServerFiles = $sftpServerFolderContent.Where(
-                        { -not $_.isDirectory }
+                    $sftpServerTempFiles = $sftpServerFolderContent.where(
+                        {
+                            { -not $_.isDirectory } -and
+                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
+                        }
+                    )
+
+                    $sftpServerSourceFiles = $sftpServerFolderContent.where(
+                        {
+                            { -not $_.isDirectory } -and
+                            ($_.FullName -eq "$sftpPath$($_.Name)") 
+                        }
                     )
                 }
                 catch {
@@ -476,8 +488,6 @@ try {
                 }
                 #endregion
 
-                $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
-
                 #region Select files to download on SFTP server
                 <# 
                     Files in sftp source folder and files in the sftp temp 
@@ -485,12 +495,7 @@ try {
                     previously failed downloading due to transfer issues 
                 #>
                 try {
-                    $sftpServerFilesToDownload = $sftpServerFiles.where(
-                        {
-                            ($_.FullName -eq "$sftpPath$($_.Name)") -or 
-                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
-                        }
-                    )
+                    $filesToDownload = $sftpServerTempFiles + $sftpServerSourceFiles
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
@@ -499,12 +504,12 @@ try {
                             $FileExtensions | ForEach-Object { "$_$" }
                         ) -join '|'
 
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                        $filesToDownload = $filesToDownload.where(
                             { $_.Name -match $fileExtensionFilter }
                         )
                     }
 
-                    Write-Verbose "Found $($sftpServerFilesToDownload.Count) file(s) on the SFTP server to download"
+                    Write-Verbose "Found $($filesToDownload.Count) file(s) on the SFTP server to download"
                 }
                 catch {
                     $M = "Failed to select SFTP root files to download in folder '$sftpPath': $_"
@@ -515,7 +520,7 @@ try {
 
                 #region Remove duplicate files on sftp server from download list
                 $duplicatesFilesInSftpSourceAndTempFolder = 
-                $sftpServerFilesToDownload | Group-Object Name | Where-Object { 
+                $filesToDownload | Group-Object Name | Where-Object { 
                     $_.Count -ge 2 
                 }
 
@@ -537,14 +542,14 @@ try {
                         }
 
                         #region remove duplicate files from sftp download list
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                        $filesToDownload = $filesToDownload.where(
                             { $_.Name -ne $duplicate.Name }
                         )
                         #endregion
                     }
                     else {
                         #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
-                        $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                        $filesToDownload = $filesToDownload.where(
                             {
                                 $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
                             }
@@ -562,7 +567,7 @@ try {
                     next run.
                  #>
                 if ($localFilesInTempDownloadFolder) {
-                    $sftpServerFilesToDownload = $sftpServerFilesToDownload.where(
+                    $filesToDownload = $filesToDownload.where(
                         { -not $localFilesInTempDownloadFolder.Name.contains($_.Name) }
                     )
                 }
@@ -591,14 +596,14 @@ try {
                 #endregion
 
                 #region Exit when no files to download
-                if (-not $sftpServerFilesToDownload) {
+                if (-not $filesToDownload) {
                     Write-Verbose 'No files to download'
                     Write-Verbose 'Exit script'
                     Return
                 }
                 #endregion
 
-                foreach ($fileToDownload in $sftpServerFilesToDownload) {
+                foreach ($fileToDownload in $filesToDownload) {
                     try {
                         Write-Verbose "File to download '$($fileToDownload.FullName)'"
 
