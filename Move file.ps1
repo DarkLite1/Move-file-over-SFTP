@@ -301,6 +301,18 @@ try {
 
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
+                <# 
+                    Files moved to the SFTP temporary folder during a previous 
+                    run, but not successfully downloaded, will be re-downloaded 
+                    in this run. 
+                    
+                    If a file with the same name exists in both the SFTP 
+                    source and the SFTP temporary folder, the temporary file 
+                    will be downloaded first. The new file in the SFTP source
+                    folder will be downloaded during the next run of the script.
+                #>
+
+                $processedFiles = @{}
 
                 $tempFolder = @{}
 
@@ -357,33 +369,41 @@ try {
                 }
                 #endregion
 
-                #region Move previously completely downloaded files
-                # to the destination folder, as they could not be moved
-                # during the previous run due to "file in use" in the 
-                # destination folder
+                #region Move previously downloaded files
+                <# 
+                    When files could not be moved from the local temp folder
+                    to the destination folder during the previous run, they will
+                    now be moved to the destination folder.
+                    
+                    Files get stuck in the local temp folder when the file in 
+                    the the destination folder was in use during the previous
+                    run.
+                #>
                 foreach (
-                    $localFileInTempDownloadFolder in 
+                    $localTempFile in 
                     $localFilesInTempDownloadFolder
                 ) {
                     try {
+                        $processedFiles[$localTempFile.Name] = $localTempFile
+
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
-                            Source      = $localFileInTempDownloadFolder.Directory.FullName
+                            Source      = $localTempFile.Directory.FullName
                             Destination = $path.Destination
-                            FileName    = $localFileInTempDownloadFolder.Name
-                            FileLength  = $localFileInTempDownloadFolder.Length
-                            Actions     = @()
+                            FileName    = $localTempFile.Name
+                            FileLength  = $localTempFile.Length
+                            Actions     = @('Previously downloaded file')
                             Moved       = $false
                             Errors      = @()
                         }
 
                         if (
                             (-not $OverwriteFile) -and    
-                            ($localFilesInDestinationFolder.Name -contains $localFileInTempDownloadFolder.Name)
+                            ($localFilesInDestinationFolder.Name -contains $localTempFile.Name)
                         ) {
-                            Write-Verbose "Duplicate file '$($localFileInTempDownloadFolder.Name)' in '$($tempFolder.local)' and '$($path.Destination)', use OverWrite if desired"
+                            Write-Verbose "Duplicate file '$($result.FileName)' in '$($result.Source)' and '$($result.Destination)', use OverWrite if desired"
 
-                            $result.Errors += @("Duplicate file '$($localFileInTempDownloadFolder.Name)' in folder '$($tempFolder.local)' and '$($path.Destination)', most likely due to previously failed download, use OverwriteFile if desired")
+                            $result.Errors += @("Duplicate file in local temp source folder and destination folder, most likely due to previous failure or OverwriteFile being false")
 
                             Continue
                         }
@@ -409,12 +429,12 @@ try {
                             Move-Item @params
                         }
 
-                        $result.Moved = $true
+                        $result.Actions += 'file moved to destination folder'
 
-                        $result.Actions += 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
+                        $result.Moved = $true
                     }
                     catch {
-                        $result.Errors += "Failed to move the previously downloaded file '$($params.LiteralPath)' to '$($params.Destination)': $_"
+                        $result.Errors += "Failed to move the previously downloaded file to the destination folder: $_"
 
                         $Error.RemoveAt(0)
                     }
@@ -515,6 +535,7 @@ try {
                 }
                 #endregion
 
+                ###################   DELETE  ###########
                 #region Remove duplicate sftp files from download list
                 <# 
                     Files moved to the SFTP temp folder during a previous run, 
@@ -569,6 +590,7 @@ try {
                 }
                 #endregion
 
+                ###################   DELETE  ###########
                 #region Remove downloaded temp files from download list
                 <# 
                     When a file is in the local temp download folder
@@ -613,19 +635,6 @@ try {
                 }
                 #endregion
 
-                <# 
-                    Files moved to the SFTP temporary folder during a previous 
-                    run, but not successfully downloaded, will be re-downloaded 
-                    in this run. 
-                    
-                    If a file with the same name exists in both the SFTP 
-                    source and the SFTP temporary folder, the temporary file 
-                    will be downloaded first. The new file in the SFTP source
-                    folder will be downloaded during the next run of the script.
-                #>
-
-                $processedFiles = @{}
-
                 foreach ($fileToDownload in $filesToDownload) {
                     try {
                         Write-Verbose "File to download '$($fileToDownload.FullName)'"
@@ -652,9 +661,9 @@ try {
 
                         $tempFile = @{
                             sftp  = '{0}/{1}' -f  
-                                $tempFolder.sftp, $result.FileName
+                            $tempFolder.sftp, $result.FileName
                             local = '{0}\{1}' -f 
-                                $tempFolder.local, $result.FileName
+                            $tempFolder.local, $result.FileName
                         }
 
                         #region Test duplicate file
