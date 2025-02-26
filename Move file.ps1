@@ -352,7 +352,7 @@ try {
                     $localFilesAndFoldersInDestination.Where(
                         {
                             (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $path.Destination
+                            ($_.Directory.FullName -eq $path.Destination)
                         }
                     )
                     
@@ -360,7 +360,7 @@ try {
                     $localFilesAndFoldersInDestination.Where(
                         {
                             (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $tempFolder.local
+                            ($_.Directory.FullName -eq $tempFolder.local)
                         }
                     )
                 }
@@ -512,14 +512,14 @@ try {
 
                     $sftpServerTempFiles = $sftpServerFolderContent.where(
                         {
-                            { -not $_.isDirectory } -and
+                            ( -not $_.isDirectory ) -and
                             ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
                         }
                     )
 
                     $sftpServerSourceFiles = $sftpServerFolderContent.where(
                         {
-                            { -not $_.isDirectory } -and
+                            ( -not $_.isDirectory ) -and
                             ($_.FullName -eq "$sftpPath$($_.Name)") 
                         }
                     )
@@ -619,7 +619,9 @@ try {
 
                         #region Test duplicate file in destination folder
                         $isDuplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
-                            { $fileToDownload.Name -eq $_.Name }
+                            { 
+                                $fileToDownload.Name -eq $_.Name 
+                            }
                         )
 
                         if (
