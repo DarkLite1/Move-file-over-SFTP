@@ -23,6 +23,9 @@ BeforeAll {
         WaitSecondsBetweenAttempts = 1
     }
 
+    $testLocalTempFolder = '{0}\sftpTransfer\download' -f 
+    $testParams.Paths.Destination
+
     Mock Get-SFTPChildItem
     Mock Set-SFTPItem
     Mock Get-SFTPItem
@@ -253,7 +256,7 @@ Describe 'Create an object with Error property when' {
     }
 }
 Describe 'When a duplicate file' {
-    Describe 'is in the destination folder and' {
+    Describe 'is in the sftp source folder and in the destination folder and' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 @{
@@ -347,64 +350,171 @@ Describe 'When a duplicate file' {
         }
     }
     Describe 'is in the sftp source and sftp temp folder and' {
-        BeforeAll {
-            Mock Get-SFTPChildItem {
-                [PSCustomObject]@{
-                    Name        = 'b.txt'
-                    FullName    = '/report/b.txt'
-                    isDirectory = $false
-                }
-                [PSCustomObject]@{
-                    Name        = 'b.txt'
-                    FullName    = '/report/sftpTransfer/download/b.txt'
-                    isDirectory = $false
-                }
-            }
-
-            $testNewParams = Copy-ObjectHC $testParams
-        }
-        Context 'OverWriteFile is false' {
+        Describe 'there is no destination file with the same name' {
             BeforeAll {
-                $testNewParams.OverwriteFile = $false
+                Mock Get-SFTPChildItem {
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/b.txt'
+                        isDirectory = $false
+                    }
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/sftpTransfer/download/b.txt'
+                        isDirectory = $false
+                    }
+                }
+            }
+            Context 'OverWriteFile is false' {
+                BeforeAll {
+                    $testParams.OverwriteFile = $false
             
-                $testResult = .$testScript @testNewParams
+                    $testResult = .$testScript @testParams
+                }
+                It 'the temp sftp file is downloaded again, because it failed previously' {
+                    Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                        ($SessionId -eq 1) -and
+                        ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+                        ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
+                    }
+                }
+                It 'the new sftp source file is not downloaded' {
+                    Should -Not -Invoke Move-SFTPItem -Scope Context -ParameterFilter {
+                        ($Path -eq '/report/b.txt') 
+                    }
+                    Should -Not -Invoke Get-SFTPItem -Scope Context -ParameterFilter {
+                        ($Path -eq '/report/b.txt') 
+                    }
+                }
+                Context 'a success object is returned' {
+                    BeforeAll {
+                        $testResult = $testResult | Where-Object {
+                            $_.Source -eq $testLocalTempFolder
+                        }
+                    }
+                    It 'only one object' {
+                        $testResult | Should -HaveCount 1
+                    }
+                    It 'Source' {
+                        $testResult.Source | Should -Be $testLocalTempFolder
+                    }
+                    It 'Destination' {
+                        $testResult.Destination | 
+                            Should -Be $testParams.Paths.Destination
+                    }
+                    It 'FileName' {
+                        $testResult.FileName | Should -Be 'b.txt'
+                    }
+                    It 'Moved' {
+                        $testResult.Moved | Should -BeTrue
+                    }
+                    It 'Errors' {
+                        $testResult.Errors | Should -BeNullOrEmpty
+                    }
+                    It 'Actions' {
+                        $testActions = @(
+                            'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
+                        )
+                            
+                        $testActions | ForEach-Object {
+                            $testResult.Actions | Should -Contain $_
+                        }
+    
+                        $testResult.Actions | 
+                            Should -HaveCount $testActions.Count
+                    }
+                }
             }
-            It 'the download is not started' {
-                Should -Not -Invoke Get-SFTPItem -Scope Context
-            }
-            It 'an single error object is created' {
-                $testResult | Should -HaveCount 1
-                $testResult.FileName | Should -Be 'b.txt'
-                $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
-            }
-        }
-        Context 'OverWriteFile is true' {
-            BeforeAll {
-                Mock Move-Item
+            Context 'OverWriteFile is true' {
+                BeforeAll {
+                    Mock Move-Item
 
-                $testNewParams.OverwriteFile = $true
+                    $testNewParams.OverwriteFile = $true
             
-                $testResult = .$testScript @testNewParams
-            }
-            It 'the file in the sftp temp folder is overwritten' {
-                Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                    $testResult = .$testScript @testNewParams
+                }
+                It 'the file in the sftp temp folder is overwritten' {
+                    Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/b.txt') -and
                     ($Destination -eq '/report/sftpTransfer/download/b.txt')
+                    }
                 }
-            }
-            It 'the new file is downloaded' {
-                Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                It 'the new file is downloaded' {
+                    Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/sftpTransfer/download/b.txt') -and
                     ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
+                    }
+                }
+                It 'a single success object is created' {
+                    $testResult | Should -HaveCount 1
+                    $testResult.FileName | Should -Be 'b.txt'
+                    $testResult.Errors | Should -BeNullOrEmpty
+                    $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
                 }
             }
-            It 'a single success object is created' {
-                $testResult | Should -HaveCount 1
-                $testResult.FileName | Should -Be 'b.txt'
-                $testResult.Errors | Should -BeNullOrEmpty
-                $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
+        } -Tag test
+        Describe 'there is a destination file with the same name' {
+            BeforeAll {
+                Mock Get-SFTPChildItem {
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/b.txt'
+                        isDirectory = $false
+                    }
+                    [PSCustomObject]@{
+                        Name        = 'b.txt'
+                        FullName    = '/report/sftpTransfer/download/b.txt'
+                        isDirectory = $false
+                    }
+                }
+
+                $testNewParams = Copy-ObjectHC $testParams
+            }
+            Context 'OverWriteFile is false' {
+                BeforeAll {
+                    $testNewParams.OverwriteFile = $false
+            
+                    $testResult = .$testScript @testNewParams
+                }
+                It 'the download is not started' {
+                    Should -Not -Invoke Get-SFTPItem -Scope Context
+                }
+                It 'an single error object is created' {
+                    $testResult | Should -HaveCount 1
+                    $testResult.FileName | Should -Be 'b.txt'
+                    $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
+                }
+            }
+            Context 'OverWriteFile is true' {
+                BeforeAll {
+                    Mock Move-Item
+
+                    $testNewParams.OverwriteFile = $true
+            
+                    $testResult = .$testScript @testNewParams
+                }
+                It 'the file in the sftp temp folder is overwritten' {
+                    Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                    ($SessionId -eq 1) -and
+                    ($Path -eq '/report/b.txt') -and
+                    ($Destination -eq '/report/sftpTransfer/download/b.txt')
+                    }
+                }
+                It 'the new file is downloaded' {
+                    Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                    ($SessionId -eq 1) -and
+                    ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+                    ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
+                    }
+                }
+                It 'a single success object is created' {
+                    $testResult | Should -HaveCount 1
+                    $testResult.FileName | Should -Be 'b.txt'
+                    $testResult.Errors | Should -BeNullOrEmpty
+                    $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
+                }
             }
         }
     }
@@ -636,9 +746,6 @@ Describe 'When a file is locked' {
     }
     Context 'in the destination folder' {
         BeforeAll {
-            $testLocalTempFolder = '{0}\sftpTransfer\download' -f 
-            $testParams.Paths.Destination
-
             $testFile = @{
                 localTempPath   = '{0}\b.txt' -f $testLocalTempFolder
                 destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination

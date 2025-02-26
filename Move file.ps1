@@ -294,7 +294,7 @@ try {
             }
             #endregion
 
-            $tempFolder = @{
+            $tempFolderName = @{
                 download = 'sftpTransfer/download' 
                 upload   = 'sftpTransfer/upload' 
             }
@@ -302,11 +302,13 @@ try {
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
 
+                $tempFolder = @{}
+
                 $joinPath = @{
                     Path      = $path.Destination 
-                    ChildPath = $tempFolder.download
+                    ChildPath = $tempFolderName.download
                 }
-                $localTempDownloadFolder = Join-Path @joinPath
+                $tempFolder.local = Join-Path @joinPath
 
                 #region Get all files and folders on local file system
                 try {
@@ -326,7 +328,7 @@ try {
                     $localFilesAndFoldersInDestination.Where(
                         {
                             (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $localTempDownloadFolder
+                            $_.Directory.FullName -eq $tempFolder.local
                         }
                     )
                 }
@@ -339,18 +341,18 @@ try {
                 $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination.Where(
                     {
                         ($_.PSIsContainer) -and
-                        ($_.FullName -eq $localTempDownloadFolder)
+                        ($_.FullName -eq $tempFolder.local)
                     }
                 )
 
                 if (-not ($isLocalTempDownloadFolderCreated)) {
                     try {
-                        Write-Verbose "Create folder '$localTempDownloadFolder '"
+                        Write-Verbose "Create folder '$($tempFolder.local)'"
 
-                        $null = New-Item -Path $localTempDownloadFolder -ItemType Directory
+                        $null = New-Item -Path $tempFolder.local -ItemType Directory
                     }
                     catch {
-                        throw "Failed creating local temporary download folder '$localTempDownloadFolder': $_"
+                        throw "Failed creating local temporary download folder '$($tempFolder.local)': $_"
                     }
                 }
                 #endregion
@@ -379,9 +381,9 @@ try {
                             (-not $OverwriteFile) -and    
                             ($localFilesInDestinationFolder.Name -contains $localFileInTempDownloadFolder.Name)
                         ) {
-                            Write-Verbose "Duplicate file '$($localFileInTempDownloadFolder.Name)' in '$localTempDownloadFolder' and '$($path.Destination)', use OverWrite if desired"
+                            Write-Verbose "Duplicate file '$($localFileInTempDownloadFolder.Name)' in '$($tempFolder.local)' and '$($path.Destination)', use OverWrite if desired"
 
-                            $result.Errors += @("Duplicate file '$($localFileInTempDownloadFolder.Name)' in folder '$localTempDownloadFolder' and '$($path.Destination)', most likely due to previously failed download, use OverwriteFile if desired")
+                            $result.Errors += @("Duplicate file '$($localFileInTempDownloadFolder.Name)' in folder '$($tempFolder.local)' and '$($path.Destination)', most likely due to previously failed download, use OverwriteFile if desired")
 
                             Continue
                         }
@@ -457,7 +459,7 @@ try {
 
                 $sftpPath = $path.Source.TrimStart('sftp:')
 
-                $tempDownloadFolderSftpServer = "$($sftpPath)$($tempFolder.download)"
+                $tempFolder.sftp = "$($sftpPath)$($tempFolderName.download)"
 
                 #region Get folder content on SFTP server
                 try {
@@ -470,7 +472,7 @@ try {
                     $sftpServerTempFiles = $sftpServerFolderContent.where(
                         {
                             { -not $_.isDirectory } -and
-                            ($_.FullName -eq "$tempDownloadFolderSftpServer/$($_.Name)")
+                            ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
                         }
                     )
 
@@ -488,12 +490,7 @@ try {
                 }
                 #endregion
 
-                #region Select files to download on SFTP server
-                <# 
-                    Files in sftp source folder and files in the sftp temp 
-                    download folder as this folder contains files that 
-                    previously failed downloading due to transfer issues 
-                #>
+                #region Select files to download by file extension
                 try {
                     $filesToDownload = $sftpServerTempFiles + $sftpServerSourceFiles
 
@@ -518,43 +515,56 @@ try {
                 }
                 #endregion
 
-                #region Remove duplicate files on sftp server from download list
-                $duplicatesFilesInSftpSourceAndTempFolder = 
-                $filesToDownload | Group-Object Name | Where-Object { 
-                    $_.Count -ge 2 
-                }
+                #region Remove duplicate sftp files from download list
+                <# 
+                    Files moved to the SFTP temp folder during a previous run, 
+                    but not successfully downloaded, will be re-downloaded in 
+                    this run.
+                    
+                    If a file with the same name exists in both the SFTP source 
+                    and SFTP temp folder, the temp file will be downloaded 
+                    first, followed by the source file in the next run of the 
+                    script.
+                #>
+                if ($sftpServerTempFiles -and $sftpServerSourceFiles) {
+                    foreach ($sourceFile in $sftpServerSourceFiles) {
+                        $duplicateSftpFile = $sftpServerTempFiles.where(
+                            $sourceFile.Name -eq $_.Name
+                        )
 
-                foreach (
-                    $duplicate in $duplicatesFilesInSftpSourceAndTempFolder
-                ) {
-                    Write-Verbose "Duplicate file '$($duplicate.Name)' in 'sftp:$sftpPath' and 'sftp:$tempDownloadFolderSftpServer'"
-
-                    if (-not $OverwriteFile) {
-                        [PSCustomObject]@{
-                            DateTime    = Get-Date
-                            Source      = $path.Source
-                            Destination = $path.Destination
-                            FileName    = $duplicate.Name
-                            FileLength  = $duplicate.Group[0].Length
-                            Actions     = @()
-                            Moved       = $false
-                            Errors      = @("Duplicate file in the sftp temp folder '$($tempDownloadFolderSftpServer)' due to previously failed download, use OverwriteFile if desired")
+                        if (-not $duplicateSftpFile) {
+                            continue
                         }
 
-                        #region remove duplicate files from sftp download list
-                        $filesToDownload = $filesToDownload.where(
-                            { $_.Name -ne $duplicate.Name }
-                        )
-                        #endregion
-                    }
-                    else {
-                        #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
-                        $filesToDownload = $filesToDownload.where(
-                            {
-                                $_.FullName -ne "$tempDownloadFolderSftpServer/$($duplicate.Name)"
+                        Write-Verbose "Duplicate file '$duplicateSftpFile' in 'sftp:$sftpPath' and 'sftp:$($tempFolder.sftp)'"
+
+                        if (-not $OverwriteFile) {
+                            [PSCustomObject]@{
+                                DateTime    = Get-Date
+                                Source      = $path.Source
+                                Destination = $path.Destination
+                                FileName    = $duplicate.Name
+                                FileLength  = $duplicate.Group[0].Length
+                                Actions     = @()
+                                Moved       = $false
+                                Errors      = @("Duplicate file in the sftp temp folder '$($tempFolder.sftp)' due to previously failed download, use OverwriteFile if desired")
                             }
-                        )
-                        #endregion
+
+                            #region remove duplicate files from sftp download list
+                            $filesToDownload = $filesToDownload.where(
+                                { $_.Name -ne $duplicate.Name }
+                            )
+                            #endregion
+                        }
+                        else {
+                            #region remove the temp duplicate file from the sftp download list, we will overwrite the temp file later on
+                            $filesToDownload = $filesToDownload.where(
+                                {
+                                    $_.FullName -ne "$($tempFolder.sftp)/$($duplicate.Name)"
+                                }
+                            )
+                            #endregion
+                        }
                     }
                 }
                 #endregion
@@ -578,18 +588,18 @@ try {
                     $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent.where(
                         {
                             $_.IsDirectory -and
-                            $_.FullName -eq $tempDownloadFolderSftpServer
+                            $_.FullName -eq $tempFolder.sftp
                         }
                     )
 
                     if (-not $isTempDownloadFolderOnSftpServerCreated) {
-                        Write-Verbose "Create folder 'sftp:$tempDownloadFolderSftpServer'"
+                        Write-Verbose "Create folder 'sftp:$($tempFolder.sftp)'"
 
-                        New-SFTPItem @sessionParams -Path $tempDownloadFolderSftpServer -ItemType Directory -Recurse
+                        New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
                     }
                 }
                 catch {
-                    $M = "Failed creating folder 'sftp:$tempDownloadFolderSftpServer' $_"
+                    $M = "Failed creating folder 'sftp:$($tempFolder.sftp)' $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
@@ -603,9 +613,31 @@ try {
                 }
                 #endregion
 
+                <# 
+                    Files moved to the SFTP temporary folder during a previous 
+                    run, but not successfully downloaded, will be re-downloaded 
+                    in this run. 
+                    
+                    If a file with the same name exists in both the SFTP 
+                    source and the SFTP temporary folder, the temporary file 
+                    will be downloaded first. The new file in the SFTP source
+                    folder will be downloaded during the next run of the script.
+                #>
+
+                $processedFiles = @{}
+
                 foreach ($fileToDownload in $filesToDownload) {
                     try {
                         Write-Verbose "File to download '$($fileToDownload.FullName)'"
+
+                        #region Only process unique file names
+                        if ($processedFiles[$fileToDownload.Name]) {
+                            Write-Verbose "File name '$($fileToDownload.Name)' already processed"
+                            continue
+                        }
+
+                        $processedFiles[$filesToDownload.Name] = $filesToDownload
+                        #endregion
 
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
@@ -616,6 +648,13 @@ try {
                             Actions     = @()
                             Moved       = $false
                             Errors      = @()
+                        }
+
+                        $tempFile = @{
+                            sftp  = '{0}/{1}' -f  
+                                $tempFolder.sftp, $result.FileName
+                            local = '{0}\{1}' -f 
+                                $tempFolder.local, $result.FileName
                         }
 
                         #region Test duplicate file
@@ -635,24 +674,21 @@ try {
                             }
                         
                             if ($duplicateFileInLocalTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
+                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($tempFolder.local)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
 
                                 continue
                             }
                         }
                         #endregion
-
-                        $sftpTempFilePath = '{0}/{1}' -f  
-                        $tempDownloadFolderSftpServer, $result.FileName
-                        
+                     
                         #region Move file to SFTP temp folder
                         if (
-                            $fileToDownload.FullName -ne "$tempDownloadFolderSftpServer/$($result.FileName)"
+                            $fileToDownload.FullName -ne "$($tempFolder.sftp)/$($result.FileName)"
                         ) {
                             try {
                                 $params = @{
                                     Path        = $fileToDownload.FullName
-                                    Destination = $sftpTempFilePath
+                                    Destination = $tempFile.sftp
                                     Force       = $true
                                 }
 
@@ -681,17 +717,14 @@ try {
                         }
                         #endregion
 
-                        $localTempFilePath = '{0}\{1}' -f 
-                        $localTempDownloadFolder, $result.FileName
-
                         #region Download SFTP file to local temp folder
                         try {
-                            Write-Verbose "Download file 'sftp:$sftpTempFilePath' to '$localTempFilePath'"
+                            Write-Verbose "Download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)'"
 
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
-                                    Path        = $sftpTempFilePath
-                                    Destination = $localTempDownloadFolder
+                                    Path        = $tempFile.sftp
+                                    Destination = $tempFolder.local
                                 }
                                 Get-SFTPItemHC @params
                             }
@@ -699,11 +732,11 @@ try {
                             $result.Actions += 'downloaded to local temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to download file 'sftp:$sftpTempFilePath' to '$localTempFilePath': $_"
+                            Save-ErrorMessageHC "Failed to download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)': $_"
 
                             $Error.RemoveAt(0)
 
-                            Remove-LocalFileHC -Path $localTempFilePath
+                            Remove-LocalFileHC -Path $tempFile.local
 
                             continue
                         }
@@ -711,11 +744,11 @@ try {
 
                         #region Remove SFTP temp file
                         try {
-                            Write-Verbose "Remove file 'sftp:$sftpTempFilePath'"
+                            Write-Verbose "Remove file 'sftp:$($tempFile.sftp)'"
                             
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
-                                    Path = $sftpTempFilePath
+                                    Path = $tempFile.sftp
                                 }
                                 Remove-SFTPItem @sessionParams @params
                             }
@@ -723,11 +756,11 @@ try {
                             $result.Actions += 'removed file in SFTP temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to remove file 'sftp:$sftpTempFilePath', most likely the file is in use: $_"
+                            Save-ErrorMessageHC "Failed to remove file 'sftp:$($tempFile.sftp)', most likely the file is in use: $_"
 
                             $Error.RemoveAt(0)
 
-                            Remove-LocalFileHC -Path $localTempFilePath
+                            Remove-LocalFileHC -Path $tempFile.local
 
                             continue
                         }
@@ -764,7 +797,7 @@ try {
                         #region Move local temp file to destination folder
                         try {
                             $params = @{
-                                LiteralPath = $localTempFilePath
+                                LiteralPath = $tempFile.local
                                 Destination = '{0}\{1}' -f $path.destination, $result.FileName
                                 Force       = $true
                             }
@@ -811,7 +844,7 @@ try {
 
                 $joinPath = @{
                     Path      = $path.Source 
-                    ChildPath = $tempFolder.upload
+                    ChildPath = $tempFolderName.upload
                 }
                 $localTempUploadFolder = Join-Path @joinPath
 
@@ -930,7 +963,7 @@ try {
 
                 $sftpPath = $path.Destination.TrimStart('sftp:')
 
-                $tempUploadFolderSftpServer = "$($sftpPath)$($tempFolder.upload)"
+                $tempUploadFolderSftpServer = "$($sftpPath)$($tempFolderName.upload)"
                 #region Get folder content on SFTP server
                 try {
                     Write-Verbose "Get folder content 'sftp:$SftpPath'"
@@ -1034,22 +1067,17 @@ try {
                             }
     
                             if ($duplicateFileInLocalTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($localTempDownloadFolder)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
+                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($tempFolder.local)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
 
                                 continue
                             }
                         }
                         #endregion
-
-                        $sftpTempFilePath = '{0}/{1}' -f  
-                        $tempDownloadFolderSftpServer, $result.FileName
-
+                        
                         $tempFile = @{
                             UploadFileName = $fileToUpload.Name + $PartialFileExtension.Upload
                         }
                         $tempFile.UploadFilePath = Join-Path $result.Source $tempFile.UploadFileName
-
-
 
                         #region Duplicate file on SFTP server
                         if (
