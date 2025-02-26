@@ -384,6 +384,8 @@ try {
                     $localFilesInTempDownloadFolder
                 ) {
                     try {
+                        Write-Verbose "Found previous completely downloaded file '$localTempFile'"
+
                         $processedFiles[$localTempFile.Name] = $localTempFile
 
                         $result = [PSCustomObject]@{
@@ -401,9 +403,11 @@ try {
                             (-not $OverwriteFile) -and    
                             ($localFilesInDestinationFolder.Name -contains $localTempFile.Name)
                         ) {
-                            Write-Verbose "Duplicate file '$($result.FileName)' in '$($result.Source)' and '$($result.Destination)', use OverWrite if desired"
+                            $errorMessage = "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
 
-                            $result.Errors += @("In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed")
+                            $result.Errors += @($errorMessage)
+
+                            Write-Warning $errorMessage
 
                             Continue
                         }
