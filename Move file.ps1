@@ -258,6 +258,11 @@ try {
             }
         }
         function Save-ErrorMessageHC {
+            <# 
+                .SYNOPSIS
+                    Add an error message to the result object and log
+                    a warning message.
+            #>
             Param (
                 [parameter(Mandatory)]
                 [string]$ErrorMessage
