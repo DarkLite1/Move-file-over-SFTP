@@ -596,7 +596,7 @@ try {
                             continue
                         }
 
-                        $processedFiles[$filesToDownload.Name] = $filesToDownload
+                        $processedFiles[$fileToDownload.Name] = $fileToDownload
                         #endregion
 
                         $result = [PSCustomObject]@{
