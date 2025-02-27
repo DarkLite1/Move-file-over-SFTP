@@ -857,6 +857,20 @@ try {
                     try {
                         Write-Verbose "File to upload '$($fileToUpload.FullName)'"
 
+                        $returnResultObject = $true
+
+                        #region Only process unique file names
+                        if ($processedFiles[$fileToUpload.Name]) {
+                            Write-Verbose "File name '$($fileToUpload.Name)' already processed"
+
+                            $returnResultObject = $false
+
+                            continue
+                        }
+
+                        $processedFiles[$fileToUpload.Name] = $fileToUpload
+                        #endregion
+
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
@@ -1075,7 +1089,14 @@ try {
                         $Error.RemoveAt(0)
                     }
                     finally {
-                        $result
+                        if ($returnResultObject) {
+                            Write-Verbose 'Return result object'
+
+                            $result
+                        }
+                        else {
+                            Write-Verbose 'No result object to return'
+                        }
                     }
                 }
             }
