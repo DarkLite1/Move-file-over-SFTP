@@ -916,7 +916,7 @@ Describe 'When a file is locked' {
             }
             Context 'Actions' {
                 It 'Errors has 3 strings' {
-                    $testResult.Actions | Should -HaveCount 1
+                    $testResult.Actions | Should -HaveCount 3
                 }
                 It '<_>' -ForEach @(
                     'file moved to SFTP temp folder',
