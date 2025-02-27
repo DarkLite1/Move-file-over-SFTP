@@ -442,7 +442,186 @@ Describe 'When a file is' {
                 }
             }
         }
-    } -Tag test
+        Describe 'in the sftp temp folder and' {
+            BeforeAll {
+                Mock Get-SFTPChildItem {
+                    @{
+                        Name        = 'b.txt'
+                        FullName    = '/report/sftpTransfer/Download/b.txt'
+                        isDirectory = $false
+                    }
+                }
+    
+                $testParams = Copy-ObjectHC $testParams
+            }
+            Context 'OverWriteFile is false' {
+                BeforeAll {
+                    $testParams.OverwriteFile = $false
+                
+                    $testResult = .$testScript @testParams
+                }
+                It 'nothing is downloaded' {
+                    Should -Not -Invoke Move-SFTPItem -Scope Context
+                    Should -Not -Invoke Get-SFTPItem -Scope Context
+                }
+                It 'the destination file is left untouched' {
+                    $testDuplicateFile.FullName | Should -Exist
+                }
+                Context 'an error object is created with property' {
+                    It 'DateTime' {
+                        $testResult.DateTime | Should -Not -BeNullOrEmpty
+                    }
+                    It 'Source' {
+                        $testResult.Source | Should -Be $testParams.Paths.Source
+                    }
+                    It 'Destination' {
+                        $testResult.Destination | Should -Be $testParams.Paths.Destination
+                    }
+                    It 'FileName' {
+                        $testResult.FileName | Should -Be 'b.txt'
+                    }
+                    It 'Actions' {
+                        $testResult.Actions | Should -HaveCount 0
+                    }
+                    It 'Moved' {
+                        $testResult.Moved | Should -BeFalse
+                    }
+                    Context 'Errors' {
+                        It '<_>' -ForEach @(
+                            'Duplicate file in destination folder, use OverwriteFile if needed'
+                        ) {
+                            $testResult.Errors | Should -Contain $_
+                        }
+                    }
+                }
+            }
+            Context 'OverWriteFile is true and' {
+                Context 'the destination file is not in use' {
+                    BeforeAll {
+                        Mock Get-SFTPItem {
+                            $testNewItemParams = @{
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                $testParams.Paths.Destination
+                                ItemType = 'File'
+                            }
+                            $null = New-Item @testNewItemParams
+                        }
+    
+                        $testParams.OverwriteFile = $true
+                
+                        $testResult = .$testScript @testParams
+                    }
+                    It 'the download is started' {
+                        Should -Invoke Get-SFTPItem -Scope Context
+                    }
+                    Context 'a success object is created with property' {
+                        It 'DateTime' {
+                            $testResult.DateTime | Should -Not -BeNullOrEmpty
+                        }
+                        It 'Source' {
+                            $testResult.Source | Should -Be $testParams.Paths.Source
+                        }
+                        It 'Destination' {
+                            $testResult.Destination | Should -Be $testParams.Paths.Destination
+                        }
+                        It 'FileName' {
+                            $testResult.FileName | Should -Be 'b.txt'
+                        }
+                        Context 'Actions' {
+                            It 'returns 5 strings:' {
+                                $testResult.Actions.Count | Should -Be 5
+                            }
+                            It '<_>' -ForEach @(
+                                'Previously moved file in sftp temp folder',
+                                'downloaded to local temp folder',
+                                'removed file in SFTP temp folder',
+                                'removed duplicate file in destination folder',
+                                'temp file moved to destination folder'
+                            ) {
+                                $testResult.Actions | Should -Contain $_
+                            }
+                        }
+                        It 'Moved' {
+                            $testResult.Moved | Should -BeTrue
+                        }
+                        It 'Errors' {
+                            $testResult.Errors | Should -BeNullOrEmpty
+                        }
+                    }
+                    It 'the file is no longer in the temp folder on the local file system' {
+                        '{0}\sftpTransfer\download\b.txt' -f 
+                        $testParams.Paths.Destination | Should -Not -Exist
+                    }
+                } -Tag test
+                Context 'the destination file is in use' {
+                    BeforeAll {
+                        Mock Get-SFTPItem {
+                            $testNewItemParams = @{
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                $testParams.Paths.Destination
+                                ItemType = 'File'
+                            }
+                            $null = New-Item @testNewItemParams
+                        }
+        
+                        Mock Remove-Item {
+                            throw 'The process cannot access the file because it is being used by another process'
+                        }
+        
+                        $testParams.OverwriteFile = $true
+                    
+                        $testResult = .$testScript @testParams
+                    }
+                    Context 'an error object is created with property' {
+                        It 'DateTime' {
+                            $testResult.DateTime | Should -Not -BeNullOrEmpty
+                        }
+                        It 'Source' {
+                            $testResult.Source | Should -Be $testParams.Paths.Source
+                        }
+                        It 'Destination' {
+                            $testResult.Destination | Should -Be $testParams.Paths.Destination
+                        }
+                        It 'FileName' {
+                            $testResult.FileName | Should -Be 'b.txt'
+                        }
+                        Context 'Actions' {
+                            It 'returns 3 strings:' {
+                                $testResult.Actions | Should -HaveCount 3
+                            }
+                            It '<_>' -ForEach @(
+                                'file moved to SFTP temp folder',
+                                'downloaded to local temp folder',
+                                'removed file in SFTP temp folder'
+                            ) {
+                                $testResult.Actions | Should -Contain $_
+                            }
+                        }
+                        It 'Moved' {
+                            $testResult.Moved | Should -BeFalse
+                        }
+                        Context 'Errors' {
+                            It 'Errors is 1 string' {
+                                $testResult.Errors | Should -HaveCount 1
+                            }
+                            It '<_>' -ForEach @(
+                                'Failed to move temp file to destination folder: The process cannot access the file because it is being used by another process'
+                            ) {
+                                $testResult.Errors | Should -Contain $_
+                            }
+                        }
+                    }
+                    It 'the download is started' {
+                        Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly
+                    }
+                    It 'the file in the local temp folder stays in place' {
+                        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                            Should -Exist
+                    }
+                }
+            }
+        }
+    }
     
     Describe 'is in the sftp source and sftp temp folder and' {
         Context 'there is no destination file with the same name' {
