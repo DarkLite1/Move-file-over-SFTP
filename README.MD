@@ -4,7 +4,15 @@ Download files from an SFTP server or upload files to an SFTP server.
 
 Simply create an input file based on the [example.JSON file](Example.json) and create a scheduled task to launch the script in an automated way.
 
+# Logging
+
+The script sends out an e-mail with a summary table of all source and destination paths. When actions or errors occurred an Excel file is attached with a row for each file and what happened to it.
+
+All logging settings can be configured in the [input file](Example.json).
+
 # Download
+
+Download a file from the source folder on the SFTP server to the destination folder on the local file system.
 
 ## Steps
 1. Move the file from the source folder to a temporary folder on the SFTP server
@@ -24,7 +32,15 @@ downloaded local temporary file is removed. On the next run of the script, the p
 
 Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
 
-### Cannot overwrite destination file
+### Source file in use
+
+When a file cannot be moved from the SFTP source folder to the SFTP temporary folder, then the file is in use by another process.
+
+The script will retry to move the file for 12 seconds. When moving the file ultimately fails, it will simply be reported with the error "file in use".
+
+Further processing for this file is ignored. On the next run, the script will try to download the file again.
+
+### Destination file in use
 
 When a file is downloaded to the local temporary folder, it can happen
 that the destination file is in use by another process and the file cannot
