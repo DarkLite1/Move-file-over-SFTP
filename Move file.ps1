@@ -409,7 +409,7 @@ try {
 
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
-                            Source      = $localTempFile.Directory.FullName
+                            Source      = $path.Source
                             Destination = $path.Destination
                             FileName    = $localTempFile.Name
                             FileLength  = $localTempFile.Length
