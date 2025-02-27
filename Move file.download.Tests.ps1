@@ -621,8 +621,7 @@ Describe 'When a file is' {
                 }
             }
         }
-    } -Tag test
-    
+    }
     Describe 'is in the sftp source and sftp temp folder and' {
         Context 'there is no destination file with the same name' {
             BeforeAll {
