@@ -455,26 +455,39 @@ Describe 'When a duplicate file' {
             }
             Context 'OverWriteFile is false' {
                 BeforeAll {
+                    Mock Get-SFTPItem {
+                        $null = New-Item -Path "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
+                    }
+
                     $testParams.OverwriteFile = $false
-            
+
                     $testResult = .$testScript @testParams
                 }
-                It 'the temp sftp file is downloaded again, because it failed previously' {
-                    Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                It 'the previously moved file on the sftp server is downloaded to the local temp folder' {
+                    Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly -ParameterFilter {
                         ($SessionId -eq 1) -and
                         ($Path -eq '/report/sftpTransfer/download/b.txt') -and
                         ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
                     }
+                    "$($testParams.Paths.Destination)\b.txt" | 
+                        Should -Exist
                 }
-                It 'the new sftp source file is not downloaded' {
+                It 'the new file in the sftp source folder is not downloaded' {
                     Should -Not -Invoke Move-SFTPItem -Scope Context -ParameterFilter {
-                        ($Path -eq '/report/b.txt') 
-                    }
-                    Should -Not -Invoke Get-SFTPItem -Scope Context -ParameterFilter {
-                        ($Path -eq '/report/b.txt') 
+                        ($SessionId -eq 1) -and
+                        ($Path -eq '/report/b.txt') -and
+                        ($Destination -eq '/report/sftpTransfer/download/b.txt' )
                     }
                 }
-                Context 'an error object is created with property' {
+                It 'the file is no longer in the temp download folder' {
+                    "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                        Should -Not -Exist
+                }
+                It 'the file is moved to the destination folder' {
+                    "$($testParams.Paths.Destination)\b.txt" | 
+                        Should -Exist
+                }
+                Context 'a success object is created with property' {
                     It 'DateTime' {
                         $testResult.DateTime | Should -Not -BeNullOrEmpty
                     }
@@ -492,22 +505,22 @@ Describe 'When a duplicate file' {
                             $testResult.Actions.Count | Should -Be 4
                         }
                         It '<_>' -ForEach @(
-                            'file moved to SFTP temp folder',
                             'Previously moved file in sftp temp folder',
                             'downloaded to local temp folder',
-                            'removed file in SFTP temp folder'
+                            'removed file in SFTP temp folder',
+                            'temp file moved to destination folder'
                         ) {
                             $testResult.Actions | Should -Contain $_
                         }
                     }
                     It 'Moved' {
-                        $testResult.Moved | Should -BeFalse
+                        $testResult.Moved | Should -BeTrue
                     }
                     It 'Errors' {
-                        $testResult.Errors | Should -BeLike "Failed to move temp file to destination folder: The process cannot access the file '*\f2\sftpTransfer\download\b.txt' because it is being used by another process."
+                        $testResult.Errors | Should -BeNullOrEmpty
                     }
                 }
-            }
+            } -Tag test
             Context 'OverWriteFile is true' {
                 BeforeAll {
                     Mock Move-Item
@@ -627,7 +640,7 @@ Describe 'When a duplicate file' {
                 }
             }
         }
-    } -Tag test
+    }
 }
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
@@ -727,7 +740,7 @@ Describe 'When a download fails' {
             It 'Errors is 1 string' {
                 $testResult.Errors | Should -HaveCount 1
             }
-            It 'Failed to download'  {
+            It 'Failed to download' {
                 $testResult.Errors | Should -BeLike "Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to 'C:\*\f2\sftpTransfer\download\b.txt': Oops"
             }
         }
@@ -810,7 +823,7 @@ Describe 'Previously failed download' {
     
             $testResult = .$testScript @testParams
         }
-        It 'the file is moved to the destination folder' {
+        It 'the previously downloaded file is moved to the destination folder' {
             "$($testNewParams.Paths.Destination)\b.txt" | 
                 Should -Exist
         }
