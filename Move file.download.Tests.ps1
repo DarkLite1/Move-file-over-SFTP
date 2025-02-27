@@ -614,12 +614,13 @@ Describe 'When there are no files on the SFTP server' {
         $testResult = .$testScript @testParams
 
     }
-    It 'Get-SFTPChildItem is called to get the list of files' {
+    It 'only Get-SFTPChildItem is called to get the folder content' {
         Should -Invoke Get-SFTPChildItem -Scope Describe
     }
-    It 'Other SFTP functions are not called' {
+    It 'no SFTP functions are called besides listing the folder content' {
         @(
             'Get-SFTPItem',
+            'Set-SFTPItem',
             'Move-SFTPItem',
             'Rename-SFTPFile',
             'Test-SFTPPath'
@@ -627,10 +628,10 @@ Describe 'When there are no files on the SFTP server' {
             { Should -Not -Invoke $_ -Scope Describe }
         )
     }
-    It 'there is no output from the script' {
+    It 'no object is returned' {
         $testResult | Should -BeNullOrEmpty
     }
-}
+}  -Tag test
 Describe 'When a download fails' {
     BeforeAll {
         Mock Get-SFTPChildItem {
@@ -658,7 +659,7 @@ Describe 'When a download fails' {
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
             Should -Not -Exist
     }
-    It 'the destination folder is left untouched' {
+    It 'the destination file is left untouched' {
         $testParams.Paths.Destination | Should -Exist
     }
     Context 'the moved file is still present in the SFTP temp folder because' {
@@ -709,7 +710,7 @@ Describe 'When a download fails' {
             }
         }
     }
-} -Tag test
+}
 Describe 'Previously failed download' {
     Context 'when there is a file in the sftp temp folder because of file transfer issues during the previous run' {
         BeforeAll {
