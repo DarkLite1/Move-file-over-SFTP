@@ -97,6 +97,46 @@ try {
     # $VerbosePreference = 'Continue'
 
     $scriptBlock = {
+        function Get-FolderContentSftpServerHC {
+            Param (
+                [Parameter(Mandatory)]
+                [String]$Path,
+                [Parameter(Mandatory)]
+                [String]$TempFolder
+            )
+            try {
+                Write-Verbose "Get folder content 'sftp:$Path'"
+
+                $allFilesAndFolders = @(
+                    Get-SFTPChildItemHC -Path $Path
+                )
+
+                $tempFiles = $allFilesAndFolders.Where(
+                    { 
+                        (-not $_.isDirectory ) -and
+                        ($_.FullName -eq "$TempFolder/$($_.Name)")
+                    }
+                )
+
+                $rootFiles = $allFilesAndFolders.Where(
+                    { 
+                        (-not $_.isDirectory ) -and
+                        ($_.FullName -eq "$Path$($_.Name)")
+                    }
+                )
+
+                @{
+                    allFilesAndFolders = $allFilesAndFolders
+                    tempFiles          = $tempFiles
+                    rootFiles          = $rootFiles
+                }
+            }
+            catch {
+                $M = "Failed retrieving the content of SFTP folder '$Path'. Most likely the path does not exist on the SFTP server: $_"
+                $Error.RemoveAt(0)
+                throw $M
+            }
+        }
         function Get-SFTPItemHC {
             <# 
                 .SYNOPSIS
@@ -491,37 +531,16 @@ try {
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.download)"
 
                 #region Get folder content on SFTP server
-                try {
-                    Write-Verbose "Get folder content 'sftp:$SftpPath'"
-
-                    $sftpServerFolderContent = @(
-                        Get-SFTPChildItemHC -Path $sftpPath
-                    )
-
-                    $sftpServerTempFiles = $sftpServerFolderContent.where(
-                        {
-                            ( -not $_.isDirectory ) -and
-                            ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
-                        }
-                    )
-
-                    $sftpServerSourceFiles = $sftpServerFolderContent.where(
-                        {
-                            ( -not $_.isDirectory ) -and
-                            ($_.FullName -eq "$sftpPath$($_.Name)") 
-                        }
-                    )
+                $params = @{
+                    Path       = $sftpPath 
+                    TempFolder = $tempFolder.sftp
                 }
-                catch {
-                    $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
-                    $Error.RemoveAt(0)
-                    throw $M
-                }
+                $sftpServerContent = Get-FolderContentSftpServerHC @params
                 #endregion
 
                 #region Select files to download by file extension
                 try {
-                    $filesToDownload = $sftpServerTempFiles + $sftpServerSourceFiles
+                    $filesToDownload = $sftpServerContent.tempFiles + $sftpServerContent.rootFiles
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
@@ -546,7 +565,7 @@ try {
 
                 #region Create temp folder on SFTP server
                 try {
-                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerFolderContent.where(
+                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerContent.allFilesAndFolders.where(
                         {
                             $_.IsDirectory -and
                             $_.FullName -eq $tempFolder.sftp
@@ -770,11 +789,19 @@ try {
             else {
                 Write-Verbose 'Upload to SFTP server'
 
+                $processedFiles = @{}
+
+                $tempFolder = @{}
+
                 $joinPath = @{
                     Path      = $path.Source 
                     ChildPath = $tempFolderName.upload
                 }
-                $localTempUploadFolder = Join-Path @joinPath
+                $tempFolder.local = Join-Path @joinPath
+
+                $sftpPath = $path.Destination.TrimStart('sftp:')
+
+                $tempFolder.sftp = "$($sftpPath)$($tempFolderName.upload)"
 
                 #region Get all files and folders on local file system
                 try {
@@ -794,7 +821,7 @@ try {
                     $localFilesAndFoldersInSource.Where(
                         {
                             (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $localTempUploadFolder
+                            $_.Directory.FullName -eq $tempFolder.local
                         }
                     )
                 }
@@ -807,30 +834,25 @@ try {
                 $isLocalTempUploadFolderCreated = $localFilesAndFoldersInSource.where(
                     {
                         ($_.PSIsContainer) -and
-                        ($_.FullName -eq $localTempUploadFolder)
+                        ($_.FullName -eq $tempFolder.local)
                     }
                 )
                 
                 if (-not ($isLocalTempUploadFolderCreated)) {
                     try {
-                        Write-Verbose "Create folder '$localTempUploadFolder '"
+                        Write-Verbose "Create folder '$($tempFolder.local)'"
                 
-                        $null = New-Item -Path $localTempUploadFolder -ItemType Directory
+                        $null = New-Item -Path $tempFolder.local -ItemType Directory
                     }
                     catch {
-                        throw "Failed creating local temporary upload folder '$localTempUploadFolder': $_"
+                        throw "Failed creating local temporary upload folder '$($tempFolder.local)': $_"
                     }
                 }
                 #endregion
 
                 #region Select files to upload
-                <# 
-                    Files in the local source folder and files in the local 
-                    temp upload folder, as this folder contains files that 
-                    previously failed uploading due to transfer issues 
-                #>
                 try {
-                    $filesToUpload = $localFilesInSourceFolder + $localFilesInTempUploadFolder
+                    $filesToUpload = $localFilesInTempUploadFolder + $localFilesInSourceFolder 
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
@@ -889,36 +911,12 @@ try {
                 }
                 #endregion
 
-                $sftpPath = $path.Destination.TrimStart('sftp:')
-
-                $tempUploadFolderSftpServer = "$($sftpPath)$($tempFolderName.upload)"
                 #region Get folder content on SFTP server
-                try {
-                    Write-Verbose "Get folder content 'sftp:$SftpPath'"
-
-                    $sftpServerFolderContent = @(
-                        Get-SFTPChildItemHC -Path $sftpPath
-                    )
-
-                    $sftpFilesInTempUploadFolder = $sftpServerFolderContent.Where(
-                        { 
-                            (-not $_.isDirectory ) -and
-                            ($_.FullName -eq "$tempUploadFolderSftpServer/$($_.Name)")
-                        }
-                    )
-
-                    $sftpFilesInUploadFolder = $sftpServerFolderContent.Where(
-                        { 
-                            (-not $_.isDirectory ) -and
-                            ($_.FullName -eq "$sftpPath/$($_.Name)")
-                        }
-                    )
+                $params = @{
+                    Path       = $sftpPath 
+                    TempFolder = $tempFolder.sftp
                 }
-                catch {
-                    $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
-                    $Error.RemoveAt(0)
-                    throw $M
-                }
+                $sftpServerContent = Get-FolderContentSftpServerHC @params
                 #endregion
 
                 foreach ($fileToUpload in $filesToUpload) {
@@ -945,8 +943,8 @@ try {
                         $isIncompleteUploadedFile = $false
 
                         if (
-                            ($sftpFilesInTempUploadFolder.Name -contains $result.FileName) -and
-                            ($sftpFilesInUploadFolder.Name -contains $result.FileName)
+                            ($sftpServerContent.tempFiles.Name -contains $result.FileName) -and
+                            ($sftpServerContent.rootFiles.Name -contains $result.FileName)
                         ) {
                             $isIncompleteUploadedFile = $true
                         }
@@ -961,8 +959,8 @@ try {
                         $isUploadedFileThatFailedToMoveToDestination = $false
                         
                         if (
-                            ($sftpFilesInTempUploadFolder.Name -contains $result.FileName) -and
-                            ($localTempUploadFolder.Name -notContains $result.FileName)
+                            ($sftpServerContent.tempFiles.Name -contains $result.FileName) -and
+                            ($tempFolder.local.Name -notContains $result.FileName)
                         ) {
                             $isUploadedFileThatFailedToMoveToDestination = $true
                         }
@@ -972,7 +970,7 @@ try {
                         $isDuplicateFileInSftpDestinationFolder = $false
 
                         if (
-                            $sftpFilesInUploadFolder.Name -contains $result.FileName
+                            $sftpServerContent.rootFiles.Name -contains $result.FileName
                         ) {
                             $isDuplicateFileInSftpDestinationFolder = $true
                         }
