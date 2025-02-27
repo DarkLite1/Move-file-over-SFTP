@@ -428,7 +428,7 @@ try {
                         }
 
                         $params = @{
-                            LiteralPath = Join-Path $result.Source $result.FileName
+                            LiteralPath = $localTempFile
                             Destination = Join-Path $result.Destination $result.FileName
                             Force       = $true
                         }
@@ -455,7 +455,7 @@ try {
                         $result.Moved = $true
                     }
                     catch {
-                        Save-ErrorMessageHC "Failed to move the previously downloaded file '$($params.LiteralPath)' to the destination folder: $_"
+                        Save-ErrorMessageHC "Failed to move the previously downloaded file '$localTempFile' to the destination folder: $_"
 
                         $Error.RemoveAt(0)
                     }
