@@ -155,29 +155,29 @@ Describe 'Create an object with Error property when' {
             }
         }
     }
-    It 'authentication to the SFTP server fails' {
-        $testParams = Copy-ObjectHC $testParams
-        $testParams.Paths = @(
-            @{
-                Source      = 'sftp:/data/'
-                Destination = $testSource.Folder
+    Context 'authentication to the SFTP server fails' {
+        BeforeAll {
+            Mock New-SFTPSession {
+                throw 'Failed authenticating'
             }
-        )
-
-        Mock New-SFTPSession {
-            throw 'Failed authenticating'
+    
+            $error.Clear()
+    
+            $testResult = .$testScript @testParams
         }
+        It 'an error object is created' {
+            $testResult.Errors | Should -Be "Failed creating an SFTP session to 'PC1': Failed authenticating"
 
-        $error.Clear()
-
-        $testResult = .$testScript @testParams
-
-        $testResult.Errors | Should -Be "Failed creating an SFTP session to '$($testParams.SftpComputerName)': Failed authenticating"
-
-        $error | Should -HaveCount 0
-
-        Should -Not -Invoke Get-SFTPItem
-        Should -Not -Invoke Rename-SFTPFile
+            $testResult.Actions | Should -BeNullOrEmpty
+            $testResult.FileName | Should -BeNullOrEmpty
+        }
+        It 'errors are cleaned up after the script' {
+            $error | Should -HaveCount 0
+        }
+        It 'no further sftp actions are taken' {
+            Should -Not -Invoke Get-SFTPItem -Scope Context
+            Should -Not -Invoke Rename-SFTPFile -Scope Context
+        }
     }
     Context 'file list cannot be retrieved or SFTP path does not exist' {
         It 'Get-SFTPChildItem throws a terminating error' {
