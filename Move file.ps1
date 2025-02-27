@@ -820,7 +820,7 @@ try {
 
                 #region Select files to upload
                 try {
-                    $filesToUpload = $localFilesInTempUploadFolder + $localFilesInSourceFolder 
+                    $filesToUpload = $localFolderContent.tempFolder + $localFolderContent.rootFolder 
 
                     if ($FileExtensions) {
                         Write-Verbose "Select files with extension '$FileExtensions'"
