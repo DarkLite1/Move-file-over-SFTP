@@ -455,7 +455,7 @@ try {
                         $result.Moved = $true
                     }
                     catch {
-                        Save-ErrorMessageHC "Failed to move the previously downloaded file to the destination folder: $_"
+                        Save-ErrorMessageHC "Failed to move the previously downloaded file '$($params.LiteralPath)' to the destination folder: $_"
 
                         $Error.RemoveAt(0)
                     }
