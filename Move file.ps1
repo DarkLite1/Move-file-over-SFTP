@@ -460,6 +460,7 @@ try {
                         $Error.RemoveAt(0)
                     }
                     finally {
+                        Write-Verbose 'Return result object'
                         $result
                     }
                 }
@@ -681,7 +682,7 @@ try {
                             }
 
                             if ($isTempFile) {
-                                Save-ActionMessageHC 'previously moved file in sftp temp folder'    
+                                Save-ActionMessageHC 'Previously moved file in sftp temp folder'    
                             }
 
                             Save-ActionMessageHC 'downloaded to local temp folder'
