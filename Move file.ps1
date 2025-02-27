@@ -15,7 +15,7 @@
     # Download
 
     ## Steps
-    1. Move file to the SFTP temp folder
+    1. Move the file to the SFTP temp folder
     2. Download file from SFTP temp folder to local temp folder
     3. Move local temp file to destination folder
 

@@ -7,7 +7,7 @@ Simply create an input file based on the [example.JSON file](Example.json) and c
 # Download
 
 ## Steps
-1. Move the file to a temporary folder on the SFTP server
+1. Move the file from the source folder to a temporary folder on the SFTP server
 2. Download the file from the SFTP temporary folder to the local temporary folder
 3. Move the file from the local temporary folder to the final destination folder
 
