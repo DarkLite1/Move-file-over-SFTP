@@ -889,21 +889,24 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
-                        #region Incomplete uploaded file
-                        <# 
-                         - File in sftp temp folder and in local temp folder
-                            > upload incomplete
-                            > upload again 
-                        #>
-                        $isIncompleteUploadedFile = $false
+                        #region Test duplicate file in destination folder
+                        $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
+                            { 
+                                $fileToUpload.Name -eq $_.Name 
+                            }
+                        )
 
                         if (
-                            ($sftpServerContent.tempFiles.Name -contains $result.FileName) -and
-                            ($sftpServerContent.rootFiles.Name -contains $result.FileName)
+                            $isDuplicateFileInDestinationFolder -and 
+                            (-not $OverwriteFile)
                         ) {
-                            $isIncompleteUploadedFile = $true
-                        }
+                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
+
+                            Continue
+                        }  
                         #endregion
+
+                      
 
                         #region Upload completed but could not be moved
                         <# 
