@@ -389,13 +389,44 @@ Describe 'When a duplicate file' {
             
                 $testResult = .$testScript @testNewParams
             }
+            Context 'an error object is created with property' {
+                It 'DateTime' {
+                    $testResult.DateTime | Should -Not -BeNullOrEmpty
+                }
+                It 'Source' {
+                    $testResult.Source | Should -Be $testParams.Paths.Source
+                }
+                It 'Destination' {
+                    $testResult.Destination | Should -Be $testParams.Paths.Destination
+                }
+                It 'FileName' {
+                    $testResult.FileName | Should -Be 'b.txt'
+                }
+                It 'returns 3 strings:' {
+                    $testResult.Actions | Should -HaveCount 3
+                }
+                Context 'Actions' {
+                    It '<_>' -ForEach @(
+                        'file moved to SFTP temp folder',
+                        'downloaded to local temp folder',
+                        'removed file in SFTP temp folder'
+                    ) {
+                        $testResult.Actions | Should -Contain $_
+                    }
+                }
+                It 'Moved' {
+                    $testResult.Moved | Should -BeFalse
+                }
+                Context 'Errors' {
+                    It '<_>' -ForEach @(
+                        'Failed to move temp file to destination folder: The process cannot access the file because it is being used by another process'
+                    ) {
+                        $testResult.Errors | Should -Contain $_
+                    }
+                }
+            }
             It 'the download is started' {
                 Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly
-            }
-            It 'an error object is created' {
-                $testResult.FileName | Should -Be 'b.txt'
-                $testResult.Moved | Should -BeFalse
-                $testResult.Errors | Should -BeLike 'Failed to remove duplicate file*The process cannot access the file because it is being used by another process'
             }
             It 'the file in the local temp folder stays in place' {
                 "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
