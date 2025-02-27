@@ -474,42 +474,37 @@ Describe 'When a duplicate file' {
                         ($Path -eq '/report/b.txt') 
                     }
                 }
-                Context 'a success object is returned' {
-                    BeforeAll {
-                        $testResult = $testResult | Where-Object {
-                            $_.Source -eq $testLocalTempFolder
-                        }
-                    }
-                    It 'only one object' {
-                        $testResult | Should -HaveCount 1
+                Context 'an error object is created with property' {
+                    It 'DateTime' {
+                        $testResult.DateTime | Should -Not -BeNullOrEmpty
                     }
                     It 'Source' {
-                        $testResult.Source | Should -Be $testLocalTempFolder
+                        $testResult.Source | Should -Be $testParams.Paths.Source
                     }
                     It 'Destination' {
-                        $testResult.Destination | 
-                            Should -Be $testParams.Paths.Destination
+                        $testResult.Destination | Should -Be $testParams.Paths.Destination
                     }
                     It 'FileName' {
                         $testResult.FileName | Should -Be 'b.txt'
                     }
-                    It 'Moved' {
-                        $testResult.Moved | Should -BeTrue
-                    }
-                    It 'Errors' {
-                        $testResult.Errors | Should -BeNullOrEmpty
-                    }
-                    It 'Actions' {
-                        $testActions = @(
-                            'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
-                        )
-                            
-                        $testActions | ForEach-Object {
+                    Context 'Actions' {
+                        It 'returns 3 strings:' {
+                            $testResult.Actions | Should -HaveCount 3
+                        }
+                        It '<_>' -ForEach @(
+                            'file moved to SFTP temp folder',
+                            'Previously moved file in sftp temp folder',
+                            'downloaded to local temp folder',
+                            'removed file in SFTP temp folder'
+                        ) {
                             $testResult.Actions | Should -Contain $_
                         }
-    
-                        $testResult.Actions | 
-                            Should -HaveCount $testActions.Count
+                    }
+                    It 'Moved' {
+                        $testResult.Moved | Should -BeFalse
+                    }
+                    It 'Errors' {
+                        $testResult.Errors | Should -BeLike "Failed to move temp file to destination folder: The process cannot access the file '*\f2\sftpTransfer\download\b.txt' because it is being used by another process."
                     }
                 }
             }
@@ -605,7 +600,7 @@ Describe 'When a duplicate file' {
                 }
             }
         }
-    }
+    } -Tag test
 }
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
@@ -631,7 +626,7 @@ Describe 'When there are no files on the SFTP server' {
     It 'no object is returned' {
         $testResult | Should -BeNullOrEmpty
     }
-}  -Tag test
+}
 Describe 'When a download fails' {
     BeforeAll {
         Mock Get-SFTPChildItem {
