@@ -194,8 +194,6 @@ try {
                         Write-Verbose "Remove file '$Path'"
                     
                         $Path | Remove-Item -Force
-                        
-                        Save-ActionMessageHC "removed file '$Path'"
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove file '$Path': $_"
@@ -694,6 +692,8 @@ try {
 
                             Remove-LocalFileHC -Path $tempFile.local
 
+                            Save-ActionMessageHC 'removed file in local temp folder'
+
                             continue
                         }
                         #endregion
@@ -717,6 +717,8 @@ try {
                             $Error.RemoveAt(0)
 
                             Remove-LocalFileHC -Path $tempFile.local
+
+                            Save-ActionMessageHC 'removed file in local temp folder'
 
                             continue
                         }

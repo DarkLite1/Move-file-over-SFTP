@@ -402,10 +402,10 @@ Describe 'When a duplicate file' {
                 It 'FileName' {
                     $testResult.FileName | Should -Be 'b.txt'
                 }
-                It 'returns 3 strings:' {
-                    $testResult.Actions | Should -HaveCount 3
-                }
                 Context 'Actions' {
+                    It 'returns 3 strings:' {
+                        $testResult.Actions | Should -HaveCount 3
+                    }
                     It '<_>' -ForEach @(
                         'file moved to SFTP temp folder',
                         'downloaded to local temp folder',
@@ -418,6 +418,9 @@ Describe 'When a duplicate file' {
                     $testResult.Moved | Should -BeFalse
                 }
                 Context 'Errors' {
+                    It 'Errors is 1 string' {
+                        $testResult.Errors | Should -HaveCount 1
+                    }
                     It '<_>' -ForEach @(
                         'Failed to move temp file to destination folder: The process cannot access the file because it is being used by another process'
                     ) {
@@ -670,11 +673,43 @@ Describe 'When a download fails' {
             Should -Not -Invoke Remove-SFTPItem -Scope Describe
         }
     }
-    It 'an error object is created' {
-        $testResult.Moved | Should -BeFalse
-        $testResult.Errors | Should -BeLike "*Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to*\sftpTransfer\download\b.txt': Oops*"
+    Context 'an error object is created with property' {
+        It 'DateTime' {
+            $testResult.DateTime | Should -Not -BeNullOrEmpty
+        }
+        It 'Source' {
+            $testResult.Source | Should -Be $testParams.Paths.Source
+        }
+        It 'Destination' {
+            $testResult.Destination | Should -Be $testParams.Paths.Destination
+        }
+        It 'FileName' {
+            $testResult.FileName | Should -Be 'b.txt'
+        }
+        Context 'Actions' {
+            It 'returns 3 strings:' {
+                $testResult.Actions | Should -HaveCount 2
+            }
+            It '<_>' -ForEach @(
+                'file moved to SFTP temp folder',
+                'removed file in local temp folder'
+            ) {
+                $testResult.Actions | Should -Contain $_
+            }
+        }
+        It 'Moved' {
+            $testResult.Moved | Should -BeFalse
+        }
+        Context 'Errors' {
+            It 'Errors is 1 string' {
+                $testResult.Errors | Should -HaveCount 1
+            }
+            It 'Failed to download'  {
+                $testResult.Errors | Should -BeLike "Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to 'C:\*\f2\sftpTransfer\download\b.txt': Oops"
+            }
+        }
     }
-}
+} -Tag test
 Describe 'Previously failed download' {
     Context 'when there is a file in the sftp temp folder because of file transfer issues during the previous run' {
         BeforeAll {
@@ -706,11 +741,38 @@ Describe 'Previously failed download' {
             ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
             }
         }
-        It 'a single success object is created' {
-            $testResult | Should -HaveCount 1
-            $testResult.FileName | Should -Be 'b.txt'
-            $testResult.Errors | Should -BeNullOrEmpty
-            $testResult.Actions | Should -Contain 'file not moved from the SFTP source folder to the SFTP temp folder as it was already in the SFTP temp SFTP folder due to a previously failed download'
+        Context 'a success object is created with property' {
+            It 'DateTime' {
+                $testResult.DateTime | Should -Not -BeNullOrEmpty
+            }
+            It 'Source' {
+                $testResult.Source | Should -Be $testParams.Paths.Source
+            }
+            It 'Destination' {
+                $testResult.Destination | Should -Be $testParams.Paths.Destination
+            }
+            It 'FileName' {
+                $testResult.FileName | Should -Be 'b.txt'
+            }
+            Context 'Actions' {
+                It 'returns 4 strings:' {
+                    $testResult.Actions | Should -HaveCount 4
+                }
+                It '<_>' -ForEach @(
+                    'Previously moved file in sftp temp folder',
+                    'downloaded to local temp folder',
+                    'removed file in SFTP temp folder',
+                    'temp file moved to destination folder'
+                ) {
+                    $testResult.Actions | Should -Contain $_
+                }
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeTrue
+            }
+            It 'Errors' {
+                $testResult.Errors | Should -BeNullOrEmpty
+            }
         }
     }
     Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process ' {
@@ -733,10 +795,35 @@ Describe 'Previously failed download' {
             "$($testNewParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
                 Should -Not -Exist
         }
-        It 'a success object is created' {
-            $testResult.Moved | Should -BeTrue
-            $testResult.Actions | Should -Contain 'moved previously downloaded file to destination folder, as the file in the destination folder was in use during the previous run'
-            $testResult.Errors | Should -BeNullOrEmpty
+        Context 'a success object is created with property' {
+            It 'DateTime' {
+                $testResult.DateTime | Should -Not -BeNullOrEmpty
+            }
+            It 'Source' {
+                $testResult.Source | Should -Be $testParams.Paths.Source
+            }
+            It 'Destination' {
+                $testResult.Destination | Should -Be $testParams.Paths.Destination
+            }
+            It 'FileName' {
+                $testResult.FileName | Should -Be 'b.txt'
+            }
+            Context 'Actions' {
+                It 'returns 4 strings:' {
+                    $testResult.Actions | Should -HaveCount 1
+                }
+                It '<_>' -ForEach @(
+                    'moved previously downloaded file to the destination folder'
+                ) {
+                    $testResult.Actions | Should -Contain $_
+                }
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeTrue
+            }
+            It 'Errors' {
+                $testResult.Errors | Should -BeNullOrEmpty
+            }
         }
     }
 }
@@ -939,4 +1026,4 @@ Describe 'When a file is locked' {
             }
         }
     }
-} -Tag test
+}
