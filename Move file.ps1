@@ -98,30 +98,24 @@ try {
 
     $scriptBlock = {
         function Get-FolderContentSftpServerHC {
-            Param (
-                [Parameter(Mandatory)]
-                [String]$Path,
-                [Parameter(Mandatory)]
-                [String]$TempFolder
-            )
             try {
-                Write-Verbose "Get folder content 'sftp:$Path'"
+                Write-Verbose "Get folder content 'sftp:$sftpPath'"
 
                 $allFilesAndFolders = @(
-                    Get-SFTPChildItemHC -Path $Path
+                    Get-SFTPChildItemHC -Path $sftpPath
                 )
 
                 $tempFiles = $allFilesAndFolders.Where(
                     { 
                         (-not $_.isDirectory ) -and
-                        ($_.FullName -eq "$TempFolder/$($_.Name)")
+                        ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
                     }
                 )
 
                 $rootFiles = $allFilesAndFolders.Where(
                     { 
                         (-not $_.isDirectory ) -and
-                        ($_.FullName -eq "$Path$($_.Name)")
+                        ($_.FullName -eq "$sftpPath$($_.Name)")
                     }
                 )
 
@@ -132,9 +126,45 @@ try {
                 }
             }
             catch {
-                $M = "Failed retrieving the content of SFTP folder '$Path'. Most likely the path does not exist on the SFTP server: $_"
+                $M = "Failed retrieving the content of SFTP folder '$sftpPath'. Most likely the path does not exist on the SFTP server: $_"
                 $Error.RemoveAt(0)
                 throw $M
+            }
+        }
+        function Get-FolderContentLocalFileSystemHC {
+            Param (
+                [parameter(Mandatory)]
+                [string]$Path
+            )
+            try {
+                $allFilesAndFolders = @(
+                    Get-ChildItem -LiteralPath $Path -Recurse
+                )
+
+                $rootFiles = 
+                $allFilesAndFolders.Where(
+                    {
+                        (-not $_.PSIsContainer) -and
+                        ($_.Directory.FullName -eq $Path)
+                    }
+                )
+                
+                $tempFiles = 
+                $allFilesAndFolders.Where(
+                    {
+                        (-not $_.PSIsContainer) -and
+                        ($_.Directory.FullName -eq $tempFolder.local)
+                    }
+                )
+
+                @{
+                    allFilesAndFolders = $allFilesAndFolders
+                    tempFiles          = $tempFiles
+                    rootFiles          = $rootFiles
+                }
+            }
+            catch {
+                throw "Path '$Path' not found on the file system"
             }
         }
         function Get-SFTPItemHC {
@@ -215,6 +245,37 @@ try {
         
             foreach ($errorMessage in $errorMessages) {
                 throw $errorMessage
+            }
+        }
+        function Open-SFTPSessionHC {
+            try {
+                Write-Verbose 'Open SFTP session'
+
+                $params = @{
+                    ComputerName      = $SftpComputerName
+                    Credential        = $sftpCredential
+                    AcceptKey         = $true
+                    Force             = $true
+                    ConnectionTimeout = 60
+                }
+
+                if ($SftpOpenSshKeyFile) {
+                    $params.KeyString = $SftpOpenSshKeyFile
+                }
+
+                $sftpSession = New-SFTPSession @params
+
+                Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
+
+                @{
+                    SessionId = $sftpSession.SessionID
+                    Verbose   = $false
+                }
+            }
+            catch {
+                $M = "Failed creating an SFTP session to '$SftpComputerName': $_"
+                $Error.RemoveAt(0)
+                throw $M
             }
         }
         function Remove-LocalFileHC {
@@ -369,35 +430,15 @@ try {
                 }
                 $tempFolder.local = Join-Path @joinPath
 
-                #region Get all files and folders on local file system
-                try {
-                    $localFilesAndFoldersInDestination = @(
-                        Get-ChildItem -LiteralPath $path.Destination -Recurse
-                    )
-
-                    $localFilesInDestinationFolder = 
-                    $localFilesAndFoldersInDestination.Where(
-                        {
-                            (-not $_.PSIsContainer) -and
-                            ($_.Directory.FullName -eq $path.Destination)
-                        }
-                    )
-                    
-                    $localFilesInTempDownloadFolder = 
-                    $localFilesAndFoldersInDestination.Where(
-                        {
-                            (-not $_.PSIsContainer) -and
-                            ($_.Directory.FullName -eq $tempFolder.local)
-                        }
-                    )
+                #region Get local folder content
+                $params = @{
+                    Path = $path.Destination
                 }
-                catch {
-                    throw "Path '$($path.Destination)' not found on the file system"
-                }
+                $localFolderContent = Get-FolderContentLocalFileSystemHC @params
                 #endregion
 
                 #region Create temp folder on local file system
-                $isLocalTempDownloadFolderCreated = $localFilesAndFoldersInDestination.Where(
+                $isLocalTempDownloadFolderCreated = $localFolderContent.allFilesAndFolders.Where(
                     {
                         ($_.PSIsContainer) -and
                         ($_.FullName -eq $tempFolder.local)
@@ -427,7 +468,7 @@ try {
                 #>
                 foreach (
                     $localTempFile in 
-                    $localFilesInTempDownloadFolder
+                    $localFolderContent.tempFiles
                 ) {
                     try {
                         Write-Verbose "Found previous completely downloaded file '$localTempFile'"
@@ -447,7 +488,7 @@ try {
 
                         if (
                             (-not $OverwriteFile) -and    
-                            ($localFilesInDestinationFolder.Name -contains $localTempFile.Name)
+                            ($localFolderContent.rootFiles.Name -contains $localTempFile.Name)
                         ) {
                             Save-ErrorMessageHC "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
 
@@ -493,50 +534,13 @@ try {
                 }
                 #endregion
 
-                #region Open SFTP session
-                try {
-                    Write-Verbose 'Open SFTP session'
-
-                    $params = @{
-                        ComputerName      = $SftpComputerName
-                        Credential        = $sftpCredential
-                        AcceptKey         = $true
-                        Force             = $true
-                        ConnectionTimeout = 60
-                        Verbose           = $false
-                    }
-
-                    if ($SftpOpenSshKeyFile) {
-                        $params.KeyString = $SftpOpenSshKeyFile
-                    }
-
-                    $sftpSession = New-SFTPSession @params
-
-                    $sessionParams = @{
-                        SessionId = $sftpSession.SessionID
-                        Verbose   = $false
-                    }
-
-                    Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
-                }
-                catch {
-                    $M = "Failed creating an SFTP session to '$SftpComputerName': $_"
-                    $Error.RemoveAt(0)
-                    throw $M
-                }
-                #endregion
+                $sessionParams = Open-SFTPSessionHC
 
                 $sftpPath = $path.Source.TrimStart('sftp:')
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.download)"
 
-                #region Get folder content on SFTP server
-                $params = @{
-                    Path       = $sftpPath 
-                    TempFolder = $tempFolder.sftp
-                }
-                $sftpServerContent = Get-FolderContentSftpServerHC @params
-                #endregion
+                $sftpServerContent = Get-FolderContentSftpServerHC
 
                 #region Select files to download by file extension
                 try {
@@ -630,7 +634,7 @@ try {
                         }
 
                         #region Test duplicate file in destination folder
-                        $isDuplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
+                        $isDuplicateFileInDestinationFolder = $localFolderContent.rootFiles.where(
                             { 
                                 $fileToDownload.Name -eq $_.Name 
                             }
@@ -803,31 +807,11 @@ try {
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.upload)"
 
-                #region Get all files and folders on local file system
-                try {
-                    $localFilesAndFoldersInSource = @(
-                        Get-ChildItem -LiteralPath $path.Source -Recurse
-                    )
-
-                    $localFilesInSourceFolder = 
-                    $localFilesAndFoldersInSource.Where(
-                        {
-                            (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $path.Source
-                        }
-                    )
-                    
-                    $localFilesInTempUploadFolder = 
-                    $localFilesAndFoldersInSource.Where(
-                        {
-                            (-not $_.PSIsContainer) -and
-                            $_.Directory.FullName -eq $tempFolder.local
-                        }
-                    )
+                #region Get local folder content
+                $params = @{
+                    Path = $path.Source
                 }
-                catch {
-                    throw "Path '$($path.Source)' not found on the file system"
-                }
+                $localFolderContent = Get-FolderContentLocalFileSystemHC @params
                 #endregion
 
                 #region Create temp folder on local file system
@@ -879,46 +863,10 @@ try {
                 }
                 #endregion
 
-                #region Open SFTP session
-                try {
-                    Write-Verbose 'Open SFTP session'
-
-                    $params = @{
-                        ComputerName      = $SftpComputerName
-                        Credential        = $sftpCredential
-                        AcceptKey         = $true
-                        Force             = $true
-                        ConnectionTimeout = 60
-                    }
-
-                    if ($SftpOpenSshKeyFile) {
-                        $params.KeyString = $SftpOpenSshKeyFile
-                    }
-
-                    $sftpSession = New-SFTPSession @params
-
-                    Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
-
-                    $sessionParams = @{
-                        SessionId = $sftpSession.SessionID
-                        Verbose   = $false
-                    }
-                }
-                catch {
-                    $M = "Failed creating an SFTP session to '$SftpComputerName': $_"
-                    $Error.RemoveAt(0)
-                    throw $M
-                }
-                #endregion
-
-                #region Get folder content on SFTP server
-                $params = @{
-                    Path       = $sftpPath 
-                    TempFolder = $tempFolder.sftp
-                }
-                $sftpServerContent = Get-FolderContentSftpServerHC @params
-                #endregion
-
+                $sessionParams = Open-SFTPSessionHC
+                                
+                $sftpServerContent = Get-FolderContentSftpServerHC
+                
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
                         Write-Verbose "File to upload '$($fileToUpload.FullName)'"
@@ -977,12 +925,12 @@ try {
                         #endregion
 
                         #region Test duplicate file
-                        $duplicateFileInDestinationFolder = $localFilesInDestinationFolder.where(
+                        $duplicateFileInDestinationFolder = $localFolderContent.rootFiles.where(
                             { $_.Name -eq $result.FileName }
                         )
 
                         if (-not $OverwriteFile) {
-                            $duplicateFileInLocalTempFolder = $localFilesInTempDownloadFolder.where(
+                            $duplicateFileInLocalTempFolder = $localFolderContent.tempFiles.where(
                                 { $_.Name -eq $result.FileName }
                             )
 
