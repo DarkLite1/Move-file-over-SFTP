@@ -247,6 +247,46 @@ try {
                 throw $errorMessage
             }
         }
+        function New-SFTPTempFolderHC {
+            try {
+                $isSftpTempFolderCreated = $sftpServerContent.allFilesAndFolders.where(
+                    {
+                        $_.IsDirectory -and
+                        $_.FullName -eq $tempFolder.sftp
+                    }
+                )
+
+                if (-not $isSftpTempFolderCreated) {
+                    Write-Verbose "Create folder 'sftp:$($tempFolder.sftp)'"
+
+                    New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
+                }
+            }
+            catch {
+                $M = "Failed creating folder 'sftp:$($tempFolder.sftp)' $_"
+                $Error.RemoveAt(0)
+                throw $M
+            }
+        }
+        function New-LocalTempFolderHC {
+            $isLocalTempFolderCreated = $localFolderContent.allFilesAndFolders.Where(
+                {
+                    ($_.PSIsContainer) -and
+                    ($_.FullName -eq $tempFolder.local)
+                }
+            )
+
+            if (-not ($isLocalTempFolderCreated)) {
+                try {
+                    Write-Verbose "Create folder '$($tempFolder.local)'"
+
+                    $null = New-Item -Path $tempFolder.local -ItemType Directory
+                }
+                catch {
+                    throw "Failed creating local temporary folder '$($tempFolder.local)': $_"
+                }
+            }
+        }
         function Open-SFTPSessionHC {
             try {
                 Write-Verbose 'Open SFTP session'
@@ -437,25 +477,7 @@ try {
                 $localFolderContent = Get-FolderContentLocalFileSystemHC @params
                 #endregion
 
-                #region Create temp folder on local file system
-                $isLocalTempDownloadFolderCreated = $localFolderContent.allFilesAndFolders.Where(
-                    {
-                        ($_.PSIsContainer) -and
-                        ($_.FullName -eq $tempFolder.local)
-                    }
-                )
-
-                if (-not ($isLocalTempDownloadFolderCreated)) {
-                    try {
-                        Write-Verbose "Create folder '$($tempFolder.local)'"
-
-                        $null = New-Item -Path $tempFolder.local -ItemType Directory
-                    }
-                    catch {
-                        throw "Failed creating local temporary download folder '$($tempFolder.local)': $_"
-                    }
-                }
-                #endregion
+                New-LocalTempFolderHC
 
                 #region Move previously downloaded files
                 <# 
@@ -567,27 +589,7 @@ try {
                 }
                 #endregion
 
-                #region Create temp folder on SFTP server
-                try {
-                    $isTempDownloadFolderOnSftpServerCreated = $sftpServerContent.allFilesAndFolders.where(
-                        {
-                            $_.IsDirectory -and
-                            $_.FullName -eq $tempFolder.sftp
-                        }
-                    )
-
-                    if (-not $isTempDownloadFolderOnSftpServerCreated) {
-                        Write-Verbose "Create folder 'sftp:$($tempFolder.sftp)'"
-
-                        New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
-                    }
-                }
-                catch {
-                    $M = "Failed creating folder 'sftp:$($tempFolder.sftp)' $_"
-                    $Error.RemoveAt(0)
-                    throw $M
-                }
-                #endregion
+                New-SFTPTempFolderHC
 
                 #region Exit when no files to download
                 if (-not $filesToDownload) {
@@ -814,25 +816,7 @@ try {
                 $localFolderContent = Get-FolderContentLocalFileSystemHC @params
                 #endregion
 
-                #region Create temp folder on local file system
-                $isLocalTempUploadFolderCreated = $localFilesAndFoldersInSource.where(
-                    {
-                        ($_.PSIsContainer) -and
-                        ($_.FullName -eq $tempFolder.local)
-                    }
-                )
-                
-                if (-not ($isLocalTempUploadFolderCreated)) {
-                    try {
-                        Write-Verbose "Create folder '$($tempFolder.local)'"
-                
-                        $null = New-Item -Path $tempFolder.local -ItemType Directory
-                    }
-                    catch {
-                        throw "Failed creating local temporary upload folder '$($tempFolder.local)': $_"
-                    }
-                }
-                #endregion
+                New-LocalTempFolderHC
 
                 #region Select files to upload
                 try {
@@ -866,6 +850,8 @@ try {
                 $sessionParams = Open-SFTPSessionHC
                                 
                 $sftpServerContent = Get-FolderContentSftpServerHC
+
+                New-SFTPTempFolderHC
                 
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
