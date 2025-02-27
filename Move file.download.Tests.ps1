@@ -174,43 +174,75 @@ Describe 'Create an object with Error property when' {
         It 'errors are cleaned up after the script' {
             $error | Should -HaveCount 0
         }
-        It 'no further sftp actions are taken' {
-            Should -Not -Invoke Get-SFTPItem -Scope Context
-            Should -Not -Invoke Rename-SFTPFile -Scope Context
+        It 'no further sftp actions are taken' -ForEach @(
+            'Get-SFTPItem',
+            'Move-SFTPItem',
+            'Remove-SFTPItem',
+            'Rename-SFTPFile'
+        ) {
+            Should -Not -Invoke $_ -Scope Context
         }
     }
     Context 'file list cannot be retrieved or SFTP path does not exist' {
-        It 'Get-SFTPChildItem throws a terminating error' {
-            $testParams = Copy-ObjectHC $testParams
-            $testParams.Paths.Source = 'sftp:/notExisting/'
+        Context 'Get-SFTPChildItem throws a terminating error' {
+            BeforeAll {
+                $testParams = Copy-ObjectHC $testParams
+                $testParams.Paths.Source = 'sftp:/notExisting/'
 
-            Mock Get-SFTPChildItem {
-                throw 'path not found'
+                Mock Get-SFTPChildItem {
+                    throw 'path not found'
+                }
+
+                $testResult = .$testScript @testParams
             }
-
-            $testResult = .$testScript @testParams
-
-            $testResult.Errors |
-                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
-
-            Should -Not -Invoke Get-SFTPItem
-            Should -Not -Invoke Rename-SFTPFile
+            It 'an error object is created' {
+                $testResult.Errors |
+                    Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+    
+                $testResult.Actions | Should -BeNullOrEmpty
+                $testResult.FileName | Should -BeNullOrEmpty
+            }
+            It 'errors are cleaned up after the script' {
+                $error | Should -HaveCount 0
+            }
+            It 'no further sftp actions are taken' -ForEach @(
+                'Get-SFTPItem',
+                'Move-SFTPItem',
+                'Remove-SFTPItem',
+                'Rename-SFTPFile'
+            ) {
+                Should -Not -Invoke $_ -Scope Context
+            }
         }
-        It 'Get-SFTPChildItem creates a non terminating error' {
-            $testParams = Copy-ObjectHC $testParams
-            $testParams.Paths.Source = 'sftp:/notExisting/'
+        Context 'Get-SFTPChildItem creates a non terminating error' {
+            BeforeAll {
+                $testParams = Copy-ObjectHC $testParams
+                $testParams.Paths.Source = 'sftp:/notExisting/'
 
-            Mock Get-SFTPChildItem {
-                Write-Error 'path not found'
+                Mock Get-SFTPChildItem {
+                    Write-Error 'path not found'
+                }
+
+                $testResult = .$testScript @testParams
             }
-
-            $testResult = .$testScript @testParams
-
-            $testResult.Errors |
-                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
-
-            Should -Not -Invoke Get-SFTPItem
-            Should -Not -Invoke Rename-SFTPFile
+            It 'an error object is created' {
+                $testResult.Errors |
+                    Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+    
+                $testResult.Actions | Should -BeNullOrEmpty
+                $testResult.FileName | Should -BeNullOrEmpty
+            }
+            It 'errors are cleaned up after the script' {
+                $error | Should -HaveCount 0
+            }
+            It 'no further sftp actions are taken' -ForEach @(
+                'Get-SFTPItem',
+                'Move-SFTPItem',
+                'Remove-SFTPItem',
+                'Rename-SFTPFile'
+            ) {
+                Should -Not -Invoke $_ -Scope Context
+            }
         }
     }
     It 'the download folder does not exist' {
