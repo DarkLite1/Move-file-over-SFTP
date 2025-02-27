@@ -126,7 +126,7 @@ Describe 'When a file is found on the SFTP server' {
         }
         Context 'Actions' {
             It 'returns 4 strings:' {
-                $testResult.Actions | Should -HaveCount 4
+                $testResult.Actions.Count | Should -Be 4
             }
             It '<_>' -ForEach @(
                 'file moved to SFTP temp folder',
@@ -345,8 +345,8 @@ Describe 'When a duplicate file' {
                     $testResult.FileName | Should -Be 'b.txt'
                 }
                 Context 'Actions' {
-                    It 'returns 4 strings:' {
-                        $testResult.Actions | Should -HaveCount 5
+                    It 'returns 5 strings:' {
+                        $testResult.Actions.Count | Should -Be 5
                     }
                     It '<_>' -ForEach @(
                         'file moved to SFTP temp folder',
@@ -488,8 +488,8 @@ Describe 'When a duplicate file' {
                         $testResult.FileName | Should -Be 'b.txt'
                     }
                     Context 'Actions' {
-                        It 'returns 3 strings:' {
-                            $testResult.Actions | Should -HaveCount 3
+                        It 'returns 4 strings:' {
+                            $testResult.Actions.Count | Should -Be 4
                         }
                         It '<_>' -ForEach @(
                             'file moved to SFTP temp folder',
@@ -564,10 +564,37 @@ Describe 'When a duplicate file' {
                 It 'the download is not started' {
                     Should -Not -Invoke Get-SFTPItem -Scope Context
                 }
-                It 'an single error object is created' {
-                    $testResult | Should -HaveCount 1
-                    $testResult.FileName | Should -Be 'b.txt'
-                    $testResult.Errors | Should -BeLike 'Duplicate file in the sftp temp folder*use OverwriteFile if desired'
+                Context 'an error object is created with property' {
+                    It 'DateTime' {
+                        $testResult.DateTime | Should -Not -BeNullOrEmpty
+                    }
+                    It 'Source' {
+                        $testResult.Source | Should -Be $testParams.Paths.Source
+                    }
+                    It 'Destination' {
+                        $testResult.Destination | Should -Be $testParams.Paths.Destination
+                    }
+                    It 'FileName' {
+                        $testResult.FileName | Should -Be 'b.txt'
+                    }
+                    Context 'Actions' {
+                        It 'returns 3 strings:' {
+                            $testResult.Actions.Count | Should -Be 3
+                        }
+                        It '<_>' -ForEach @(
+                            'Previously moved file in sftp temp folder',
+                            'downloaded to local temp folder',
+                            'removed file in SFTP temp folder'
+                        ) {
+                            $testResult.Actions | Should -Contain $_
+                        }
+                    }
+                    It 'Moved' {
+                        $testResult.Moved | Should -BeFalse
+                    }
+                    It 'Errors' {
+                        $testResult.Errors | Should -BeLike "Failed to move temp file to destination folder: The process cannot access the file '*\f2\sftpTransfer\download\b.txt' because it is being used by another process."
+                    }
                 }
             }
             Context 'OverWriteFile is true' {
@@ -684,7 +711,7 @@ Describe 'When a download fails' {
         }
         Context 'Actions' {
             It 'returns 3 strings:' {
-                $testResult.Actions | Should -HaveCount 2
+                $testResult.Actions.Count | Should -Be 2
             }
             It '<_>' -ForEach @(
                 'file moved to SFTP temp folder',
@@ -752,7 +779,7 @@ Describe 'Previously failed download' {
             }
             Context 'Actions' {
                 It 'returns 4 strings:' {
-                    $testResult.Actions | Should -HaveCount 4
+                    $testResult.Actions.Count | Should -Be 4
                 }
                 It '<_>' -ForEach @(
                     'Previously moved file in sftp temp folder',
@@ -805,8 +832,8 @@ Describe 'Previously failed download' {
                 $testResult.FileName | Should -Be 'b.txt'
             }
             Context 'Actions' {
-                It 'returns 4 strings:' {
-                    $testResult.Actions | Should -HaveCount 1
+                It 'returns 1 string:' {
+                    $testResult.Actions.Count | Should -Be 1
                 }
                 It '<_>' -ForEach @(
                     'moved previously downloaded file to the destination folder'
