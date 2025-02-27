@@ -934,102 +934,12 @@ try {
                             }
                         }
                         #endregion
-                      
 
-                        #region Upload completed but could not be moved
-                        <# 
-                        - File in sftp temp folder but not in local temp folder
-                            > upload complete
-                            > move to destination
-                        #>
-                        $isUploadedFileThatFailedToMoveToDestination = $false
-                        
-                        if (
-                            ($sftpServerContent.tempFiles.Name -contains $result.FileName) -and
-                            ($tempFolder.local.Name -notContains $result.FileName)
-                        ) {
-                            $isUploadedFileThatFailedToMoveToDestination = $true
-                        }
-                        #endregion
-
-                        #region Duplicate file in sftp destination folder
-                        $isDuplicateFileInSftpDestinationFolder = $false
-
-                        if (
-                            $sftpServerContent.rootFiles.Name -contains $result.FileName
-                        ) {
-                            $isDuplicateFileInSftpDestinationFolder = $true
-                        }
-                        #endregion
-
-                        #region Test duplicate file
-                        $duplicateFileInDestinationFolder = $localFolderContent.rootFiles.where(
-                            { $_.Name -eq $result.FileName }
-                        )
-
-                        if (-not $OverwriteFile) {
-                            $duplicateFileInLocalTempFolder = $localFolderContent.tempFiles.where(
-                                { $_.Name -eq $result.FileName }
-                            )
-
-                            if ($duplicateFileInDestinationFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the destination folder '$($path.Destination)', use OverwriteFile if desired"
-
-                                continue
-                            }
-    
-                            if ($duplicateFileInLocalTempFolder) {
-                                Save-ErrorMessageHC "Duplicate file in the local temp folder '$($tempFolder.local)', most likely due to the file being in use in the destination folder during the previous run, use OverwriteFile if desired"
-
-                                continue
-                            }
-                        }
-                        #endregion
-                        
-                        #region Duplicate file on SFTP server
-                        if (
-                            $sftpFile = $sftpFiles.where(
-                                { $_.Name -eq $fileToUpload.Name }, 'First'
-                            )
-                        ) {
-                            Write-Verbose 'Duplicate file on SFTP server'
-                            if ($OverwriteFile) {
-                                try {
-                                    Start-RetryActionHC -ScriptBlock {
-                                        Write-Verbose 'Remove duplicate file on SFTP server'
-    
-                                        $removeParams = @{
-                                            Path        = $sftpFile.FullName
-                                            ErrorAction = 'Stop'
-                                        }
-                                        Remove-SFTPItem @sessionParams @removeParams
-
-                                        Save-ActionMessageHC 'Removed duplicate file from SFTP server'
-                                    }          
-                                }
-                                catch {
-                                    Save-ErrorMessageHC "Failed removing duplicate file from the SFTP server after multiple attempts within $($RetryCountOnLockedFiles * $RetryWaitSeconds) seconds (file in use): $errorMessage"
-
-                                    $Error.RemoveAt(0)
-
-                                    continue
-                                }
-                            }
-                            else {
-                                Save-ErrorMessageHC 'Duplicate file on SFTP server, use Option.OverwriteFile if desired'
-
-                                $Error.RemoveAt(0)
-
-                                continue
-                            }
-                        }
-                        #endregion
-
-                        #region Upload temp file to SFTP server
+                        #region Upload local temp file to SFTP server
                         try {
                             $params = @{
-                                Path        = $tempFile.UploadFilePath
-                                Destination = $SftpPath
+                                Path        = $tempFile.local
+                                Destination = $tempFile.sftp
                                 Force       = $true
                             }
 
@@ -1038,15 +948,15 @@ try {
                             Start-RetryActionHC -ScriptBlock {
                                 Set-SFTPItem @sessionParams @params
                             }
-                        }
-                        catch {
-                            $errorMessage = $_
 
-                            if ($_ -like '*Failure*') {
-                                $errorMessage = "Most like likely the destination file '$($params.Destination)/$($result.FileName)' is in use by another process: $_"
+                            if ($isTempFile) {
+                                Save-ActionMessageHC 'Previously moved file in local temp folder'    
                             }
 
-                            Save-ErrorMessageHC "Failed to upload file '$($params.Path)': $errorMessage"
+                            Save-ActionMessageHC 'uploaded to sftp temp folder'
+                        }
+                        catch {
+                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($tempFile.sftp)': $_"
 
                             $Error.RemoveAt(0)
 
@@ -1054,19 +964,25 @@ try {
                         }
                         #endregion
 
-                        #region Rename file on SFTP server
+                        #region Move SFTP temp file to SFTP destination folder
                         try {
-                            Write-Verbose "Rename temp file on SFTP server to '$($result.FileName)'"
-
                             $params = @{
-                                Path    = $SftpPath + $tempFile.UploadFileName
-                                NewName = $result.FileName
+                                Path        = $tempFile.sftp
+                                Destination = "$sftpPath$($result.FileName)"
+                                Force       = $true
                             }
-                            Rename-SFTPFile @sessionParams @params
+
+                            Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Move-SFTPItem @sessionParams @params
+                            }
+
+                            Save-ActionMessageHC 'file moved to SFTP destination folder'                 
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to rename the file on the SFTP server from '$($tempFile.UploadFileName)' to '$($result.FileName)': $_"
-                       
+                            Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
+
                             $Error.RemoveAt(0)
 
                             continue
@@ -1075,9 +991,13 @@ try {
 
                         #region Remove local temp file
                         try {
-                            Write-Verbose 'Remove local temp file'
+                            Write-Verbose "Remove file '$($tempFile.local)'"
+                            
+                            Start-RetryActionHC -ScriptBlock {
+                                $tempFile.local | Remove-Item -Force
+                            }
 
-                            $tempFile.UploadFilePath | Remove-Item -Force
+                            Save-ActionMessageHC 'removed file in local temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
