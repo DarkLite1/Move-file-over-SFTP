@@ -889,7 +889,7 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
-                        #region Test duplicate file in destination folder
+                        #region Test duplicate file in sftp destination folder
                         $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
                             { 
                                 $fileToUpload.Name -eq $_.Name 
@@ -906,6 +906,34 @@ try {
                         }  
                         #endregion
 
+                        #region Move file to local temp folder
+                        $isTempFile = $fileToUpload.FullName -eq $tempFile.local
+                        
+                        if (-not $isTempFile) {
+                            try {
+                                $params = @{
+                                    Path        = $fileToUpload.FullName
+                                    Destination = $tempFile.local
+                                    Force       = $true
+                                }
+
+                                Write-Verbose "Move file '$($params.Path)' to '$($params.Destination)'"
+
+                                Start-RetryActionHC -ScriptBlock {
+                                    Move-Item @params
+                                }
+
+                                Save-ActionMessageHC 'file moved to local temp folder'
+                            }
+                            catch {
+                                Save-ErrorMessageHC "Failed moving file to local temp folder because it was most likely in use by another process: $_"
+
+                                $Error.RemoveAt(0)
+
+                                continue
+                            }
+                        }
+                        #endregion
                       
 
                         #region Upload completed but could not be moved
