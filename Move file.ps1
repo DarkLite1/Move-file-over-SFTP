@@ -681,7 +681,7 @@ try {
                             }
 
                             if ($isTempFile) {
-                                Save-ActionMessageHC 'previously moved file to temp folder'    
+                                Save-ActionMessageHC 'previously moved file in sftp temp folder'    
                             }
 
                             Save-ActionMessageHC 'downloaded to local temp folder'
