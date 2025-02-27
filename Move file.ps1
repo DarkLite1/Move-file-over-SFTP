@@ -882,6 +882,13 @@ try {
                             Errors      = @()
                         }
 
+                        $tempFile = @{
+                            sftp  = '{0}/{1}' -f  
+                            $tempFolder.sftp, $result.FileName
+                            local = '{0}\{1}' -f 
+                            $tempFolder.local, $result.FileName
+                        }
+
                         #region Incomplete uploaded file
                         <# 
                          - File in sftp temp folder and in local temp folder
@@ -948,11 +955,6 @@ try {
                         }
                         #endregion
                         
-                        $tempFile = @{
-                            UploadFileName = $fileToUpload.Name + $PartialFileExtension.Upload
-                        }
-                        $tempFile.UploadFilePath = Join-Path $result.Source $tempFile.UploadFileName
-
                         #region Duplicate file on SFTP server
                         if (
                             $sftpFile = $sftpFiles.where(
