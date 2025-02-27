@@ -125,11 +125,14 @@ Describe 'When a file is found on the SFTP server' {
             $testResult.FileName | Should -Be 'b.txt'
         }
         Context 'Actions' {
+            It 'returns 4 strings:' {
+                $testResult.Actions | Should -HaveCount 4
+            }
             It '<_>' -ForEach @(
                 'file moved to SFTP temp folder',
                 'downloaded to local temp folder',
                 'removed file in SFTP temp folder',
-                'moved to destination folder'
+                'temp file moved to destination folder'
             ) {
                 $testResult.Actions | Should -Contain $_
             }
@@ -276,9 +279,32 @@ Describe 'When a duplicate file' {
             
                 $testResult = .$testScript @testNewParams
             }
-            It 'an error object is created' {
-                $testResult.FileName | Should -Be 'b.txt'
-                $testResult.Errors | Should -BeLike 'Duplicate file in the destination folder*use OverwriteFile if desired'
+            Context 'an error object is created with property' {
+                It 'DateTime' {
+                    $testResult.DateTime | Should -Not -BeNullOrEmpty
+                }
+                It 'Source' {
+                    $testResult.Source | Should -Be $testParams.Paths.Source
+                }
+                It 'Destination' {
+                    $testResult.Destination | Should -Be $testParams.Paths.Destination
+                }
+                It 'FileName' {
+                    $testResult.FileName | Should -Be 'b.txt'
+                }
+                It 'Actions' {
+                    $testResult.Actions | Should -HaveCount 0
+                }
+                It 'Moved' {
+                    $testResult.Moved | Should -BeFalse
+                }
+                Context 'Errors' {
+                    It '<_>' -ForEach @(
+                        'Duplicate file in destination folder, use OverwriteFile if needed'
+                    ) {
+                        $testResult.Errors | Should -Contain $_
+                    }
+                }
             }
             It 'the download is not started' {
                 Should -Not -Invoke Get-SFTPItem -Scope Context
@@ -305,11 +331,39 @@ Describe 'When a duplicate file' {
             It 'the download is started' {
                 Should -Invoke Get-SFTPItem -Scope Context
             }
-            It 'a success object is created' {
-                $testResult.FileName | Should -Be 'b.txt'
-                $testResult.Moved | Should -BeTrue
-                $testResult.Errors | Should -BeNullOrEmpty
-                $testResult.Actions | Should -Contain 'removed duplicate file in destination folder'
+            Context 'a success object is created with property' {
+                It 'DateTime' {
+                    $testResult.DateTime | Should -Not -BeNullOrEmpty
+                }
+                It 'Source' {
+                    $testResult.Source | Should -Be $testParams.Paths.Source
+                }
+                It 'Destination' {
+                    $testResult.Destination | Should -Be $testParams.Paths.Destination
+                }
+                It 'FileName' {
+                    $testResult.FileName | Should -Be 'b.txt'
+                }
+                Context 'Actions' {
+                    It 'returns 4 strings:' {
+                        $testResult.Actions | Should -HaveCount 5
+                    }
+                    It '<_>' -ForEach @(
+                        'file moved to SFTP temp folder',
+                        'downloaded to local temp folder',
+                        'removed file in SFTP temp folder',
+                        'removed duplicate file in destination folder',
+                        'temp file moved to destination folder'
+                    ) {
+                        $testResult.Actions | Should -Contain $_
+                    }
+                }
+                It 'Moved' {
+                    $testResult.Moved | Should -BeTrue
+                }
+                It 'Errors' {
+                    $testResult.Errors | Should -BeNullOrEmpty
+                }
             }
             It 'the file is no longer in the temp folder on the local file system' {
                 '{0}\sftpTransfer\download\b.txt' -f 
@@ -454,7 +508,7 @@ Describe 'When a duplicate file' {
                     $testResult.Actions | Should -Contain 'overwritten duplicate file in SFTP temp folder'
                 }
             }
-        } -Tag test
+        }
         Describe 'there is a destination file with the same name' {
             BeforeAll {
                 Mock Get-SFTPChildItem {
@@ -883,7 +937,7 @@ Describe 'When a file is locked' {
                             'downloaded to local temp folder',
                             'removed file in SFTP temp folder',
                             'removed duplicate file in destination folder',
-                            'moved to destination folder'
+                            'temp file moved to destination folder'
                         )
                         
                         $testActions | ForEach-Object {

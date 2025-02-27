@@ -741,7 +741,7 @@ try {
                                     # remove-item throws the error file in use
                                     Remove-Item -LiteralPath $params.Destination
                                     
-                                    Save-ActionMessageHC 'removed duplicate destination file'
+                                    Save-ActionMessageHC 'removed duplicate file in destination folder'
                                 }
                                 # move-item has an error 'Cannot create file'
                                 Move-Item @params
