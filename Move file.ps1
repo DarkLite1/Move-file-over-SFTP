@@ -12,37 +12,36 @@
     when a file is in use. The download CmdLet 'Get-SFTPItem' does not fail when
     a file is in use. 
 
-    tempFolder = 'sftpTransfer/download' 
+    # Download
 
-    DOWNLOAD FILE FROM SFTP SERVER
-    1. Test if tempFolder on SFTP server has files
-        > yes: previous download failed
-            - 
-        
+    ## Steps
+    1. Move file to the SFTP temp folder
+    2. Download file from SFTP temp folder to local temp folder
+    3. Move local temp file to destination folder
 
-    - Download file from SFTP server
-        tempFolder = 'sftpTransfer/download' 
-        1. on SFTP server:
-            - Create tempFolder on SFTP server
-            - Try to move file to tempFolder on SFTP server
-            > failure: 
-                - file in use: retry
-                - duplicate file: 
-                    > overwrite true: overwrite
-                    > overwrite false: leave file in tempFolder and throw error
-            > success: continue
-        2. on local file system
-            - Create tempFolder on local file system
-            - Download file from tempFolder on SFTP server to local tempFolder
-                (connection issues, disk full, ..)
-                > failure:
-                    - file in use: not possible, we are the only consumer and we 
-                      can lock down permissions on tempFolder if needed
-                    - duplicate file: 
-                        > overwrite true: overwrite
-                        > overwrite false: leave file in tempFolder and throw error
-                > success: 
-                    - remove file in tempFolder on the SFTP server
+    ## Special cases
+
+    ### Interrupted download
+
+    When a file starts downloading and the connection is cut, we have 2 files, 
+    one in the sftp temp folder and one in the local temp folder.
+    
+    The file in the SFTP temp folder remains untouched and the incomplete
+    downloaded local temp file is removed. On the next run of the script, the 
+    SFTP temp file will be downloaded again.
+    
+    Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
+
+    ### Cannot overwrite destination file
+
+    When a file is downloaded to the local temp folder, it can happen
+    that the destination file is in use by another process and the file cannot
+    be overwritten. 
+    
+    The script will leave the file in the local temp folder an tries to move
+    it to the destination folder on the next run.
+
+    Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
 
 .PARAMETER Paths
     Lost of source and destination folders.
@@ -319,16 +318,6 @@ try {
 
             if ($path.Source -like 'sftp*' ) {
                 Write-Verbose 'Download from SFTP server'
-                <# 
-                    Files moved to the SFTP temporary folder during a previous 
-                    run, but not successfully downloaded, will be re-downloaded 
-                    in this run. 
-                    
-                    If a file with the same name exists in both the SFTP 
-                    source and the SFTP temporary folder, the temporary file 
-                    will be downloaded first. The new file in the SFTP source
-                    folder will be downloaded during the next run of the script.
-                #>
 
                 $processedFiles = @{}
 
