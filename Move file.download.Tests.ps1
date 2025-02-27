@@ -552,7 +552,7 @@ Describe 'When a file is' {
                         '{0}\sftpTransfer\download\b.txt' -f 
                         $testParams.Paths.Destination | Should -Not -Exist
                     }
-                } -Tag test
+                }
                 Context 'the destination file is in use' {
                     BeforeAll {
                         Mock Get-SFTPItem {
@@ -590,7 +590,7 @@ Describe 'When a file is' {
                                 $testResult.Actions | Should -HaveCount 3
                             }
                             It '<_>' -ForEach @(
-                                'file moved to SFTP temp folder',
+                                'Previously moved file in sftp temp folder',
                                 'downloaded to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
@@ -621,7 +621,7 @@ Describe 'When a file is' {
                 }
             }
         }
-    }
+    } -Tag test
     
     Describe 'is in the sftp source and sftp temp folder and' {
         Context 'there is no destination file with the same name' {
