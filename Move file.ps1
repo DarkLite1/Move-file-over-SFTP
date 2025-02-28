@@ -712,7 +712,7 @@ try {
                         }
                         #endregion
 
-                        #region Remove SFTP temp file
+                        #region Remove file in SFTP temp folder
                         try {
                             Write-Verbose "Remove file 'SFTP:$($tempFile.sftp)'"
                             
@@ -738,7 +738,7 @@ try {
                         }
                         #endregion
 
-                        #region Move local temp file to destination folder
+                        #region Move file in local temp folder to destination folder
                         try {
                             $params = @{
                                 LiteralPath = $tempFile.local
