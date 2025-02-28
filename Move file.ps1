@@ -907,6 +907,8 @@ try {
                             Moved       = $null
                             Errors      = @()
                         }
+
+                        Save-ActionMessageHC 'This file failed to upload completely during the last run'
                 
                         $params = @{
                             Path = $incompleteFile.FullName
@@ -915,7 +917,7 @@ try {
                             Remove-SFTPItem @sessionParams @params
                         }
                 
-                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)' from previous failed upload"
+                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)'"
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove incomplete uploaded file '$($incompleteFile.FullName)': $_"
