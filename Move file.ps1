@@ -542,6 +542,7 @@ try {
 
                         Save-ActionMessageHC 'moved previously downloaded file to the destination folder'
 
+                        Write-Verbose 'File moved successfully'
                         $result.Moved = $true
                     }
                     catch {
@@ -774,6 +775,7 @@ try {
                         }
                         #endregion
 
+                        Write-Verbose 'File moved successfully'
                         $result.Moved = $true
                     }
                     catch {
@@ -1115,6 +1117,7 @@ try {
                         }
                         #endregion
 
+                        Write-Verbose 'File moved successfully'
                         $result.Moved = $true
                     }
                     catch {
