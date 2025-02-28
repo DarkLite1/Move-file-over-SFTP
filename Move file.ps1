@@ -1016,7 +1016,7 @@ try {
                                 Force       = $true
                             }
 
-                            Write-Verbose 'Upload local temp file to SFTP incomplete folder'
+                            Write-Verbose "Upload file '$($params.Path)' to 'SFTP:$($params.Destination)"
 
                             Start-RetryActionHC -ScriptBlock {
                                 Set-SFTPItem @sessionParams @params
@@ -1098,7 +1098,7 @@ try {
                                 Move-SFTPItem @sessionParams @params
                             }
 
-                            Save-ActionMessageHC 'moved file from temp to SFTP destination folder'                 
+                            Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
