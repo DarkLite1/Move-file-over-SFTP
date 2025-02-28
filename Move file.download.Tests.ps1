@@ -130,7 +130,7 @@ Describe 'When a file is found on the SFTP server' {
             }
             It '<_>' -ForEach @(
                 'moved file to SFTP temp folder',
-                'downloaded file to local temp folder',
+                'downloaded file from SFTP temp folder to local temp folder',
                 'removed file in SFTP temp folder',
                 'moved file in local temp folder to destination folder'
             ) {
@@ -386,7 +386,7 @@ Describe 'When a file is' {
                             }
                             It '<_>' -ForEach @(
                                 'moved file to SFTP temp folder',
-                                'downloaded file to local temp folder',
+                                'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder',
                                 'removed duplicate file in destination folder',
                                 'moved file in local temp folder to destination folder'
@@ -444,7 +444,7 @@ Describe 'When a file is' {
                             }
                             It '<_>' -ForEach @(
                                 'moved file to SFTP temp folder',
-                                'downloaded file to local temp folder',
+                                'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
@@ -565,7 +565,7 @@ Describe 'When a file is' {
                             }
                             It '<_>' -ForEach @(
                                 'Previously moved file in SFTP temp folder',
-                                'downloaded file to local temp folder',
+                                'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder',
                                 'removed duplicate file in destination folder',
                                 'moved file in local temp folder to destination folder'
@@ -623,7 +623,7 @@ Describe 'When a file is' {
                             }
                             It '<_>' -ForEach @(
                                 'Previously moved file in SFTP temp folder',
-                                'downloaded file to local temp folder',
+                                'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
@@ -719,7 +719,7 @@ Describe 'When a file is' {
                     }
                     It '<_>' -ForEach @(
                         'Previously moved file in SFTP temp folder',
-                        'downloaded file to local temp folder',
+                        'downloaded file from SFTP temp folder to local temp folder',
                         'removed file in SFTP temp folder',
                         'moved file in local temp folder to destination folder'
                     ) {
@@ -890,7 +890,7 @@ Describe 'Previously failed download' {
                 }
                 It '<_>' -ForEach @(
                     'Previously moved file in SFTP temp folder',
-                    'downloaded file to local temp folder',
+                    'downloaded file from SFTP temp folder to local temp folder',
                     'removed file in SFTP temp folder',
                     'moved file in local temp folder to destination folder'
                 ) {
@@ -1137,7 +1137,7 @@ Describe 'When a file is locked' {
                 }
                 It '<_>' -ForEach @(
                     'moved file to SFTP temp folder',
-                    'downloaded file to local temp folder',
+                    'downloaded file from SFTP temp folder to local temp folder',
                     'removed file in SFTP temp folder'
                 ) {
                     $testResult.Actions | Should -Contain $_

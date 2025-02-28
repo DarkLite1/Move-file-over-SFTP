@@ -681,7 +681,7 @@ try {
                         }
                         #endregion
 
-                        #region Download SFTP file to local temp folder
+                        #region Download file from SFTP temp folder to local temp folder
                         try {
                             Write-Verbose "Download file 'SFTP:$($tempFile.sftp)' to '$($tempFile.local)'"
 
@@ -697,7 +697,7 @@ try {
                                 Save-ActionMessageHC 'Previously moved file in SFTP temp folder'    
                             }
 
-                            Save-ActionMessageHC 'downloaded file to local temp folder'
+                            Save-ActionMessageHC 'downloaded file from SFTP temp folder to local temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to download file 'SFTP:$($tempFile.sftp)' to '$($tempFile.local)': $_"
