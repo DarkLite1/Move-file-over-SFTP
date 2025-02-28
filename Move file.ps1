@@ -900,7 +900,7 @@ try {
                             $isDuplicateFileInDestinationFolder -and 
                             (-not $OverwriteFile)
                         ) {
-                            Save-ErrorMessageHC 'Duplicate file in SFTP destination folder, use OverwriteFile if needed'    
+                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
 
                             Continue
                         }  
