@@ -479,15 +479,7 @@ try {
 
                 New-LocalTempFolderHC
 
-                #region Move previously downloaded files
-                <# 
-                    When files could not be moved from the local temp folder
-                    to the destination folder during the previous run, they will
-                    now be moved to the destination folder.
-                    
-                    Files get stuck in the local temp folder when the file in 
-                    the destination folder was in use during the previous run.
-                #>
+                #region Move previously downloaded files from local temp folder to local destination folder
                 foreach (
                     $localTempFile in 
                     $localFolderContent.tempFiles
@@ -542,9 +534,9 @@ try {
                             Move-Item @params
                         }
 
-                        Save-ActionMessageHC 'moved previously downloaded file to the destination folder'
+                        Save-ActionMessageHC 'moved file from local temp folder to local destination folder'
 
-                        Write-Verbose 'File moved successfully'
+                        Write-Verbose 'file moved successfully'
                         $result.Moved = $true
                     }
                     catch {
@@ -777,7 +769,7 @@ try {
                         }
                         #endregion
 
-                        Write-Verbose 'File moved successfully'
+                        Write-Verbose 'file moved successfully'
                         $result.Moved = $true
                     }
                     catch {
@@ -1119,7 +1111,7 @@ try {
                         }
                         #endregion
 
-                        Write-Verbose 'File moved successfully'
+                        Write-Verbose 'file moved successfully'
                         $result.Moved = $true
                     }
                     catch {

@@ -944,7 +944,7 @@ Describe 'Previously failed download' {
                 } -Tag test
                 It '<_>' -ForEach @(
                     'This file is a complete downloaded file from the previous run',
-                    'moved previously downloaded file to the destination folder'
+                    'moved file from local temp folder to local destination folder'
                 ) {
                     $testResult.Actions | Should -Contain $_
                 }
