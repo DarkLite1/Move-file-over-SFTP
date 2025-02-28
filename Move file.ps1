@@ -652,7 +652,7 @@ try {
                         }
                         #endregion
 
-                        #region Move file to SFTP temp folder
+                        #region Move file from SFTP source folder to SFTP temp folder
                         $isTempFile = $fileToDownload.FullName -eq $tempFile.sftp
                         
                         if (-not $isTempFile) {
