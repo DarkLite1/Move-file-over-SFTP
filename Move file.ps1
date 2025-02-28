@@ -913,7 +913,7 @@ try {
                             Remove-SFTPItem @sessionParams @params
                         }
                 
-                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)'"
+                        Save-ActionMessageHC "removed incomplete uploaded file '$($incompleteFile.FullName)'"
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove incomplete uploaded file '$($incompleteFile.FullName)': $_"
