@@ -99,7 +99,7 @@ try {
     $scriptBlock = {
         function Get-FolderContentSftpServerHC {
             try {
-                Write-Verbose "Get folder content 'sftp:$sftpPath'"
+                Write-Verbose "Get folder content 'SFTP:$sftpPath'"
 
                 $allFilesAndFolders = @(
                     Get-SFTPChildItemHC -Path $sftpPath
@@ -257,13 +257,13 @@ try {
                 )
 
                 if (-not $isSftpTempFolderCreated) {
-                    Write-Verbose "Create folder 'sftp:$($tempFolder.sftp)'"
+                    Write-Verbose "Create folder 'SFTP:$($tempFolder.sftp)'"
 
                     New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
                 }
             }
             catch {
-                $M = "Failed creating folder 'sftp:$($tempFolder.sftp)' $_"
+                $M = "Failed creating folder 'SFTP:$($tempFolder.sftp)' $_"
                 $Error.RemoveAt(0)
                 throw $M
             }
@@ -663,7 +663,7 @@ try {
                                     Force       = $true
                                 }
 
-                                Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
+                                Write-Verbose "Move file 'SFTP:$($params.Path)' to 'SFTP:$($params.Destination)'"
 
                                 Start-RetryActionHC -ScriptBlock {
                                     Move-SFTPItem @sessionParams @params
@@ -683,7 +683,7 @@ try {
 
                         #region Download SFTP file to local temp folder
                         try {
-                            Write-Verbose "Download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)'"
+                            Write-Verbose "Download file 'SFTP:$($tempFile.sftp)' to '$($tempFile.local)'"
 
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
@@ -700,7 +700,7 @@ try {
                             Save-ActionMessageHC 'downloaded file to local temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)': $_"
+                            Save-ErrorMessageHC "Failed to download file 'SFTP:$($tempFile.sftp)' to '$($tempFile.local)': $_"
 
                             $Error.RemoveAt(0)
 
@@ -714,7 +714,7 @@ try {
 
                         #region Remove SFTP temp file
                         try {
-                            Write-Verbose "Remove file 'sftp:$($tempFile.sftp)'"
+                            Write-Verbose "Remove file 'SFTP:$($tempFile.sftp)'"
                             
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
@@ -726,7 +726,7 @@ try {
                             Save-ActionMessageHC 'removed file in SFTP temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to remove file 'sftp:$($tempFile.sftp)', most likely the file is in use: $_"
+                            Save-ErrorMessageHC "Failed to remove file 'SFTP:$($tempFile.sftp)', most likely the file is in use: $_"
 
                             $Error.RemoveAt(0)
 
@@ -972,7 +972,7 @@ try {
                                 Force       = $true
                             }
 
-                            Write-Verbose "Move file 'sftp:$($params.Path)' to 'sftp:$($params.Destination)'"
+                            Write-Verbose "Move file 'SFTP:$($params.Path)' to 'SFTP:$($params.Destination)'"
 
                             Start-RetryActionHC -ScriptBlock {
                                 Move-SFTPItem @sessionParams @params
