@@ -939,7 +939,7 @@ try {
                         try {
                             $params = @{
                                 Path        = $tempFile.local
-                                Destination = $tempFile.sftp
+                                Destination = $tempFolder.sftp
                                 Force       = $true
                             }
 
@@ -956,7 +956,7 @@ try {
                             Save-ActionMessageHC 'uploaded to sftp temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($tempFile.sftp)': $_"
+                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($tempFolder.sftp)': $_"
 
                             $Error.RemoveAt(0)
 
