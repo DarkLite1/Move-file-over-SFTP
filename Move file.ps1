@@ -1058,12 +1058,12 @@ try {
                                 Move-SFTPItem @sessionParams @params
                             }
 
-                            Save-ActionMessageHC 'moved file from SFTP incomplete folder to SFTP temp folder'
+                            Save-ActionMessageHC 'moved file from SFTP incomplete upload folder to SFTP temp folder'
 
                             Save-ActionMessageHC 'file upload complete'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to file from SFTP incomplete folder to SFTP temp folder: $_"
+                            Save-ErrorMessageHC "Failed to move file from SFTP incomplete upload folder to SFTP temp folder: $_"
 
                             $Error.RemoveAt(0)
 
