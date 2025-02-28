@@ -978,6 +978,9 @@ try {
                         }
 
                         Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
+
+                        Write-Verbose 'file moved successfully'
+                        $result.Moved = $true
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to move file from SFTP temp folder to SFTP destination folder: $_"
