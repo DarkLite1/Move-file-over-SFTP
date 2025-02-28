@@ -808,7 +808,11 @@ try {
                 $sftpPath = $path.Destination.Substring(5)
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.upload)"
-                $tempFolder.incompleteOnSftp = "$($tempFolder.sftp)/incomplete"
+
+                $sftpIncomplete = @{
+                    folder = "$($tempFolder.sftp)/incomplete"
+                    file   = $null
+                }
 
                 #region Get local folder content
                 $params = @{
@@ -859,18 +863,23 @@ try {
                     $isSftpIncompleteUploadFolderCreated = $sftpServerContent.allFilesAndFolders.where(
                         {
                             $_.IsDirectory -and
-                            $_.FullName -eq $tempFolder.incompleteOnSftp
+                            $_.FullName -eq $sftpIncomplete.folder
                         }
                     )
     
                     if (-not $isSftpIncompleteUploadFolderCreated) {
-                        Write-Verbose "Create folder 'SFTP:$($tempFolder.incompleteOnSftp)'"
+                        Write-Verbose "Create folder 'SFTP:$($sftpIncomplete.folder)'"
     
-                        New-SFTPItem @sessionParams -Path $tempFolder.incompleteOnSftp -ItemType Directory -Recurse
+                        $params = @{
+                            Path     = $sftpIncomplete.folder 
+                            ItemType = 'Directory' 
+                            Recurse  = $true
+                        }
+                        New-SFTPItem @sessionParams @params
                     }
                 }
                 catch {
-                    $M = "Failed creating folder 'SFTP:$($tempFolder.incompleteOnSftp)' $_"
+                    $M = "Failed creating folder 'SFTP:$($sftpIncomplete.folder)' $_"
                     $Error.RemoveAt(0)
                     throw $M
                 }
@@ -880,7 +889,7 @@ try {
                 $sftpIncompleteUploadedFiles = $sftpServerContent.allFilesAndFolders.Where(
                     { 
                         (-not $_.isDirectory ) -and
-                        ($_.FullName -eq "$($tempFolder.incompleteOnSftp)/$($_.Name)")
+                        ($_.FullName -eq "$($sftpIncomplete.folder)/$($_.Name)")
                     }
                 )
                 
@@ -951,6 +960,8 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
+                        $sftpIncomplete.file = '{0}/{1}' -f $sftpIncomplete.folder, $filesToUpload.Name
+
                         #region Test duplicate file in sftp destination folder
                         $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
                             { 
@@ -969,9 +980,9 @@ try {
                         #endregion
 
                         #region Move file to local temp folder
-                        $isTempFile = $fileToUpload.FullName -eq $tempFile.local
+                        $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
                         
-                        if (-not $isTempFile) {
+                        if (-not $isLocalTempFile) {
                             try {
                                 $params = @{
                                     Path        = $fileToUpload.FullName
@@ -997,28 +1008,28 @@ try {
                         }
                         #endregion
 
-                        #region Upload local temp file to SFTP server
+                        #region Upload local temp file to SFTP incomplete folder
                         try {
                             $params = @{
                                 Path        = $tempFile.local
-                                Destination = $tempFolder.sftp
+                                Destination = $sftpIncomplete.folder
                                 Force       = $true
                             }
 
-                            Write-Verbose 'Upload temp file'
+                            Write-Verbose 'Upload local temp file to SFTP incomplete folder'
 
                             Start-RetryActionHC -ScriptBlock {
                                 Set-SFTPItem @sessionParams @params
                             }
 
-                            if ($isTempFile) {
+                            if ($isLocalTempFile) {
                                 Save-ActionMessageHC 'Previously moved file in local temp folder'    
                             }
 
-                            Save-ActionMessageHC 'uploaded to SFTP temp folder'
+                            Save-ActionMessageHC 'uploaded to SFTP incomplete upload folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($tempFolder.sftp)': $_"
+                            Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($sftpIncomplete.folder)': $_"
 
                             $Error.RemoveAt(0)
 
@@ -1026,7 +1037,52 @@ try {
                         }
                         #endregion
 
-                        #region Move SFTP temp file to SFTP destination folder
+                        #region Move SFTP file fromm incomplete to temp folder
+                        try {
+                            $params = @{
+                                Path        = $sftpIncomplete.file
+                                Destination = '{0}{1}' -f
+                                $tempFolder.sftp, $result.FileName
+                                Force       = $true
+                            }
+
+                            Write-Verbose "Move file 'SFTP:$($params.Path)' to 'SFTP:$($params.Destination)'"
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Move-SFTPItem @sessionParams @params
+                            }
+
+                            Save-ActionMessageHC 'moved file from SFTP incomplete folder to SFTP temp folder'
+                        }
+                        catch {
+                            Save-ErrorMessageHC "Failed to file from SFTP incomplete folder to SFTP temp folder: $_"
+
+                            $Error.RemoveAt(0)
+
+                            continue
+                        }
+                        #endregion
+
+                        #region Remove local temp file
+                        try {
+                            Write-Verbose "Remove file '$($tempFile.local)'"
+                                    
+                            Start-RetryActionHC -ScriptBlock {
+                                $tempFile.local | Remove-Item -Force
+                            }
+        
+                            Save-ActionMessageHC 'removed file in local temp folder'
+                        }
+                        catch {
+                            Save-ErrorMessageHC "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
+                                    
+                            $Error.RemoveAt(0)
+        
+                            continue
+                        }
+                        #endregion
+
+                        #region Move SFTP file from temp to destination folder
                         try {
                             $params = @{
                                 Path        = $tempFile.sftp
@@ -1045,25 +1101,6 @@ try {
                         catch {
                             Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
 
-                            $Error.RemoveAt(0)
-
-                            continue
-                        }
-                        #endregion
-
-                        #region Remove local temp file
-                        try {
-                            Write-Verbose "Remove file '$($tempFile.local)'"
-                            
-                            Start-RetryActionHC -ScriptBlock {
-                                $tempFile.local | Remove-Item -Force
-                            }
-
-                            Save-ActionMessageHC 'removed file in local temp folder'
-                        }
-                        catch {
-                            Save-ErrorMessageHC "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
-                            
                             $Error.RemoveAt(0)
 
                             continue
