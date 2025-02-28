@@ -949,6 +949,8 @@ try {
                             Errors      = @()
                         }
 
+                        Save-ActionMessageHC 'This file is a complete uploaded file from the previous run'
+
                         if (-not $OverwriteFile) {
                             $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.Where(
                                 { 
