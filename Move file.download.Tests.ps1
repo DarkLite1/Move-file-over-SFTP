@@ -940,9 +940,10 @@ Describe 'Previously failed download' {
             }
             Context 'Actions' {
                 It 'returns 1 string:' {
-                    $testResult.Actions.Count | Should -Be 1
-                }
+                    $testResult.Actions.Count | Should -Be 2
+                } -Tag test
                 It '<_>' -ForEach @(
+                    'This file is a complete downloaded file from the previous run',
                     'moved previously downloaded file to the destination folder'
                 ) {
                     $testResult.Actions | Should -Contain $_

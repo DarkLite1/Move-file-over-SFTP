@@ -508,11 +508,13 @@ try {
                             Errors      = @()
                         }
 
+                        Save-ActionMessageHC 'This file is a complete downloaded file from the previous run'
+
                         if (
                             (-not $OverwriteFile) -and    
                             ($localFolderContent.rootFiles.Name -contains $localTempFile.Name)
                         ) {
-                            Save-ErrorMessageHC "In the destination folder is a file with the same name '$($result.FileName)' as a previously downloaded file, use OverwriteFile if needed"
+                            Save-ErrorMessageHC "Duplicate file name '$($result.FileName)' in the destination folder, use OverwriteFile if needed"
 
                             Continue
                         }
