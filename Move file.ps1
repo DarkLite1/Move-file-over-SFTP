@@ -1082,7 +1082,7 @@ try {
                             Save-ActionMessageHC 'removed file in local temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to remove the local temp file '$($tempFile.UploadFilePath)': $_"
+                            Save-ErrorMessageHC "Failed to remove file '$($tempFile.UploadFilePath)' in the local temp folder: $_"
                                     
                             $Error.RemoveAt(0)
         
@@ -1090,7 +1090,7 @@ try {
                         }
                         #endregion
 
-                        #region Move SFTP file from temp to destination folder
+                        #region Move file from SFTP temp folder to SFTP destination folder
                         try {
                             $params = @{
                                 Path        = $tempFile.sftp
@@ -1107,7 +1107,7 @@ try {
                             Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
+                            Save-ErrorMessageHC "Failed to move file from SFTP temp folder to SFTP destination folder: $_"
 
                             $Error.RemoveAt(0)
 
