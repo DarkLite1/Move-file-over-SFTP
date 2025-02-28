@@ -808,6 +808,7 @@ try {
                 $sftpPath = $path.Destination.Substring(5)
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.upload)"
+                $tempFolder.incompleteOnSftp = "$($tempFolder.sftp)/incomplete"
 
                 #region Get local folder content
                 $params = @{
@@ -852,6 +853,67 @@ try {
                 $sftpServerContent = Get-FolderContentSftpServerHC
 
                 New-SFTPTempFolderHC
+
+                #region Create SFTP incomplete upload folder
+                try {
+                    $isSftpIncompleteUploadFolderCreated = $sftpServerContent.allFilesAndFolders.where(
+                        {
+                            $_.IsDirectory -and
+                            $_.FullName -eq $tempFolder.incompleteOnSftp
+                        }
+                    )
+    
+                    if (-not $isSftpIncompleteUploadFolderCreated) {
+                        Write-Verbose "Create folder 'SFTP:$($tempFolder.incompleteOnSftp)'"
+    
+                        New-SFTPItem @sessionParams -Path $tempFolder.incompleteOnSftp -ItemType Directory -Recurse
+                    }
+                }
+                catch {
+                    $M = "Failed creating folder 'SFTP:$($tempFolder.incompleteOnSftp)' $_"
+                    $Error.RemoveAt(0)
+                    throw $M
+                }
+                #endregion
+
+                #region Remove incomplete uploaded files on SFTP
+                $sftpIncompleteUploadedFiles = $sftpServerContent.allFilesAndFolders.Where(
+                    { 
+                        (-not $_.isDirectory ) -and
+                        ($_.FullName -eq "$($tempFolder.incompleteOnSftp)/$($_.Name)")
+                    }
+                )
+                
+                foreach ($incompleteFile in $sftpIncompleteUploadedFiles) {
+                    try {
+                        $result = [PSCustomObject]@{
+                            DateTime    = Get-Date
+                            Source      = $path.Source
+                            Destination = $path.Destination
+                            FileName    = $incompleteFile.Name
+                            FileLength  = $incompleteFile.Length
+                            Actions     = @()
+                            Moved       = $null
+                            Errors      = @()
+                        }
+                
+                        $params = @{
+                            Path = $incompleteFile.FullName
+                        }
+                        Remove-SFTPItem @sessionParams@params
+                
+                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)' from previous failed upload'"
+                    }
+                    catch {
+                        Save-ErrorMessageHC "Failed to remove incomplete uploaded file '$($incompleteFile.FullName)': $_"
+                
+                        $Error.RemoveAt(0)
+                    }
+                    finally {
+                        $result
+                    }
+                }
+                #endregion
                 
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
