@@ -910,7 +910,7 @@ try {
                             Path = $incompleteFile.FullName
                         }
                         Start-RetryActionHC -ScriptBlock {
-                            Remove-SFTPItem @sessionParams@params
+                            Remove-SFTPItem @sessionParams @params
                         }
                 
                         Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)' from previous failed upload'"
