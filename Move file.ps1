@@ -24,7 +24,7 @@
     ### Interrupted download
 
     When a file starts downloading and the connection is cut, we have 2 files, 
-    one in the sftp temp folder and one in the local temp folder.
+    one in the SFTP temp folder and one in the local temp folder.
     
     The file in the SFTP temp folder remains untouched and the incomplete
     downloaded local temp file is removed. On the next run of the script, the 
@@ -672,7 +672,7 @@ try {
                                 Save-ActionMessageHC 'file moved to SFTP temp folder'
                             }
                             catch {
-                                Save-ErrorMessageHC "Failed moving file to sftp temp folder because it was most likely in use by another process: $_"
+                                Save-ErrorMessageHC "Failed moving file to SFTP temp folder because it was most likely in use by another process: $_"
 
                                 $Error.RemoveAt(0)
 
@@ -694,7 +694,7 @@ try {
                             }
 
                             if ($isTempFile) {
-                                Save-ActionMessageHC 'Previously moved file in sftp temp folder'    
+                                Save-ActionMessageHC 'Previously moved file in SFTP temp folder'    
                             }
 
                             Save-ActionMessageHC 'downloaded to local temp folder'
@@ -953,7 +953,7 @@ try {
                                 Save-ActionMessageHC 'Previously moved file in local temp folder'    
                             }
 
-                            Save-ActionMessageHC 'uploaded to sftp temp folder'
+                            Save-ActionMessageHC 'uploaded to SFTP temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($tempFolder.sftp)': $_"
