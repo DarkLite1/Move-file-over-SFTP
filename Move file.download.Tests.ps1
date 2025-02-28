@@ -13,7 +13,7 @@ BeforeAll {
         SftpComputerName           = 'PC1'
         SftpCredential             = New-Object @params
         Paths                      = @{
-            Source      = 'sftp:/report/'
+            Source      = 'SFTP:/report/'
             Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
         }
         MaxConcurrentJobs          = 1
@@ -129,10 +129,10 @@ Describe 'When a file is found on the SFTP server' {
                 $testResult.Actions.Count | Should -Be 4
             }
             It '<_>' -ForEach @(
-                'file moved to SFTP temp folder',
-                'downloaded to local temp folder',
+                'moved file to SFTP temp folder',
+                'downloaded file to local temp folder',
                 'removed file in SFTP temp folder',
-                'temp file moved to destination folder'
+                'moved file in local temp folder to destination folder'
             ) {
                 $testResult.Actions | Should -Contain $_
             }
@@ -174,7 +174,7 @@ Describe 'Create an object with Error property when' {
         It 'errors are cleaned up after the script' {
             $error | Should -HaveCount 0
         }
-        It 'no further sftp actions are taken' -ForEach @(
+        It 'no further SFTP actions are taken' -ForEach @(
             'Get-SFTPItem',
             'Move-SFTPItem',
             'Remove-SFTPItem',
@@ -187,7 +187,7 @@ Describe 'Create an object with Error property when' {
         Context 'Get-SFTPChildItem throws a terminating error' {
             BeforeAll {
                 $testParams = Copy-ObjectHC $testParams
-                $testParams.Paths.Source = 'sftp:/notExisting/'
+                $testParams.Paths.Source = 'SFTP:/notExisting/'
 
                 Mock Get-SFTPChildItem {
                     throw 'path not found'
@@ -205,7 +205,7 @@ Describe 'Create an object with Error property when' {
             It 'errors are cleaned up after the script' {
                 $error | Should -HaveCount 0
             }
-            It 'no further sftp actions are taken' -ForEach @(
+            It 'no further SFTP actions are taken' -ForEach @(
                 'Get-SFTPItem',
                 'Move-SFTPItem',
                 'Remove-SFTPItem',
@@ -217,7 +217,7 @@ Describe 'Create an object with Error property when' {
         Context 'Get-SFTPChildItem creates a non terminating error' {
             BeforeAll {
                 $testParams = Copy-ObjectHC $testParams
-                $testParams.Paths.Source = 'sftp:/notExisting/'
+                $testParams.Paths.Source = 'SFTP:/notExisting/'
 
                 Mock Get-SFTPChildItem {
                     Write-Error 'path not found'
@@ -235,7 +235,7 @@ Describe 'Create an object with Error property when' {
             It 'errors are cleaned up after the script' {
                 $error | Should -HaveCount 0
             }
-            It 'no further sftp actions are taken' -ForEach @(
+            It 'no further SFTP actions are taken' -ForEach @(
                 'Get-SFTPItem',
                 'Move-SFTPItem',
                 'Remove-SFTPItem',
@@ -295,7 +295,7 @@ Describe 'When a file is' {
         BeforeAll {
             $testDuplicateFile = New-Item -Path "$($testParams.Paths.Destination)\b.txt" -ItemType 'File' -Force
         }
-        Describe 'in the sftp source folder and' {
+        Describe 'in the SFTP source folder and' {
             BeforeAll {
                 Mock Get-SFTPChildItem {
                     @{
@@ -385,11 +385,11 @@ Describe 'When a file is' {
                                 $testResult.Actions.Count | Should -Be 5
                             }
                             It '<_>' -ForEach @(
-                                'file moved to SFTP temp folder',
-                                'downloaded to local temp folder',
+                                'moved file to SFTP temp folder',
+                                'downloaded file to local temp folder',
                                 'removed file in SFTP temp folder',
                                 'removed duplicate file in destination folder',
-                                'temp file moved to destination folder'
+                                'moved file in local temp folder to destination folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
                             }
@@ -443,8 +443,8 @@ Describe 'When a file is' {
                                 $testResult.Actions | Should -HaveCount 3
                             }
                             It '<_>' -ForEach @(
-                                'file moved to SFTP temp folder',
-                                'downloaded to local temp folder',
+                                'moved file to SFTP temp folder',
+                                'downloaded file to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
@@ -474,7 +474,7 @@ Describe 'When a file is' {
                 }
             }
         }
-        Describe 'in the sftp temp folder and' {
+        Describe 'in the SFTP temp folder and' {
             BeforeAll {
                 Mock Get-SFTPChildItem {
                     @{
@@ -564,11 +564,11 @@ Describe 'When a file is' {
                                 $testResult.Actions.Count | Should -Be 5
                             }
                             It '<_>' -ForEach @(
-                                'Previously moved file in sftp temp folder',
-                                'downloaded to local temp folder',
+                                'Previously moved file in SFTP temp folder',
+                                'downloaded file to local temp folder',
                                 'removed file in SFTP temp folder',
                                 'removed duplicate file in destination folder',
-                                'temp file moved to destination folder'
+                                'moved file in local temp folder to destination folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
                             }
@@ -622,8 +622,8 @@ Describe 'When a file is' {
                                 $testResult.Actions | Should -HaveCount 3
                             }
                             It '<_>' -ForEach @(
-                                'Previously moved file in sftp temp folder',
-                                'downloaded to local temp folder',
+                                'Previously moved file in SFTP temp folder',
+                                'downloaded file to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
                                 $testResult.Actions | Should -Contain $_
@@ -654,7 +654,7 @@ Describe 'When a file is' {
             }
         }
     }
-    Describe 'is in the sftp source and sftp temp folder and' {
+    Describe 'is in the SFTP source and SFTP temp folder and' {
         Context 'there is no destination file with the same name' {
             BeforeAll {
                 Mock Get-SFTPChildItem {
@@ -676,7 +676,7 @@ Describe 'When a file is' {
 
                 $testResult = .$testScript @testParams
             }
-            It 'the previously moved file on the sftp server is downloaded to the local temp folder' {
+            It 'the previously moved file on the SFTP server is downloaded to the local temp folder' {
                 Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/sftpTransfer/download/b.txt') -and
@@ -685,7 +685,7 @@ Describe 'When a file is' {
                 "$($testParams.Paths.Destination)\b.txt" | 
                     Should -Exist
             }
-            It 'the new file in the sftp source folder is not downloaded' {
+            It 'the new file in the SFTP source folder is not downloaded' {
                 Should -Not -Invoke Move-SFTPItem -Scope Context -ParameterFilter {
                     ($SessionId -eq 1) -and
                     ($Path -eq '/report/b.txt') -and
@@ -718,10 +718,10 @@ Describe 'When a file is' {
                         $testResult.Actions.Count | Should -Be 4
                     }
                     It '<_>' -ForEach @(
-                        'Previously moved file in sftp temp folder',
-                        'downloaded to local temp folder',
+                        'Previously moved file in SFTP temp folder',
+                        'downloaded file to local temp folder',
                         'removed file in SFTP temp folder',
-                        'temp file moved to destination folder'
+                        'moved file in local temp folder to destination folder'
                     ) {
                         $testResult.Actions | Should -Contain $_
                     }
@@ -821,7 +821,7 @@ Describe 'When a download fails' {
                 $testResult.Actions.Count | Should -Be 2
             }
             It '<_>' -ForEach @(
-                'file moved to SFTP temp folder',
+                'moved file to SFTP temp folder',
                 'removed file in local temp folder'
             ) {
                 $testResult.Actions | Should -Contain $_
@@ -835,13 +835,13 @@ Describe 'When a download fails' {
                 $testResult.Errors | Should -HaveCount 1
             }
             It 'Failed to download' {
-                $testResult.Errors | Should -BeLike "Failed to download file 'sftp:/report/sftpTransfer/download/b.txt' to 'C:\*\f2\sftpTransfer\download\b.txt': Oops"
+                $testResult.Errors | Should -BeLike "Failed to download file 'SFTP:/report/sftpTransfer/download/b.txt' to 'C:\*\f2\sftpTransfer\download\b.txt': Oops"
             }
         }
     }
 }
 Describe 'Previously failed download' {
-    Context 'when there is a file in the sftp temp folder because of file transfer issues during the previous run' {
+    Context 'when there is a file in the SFTP temp folder because of file transfer issues during the previous run' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 [PSCustomObject]@{
@@ -889,10 +889,10 @@ Describe 'Previously failed download' {
                     $testResult.Actions.Count | Should -Be 4
                 }
                 It '<_>' -ForEach @(
-                    'Previously moved file in sftp temp folder',
-                    'downloaded to local temp folder',
+                    'Previously moved file in SFTP temp folder',
+                    'downloaded file to local temp folder',
                     'removed file in SFTP temp folder',
-                    'temp file moved to destination folder'
+                    'moved file in local temp folder to destination folder'
                 ) {
                     $testResult.Actions | Should -Contain $_
                 }
@@ -1016,7 +1016,7 @@ Describe 'When a file is locked' {
             }
         }
     }
-    Context 'in the sftp source folder' {
+    Context 'in the SFTP source folder' {
         BeforeAll {
             Mock Get-SFTPChildItem {
                 [PSCustomObject]@{
@@ -1063,7 +1063,7 @@ Describe 'When a file is locked' {
                     $testResult.Errors | Should -HaveCount 1
                 }
                 It '<_>' -ForEach @(
-                    'Failed moving file to sftp temp folder because it was most likely in use by another process: oops'
+                    'Failed moving file to SFTP temp folder because it was most likely in use by another process: oops'
                 ) {
                     $testResult.Errors | Should -Contain $_
                 }
@@ -1136,8 +1136,8 @@ Describe 'When a file is locked' {
                     $testResult.Actions | Should -HaveCount 3
                 }
                 It '<_>' -ForEach @(
-                    'file moved to SFTP temp folder',
-                    'downloaded to local temp folder',
+                    'moved file to SFTP temp folder',
+                    'downloaded file to local temp folder',
                     'removed file in SFTP temp folder'
                 ) {
                     $testResult.Actions | Should -Contain $_

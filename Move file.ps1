@@ -558,7 +558,7 @@ try {
 
                 $sessionParams = Open-SFTPSessionHC
 
-                $sftpPath = $path.Source.TrimStart('sftp:')
+                $sftpPath = $path.Source.Substring(5)
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.download)"
 
@@ -669,7 +669,7 @@ try {
                                     Move-SFTPItem @sessionParams @params
                                 }
 
-                                Save-ActionMessageHC 'file moved to SFTP temp folder'
+                                Save-ActionMessageHC 'moved file to SFTP temp folder'
                             }
                             catch {
                                 Save-ErrorMessageHC "Failed moving file to SFTP temp folder because it was most likely in use by another process: $_"
@@ -697,7 +697,7 @@ try {
                                 Save-ActionMessageHC 'Previously moved file in SFTP temp folder'    
                             }
 
-                            Save-ActionMessageHC 'downloaded to local temp folder'
+                            Save-ActionMessageHC 'downloaded file to local temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to download file 'sftp:$($tempFile.sftp)' to '$($tempFile.local)': $_"
@@ -762,7 +762,7 @@ try {
                                 # move-item has an error 'Cannot create file'
                                 Move-Item @params
 
-                                Save-ActionMessageHC 'temp file moved to destination folder'
+                                Save-ActionMessageHC 'moved file in local temp folder to destination folder'
                             }                            
                         }
                         catch {
@@ -805,7 +805,7 @@ try {
                 }
                 $tempFolder.local = Join-Path @joinPath
 
-                $sftpPath = $path.Destination.TrimStart('sftp:')
+                $sftpPath = $path.Destination.Substring(5)
 
                 $tempFolder.sftp = "$($sftpPath)$($tempFolderName.upload)"
 
@@ -923,7 +923,7 @@ try {
                                     Move-Item @params
                                 }
 
-                                Save-ActionMessageHC 'file moved to local temp folder'
+                                Save-ActionMessageHC 'moved file to local temp folder'
                             }
                             catch {
                                 Save-ErrorMessageHC "Failed moving file to local temp folder because it was most likely in use by another process: $_"
@@ -978,7 +978,7 @@ try {
                                 Move-SFTPItem @sessionParams @params
                             }
 
-                            Save-ActionMessageHC 'file moved to SFTP destination folder'                 
+                            Save-ActionMessageHC 'moved file to SFTP destination folder'                 
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
