@@ -672,7 +672,7 @@ try {
                                 Save-ActionMessageHC 'moved file to SFTP temp folder'
                             }
                             catch {
-                                Save-ErrorMessageHC "Failed moving file to SFTP temp folder because it was most likely in use by another process: $_"
+                                Save-ErrorMessageHC "Failed moving file from SFTP source folder to SFTP temp folder because it was most likely in use by another process: $_"
 
                                 $Error.RemoveAt(0)
 
