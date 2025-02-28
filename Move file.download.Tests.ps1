@@ -564,7 +564,7 @@ Describe 'When a file is' {
                                 $testResult.Actions.Count | Should -Be 5
                             }
                             It '<_>' -ForEach @(
-                                'Previously moved file in SFTP temp folder',
+                                'This file is a previously moved file in the SFTP temp folder',
                                 'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder',
                                 'removed duplicate file in destination folder',
@@ -622,7 +622,7 @@ Describe 'When a file is' {
                                 $testResult.Actions | Should -HaveCount 3
                             }
                             It '<_>' -ForEach @(
-                                'Previously moved file in SFTP temp folder',
+                                'This file is a previously moved file in the SFTP temp folder',
                                 'downloaded file from SFTP temp folder to local temp folder',
                                 'removed file in SFTP temp folder'
                             ) {
@@ -718,7 +718,7 @@ Describe 'When a file is' {
                         $testResult.Actions.Count | Should -Be 4
                     }
                     It '<_>' -ForEach @(
-                        'Previously moved file in SFTP temp folder',
+                        'This file is a previously moved file in the SFTP temp folder',
                         'downloaded file from SFTP temp folder to local temp folder',
                         'removed file in SFTP temp folder',
                         'moved file in local temp folder to destination folder'
@@ -889,7 +889,7 @@ Describe 'Previously failed download' {
                     $testResult.Actions.Count | Should -Be 4
                 }
                 It '<_>' -ForEach @(
-                    'Previously moved file in SFTP temp folder',
+                    'This file is a previously moved file in the SFTP temp folder',
                     'downloaded file from SFTP temp folder to local temp folder',
                     'removed file in SFTP temp folder',
                     'moved file in local temp folder to destination folder'

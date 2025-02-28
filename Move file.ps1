@@ -694,7 +694,7 @@ try {
                             }
 
                             if ($isTempFile) {
-                                Save-ActionMessageHC 'Previously moved file in SFTP temp folder'    
+                                Save-ActionMessageHC 'This file is a previously moved file in the SFTP temp folder'
                             }
 
                             Save-ActionMessageHC 'downloaded file from SFTP temp folder to local temp folder'
@@ -895,6 +895,8 @@ try {
                 
                 foreach ($incompleteFile in $sftpIncompleteUploadedFiles) {
                     try {
+                        Write-Verbose "Remove incomplete uploaded file '$incompleteFile'"
+
                         $result = [PSCustomObject]@{
                             DateTime    = Get-Date
                             Source      = $path.Source
@@ -913,7 +915,7 @@ try {
                             Remove-SFTPItem @sessionParams @params
                         }
                 
-                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)' from previous failed upload'"
+                        Save-ActionMessageHC "Removed incomplete uploaded file '$($incompleteFile.FullName)' from previous failed upload"
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove incomplete uploaded file '$($incompleteFile.FullName)': $_"
@@ -964,7 +966,7 @@ try {
 
                         $sftpIncomplete.file = '{0}/{1}' -f $sftpIncomplete.folder, $fileToUpload.Name
 
-                        #region Test duplicate file in sftp destination folder
+                        #region Test duplicate file in destination folder
                         $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
                             { 
                                 $fileToUpload.Name -eq $_.Name 
@@ -981,7 +983,7 @@ try {
                         }  
                         #endregion
 
-                        #region Move file to local temp folder
+                        #region Move file from local source folder to local temp folder
                         $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
                         
                         if (-not $isLocalTempFile) {
@@ -998,7 +1000,7 @@ try {
                                     Move-Item @params
                                 }
 
-                                Save-ActionMessageHC 'moved file to local temp folder'
+                                Save-ActionMessageHC 'moved file from local source folder to local temp folder'
                             }
                             catch {
                                 Save-ErrorMessageHC "Failed moving file to local temp folder because it was most likely in use by another process: $_"
@@ -1010,7 +1012,7 @@ try {
                         }
                         #endregion
 
-                        #region Upload local temp file to SFTP incomplete folder
+                        #region Upload file from local temp folder to SFTP incomplete upload folder
                         try {
                             $params = @{
                                 Path        = $tempFile.local
@@ -1025,10 +1027,10 @@ try {
                             }
 
                             if ($isLocalTempFile) {
-                                Save-ActionMessageHC 'Previously moved file in local temp folder'    
+                                Save-ActionMessageHC 'This file is a previously moved file in the local temp folder'
                             }
 
-                            Save-ActionMessageHC 'uploaded file to SFTP incomplete upload folder'
+                            Save-ActionMessageHC 'uploaded file from local temp folder to SFTP incomplete upload folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($sftpIncomplete.folder)': $_"
