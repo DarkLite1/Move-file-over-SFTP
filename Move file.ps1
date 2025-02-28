@@ -960,7 +960,7 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
-                        $sftpIncomplete.file = '{0}/{1}' -f $sftpIncomplete.folder, $filesToUpload.Name
+                        $sftpIncomplete.file = '{0}/{1}' -f $sftpIncomplete.folder, $fileToUpload.Name
 
                         #region Test duplicate file in sftp destination folder
                         $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
@@ -1026,7 +1026,7 @@ try {
                                 Save-ActionMessageHC 'Previously moved file in local temp folder'    
                             }
 
-                            Save-ActionMessageHC 'uploaded to SFTP incomplete upload folder'
+                            Save-ActionMessageHC 'uploaded file to SFTP incomplete upload folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to upload file '$($tempFile.local)' to '$($sftpIncomplete.folder)': $_"
@@ -1041,7 +1041,7 @@ try {
                         try {
                             $params = @{
                                 Path        = $sftpIncomplete.file
-                                Destination = '{0}{1}' -f
+                                Destination = '{0}/{1}' -f
                                 $tempFolder.sftp, $result.FileName
                                 Force       = $true
                             }
@@ -1053,6 +1053,8 @@ try {
                             }
 
                             Save-ActionMessageHC 'moved file from SFTP incomplete folder to SFTP temp folder'
+
+                            Save-ActionMessageHC 'file upload complete'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to file from SFTP incomplete folder to SFTP temp folder: $_"
@@ -1096,7 +1098,7 @@ try {
                                 Move-SFTPItem @sessionParams @params
                             }
 
-                            Save-ActionMessageHC 'moved file to SFTP destination folder'                 
+                            Save-ActionMessageHC 'moved file from temp to SFTP destination folder'                 
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move SFTP temp file to SFTP destination folder: $_"
