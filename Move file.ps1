@@ -925,6 +925,70 @@ try {
                     }
                 }
                 #endregion
+
+                #region Move files in SFTP temp folder to SFTP destination folder
+                $sftpTempFiles = $sftpServerContent.allFilesAndFolders.Where(
+                    { 
+                        (-not $_.isDirectory ) -and
+                        ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
+                    }
+                )
+                
+                foreach ($sftpTempFile in $sftpTempFiles) {
+                    try {
+                        $processedFiles[$sftpTempFile.Name] = $sftpTempFile
+
+                        $result = [PSCustomObject]@{
+                            DateTime    = Get-Date
+                            Source      = $path.Source
+                            Destination = $path.Destination
+                            FileName    = $fileToUpload.Name
+                            FileLength  = $fileToUpload.Length
+                            Actions     = @()
+                            Moved       = $false
+                            Errors      = @()
+                        }
+
+                        if (-not $OverwriteFile) {
+                            $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.Where(
+                                { 
+                                    ($_.Name -eq $sftpTempFile.Name)
+                                }
+                            )
+
+                            if ($isDuplicateFileInDestinationFolder) {
+                                Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'
+
+                                continue
+                            }
+                        }
+
+                        $params = @{
+                            Path        = $sftpTempFile.FullName
+                            Destination = "$sftpPath$($sftpTempFile.Name)"
+                            Force       = $true
+                        }
+
+                        Write-Verbose "Move file 'SFTP:$($params.Path)' to 'SFTP:$($params.Destination)'"
+
+                        Start-RetryActionHC -ScriptBlock {
+                            Move-SFTPItem @sessionParams @params
+                        }
+
+                        Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
+                    }
+                    catch {
+                        Save-ErrorMessageHC "Failed to move file from SFTP temp folder to SFTP destination folder: $_"
+
+                        $Error.RemoveAt(0)
+
+                        continue
+                    }
+                    finally {
+                        $result
+                    }
+                }
+                #endregion
                 
                 foreach ($fileToUpload in $filesToUpload) {
                     try {
@@ -965,20 +1029,19 @@ try {
                         $sftpIncomplete.file = '{0}/{1}' -f $sftpIncomplete.folder, $fileToUpload.Name
 
                         #region Test duplicate file in destination folder
-                        $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
-                            { 
-                                $fileToUpload.Name -eq $_.Name 
-                            }
-                        )
-
-                        if (
-                            $isDuplicateFileInDestinationFolder -and 
-                            (-not $OverwriteFile)
-                        ) {
-                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
-
-                            Continue
-                        }  
+                        if (-not $OverwriteFile) {
+                            $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
+                                { 
+                                    $fileToUpload.Name -eq $_.Name 
+                                }
+                            )
+    
+                            if ($isDuplicateFileInDestinationFolder) {
+                                Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
+    
+                                Continue
+                            }  
+                        }
                         #endregion
 
                         #region Move file from local source folder to local temp folder
