@@ -942,8 +942,8 @@ try {
                             DateTime    = Get-Date
                             Source      = $path.Source
                             Destination = $path.Destination
-                            FileName    = $fileToUpload.Name
-                            FileLength  = $fileToUpload.Length
+                            FileName    = $sftpTempFile.Name
+                            FileLength  = $sftpTempFile.Length
                             Actions     = @()
                             Moved       = $false
                             Errors      = @()
