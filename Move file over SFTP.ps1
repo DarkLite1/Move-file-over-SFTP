@@ -133,6 +133,36 @@ Param (
 
 Begin {
     Try {
+        function ConvertTo-SentenceHC {
+            <# 
+                .SYNOPSIS
+                    Create a comma separated sentence from an 
+                    array of strings, with the first letter 
+                    in capitals.
+
+                .EXAMPLE
+                    ConvertTo-SentenceHC @('kiwi is great', 'BANANAS are NOT')
+                    # returns: 'Kiwi is great, bananas are not'
+            #>
+        
+            [OutputType([string])]
+            Param (
+                [string[]]$text
+            )
+        
+            if (-not $text) {
+                return
+            }
+        
+            $sentence = $text -join ', '
+            
+            $firstLetter = $sentence.Substring(0, 1).ToUpper()
+            $remainingSentence = $sentence.Substring(1)
+            $capitalizedSentence = $firstLetter + $remainingSentence.ToLower()
+        
+            $capitalizedSentence
+        }
+        
         Function Get-EnvironmentVariableValueHC {
             Param(
                 [String]$Name
@@ -811,11 +841,11 @@ End {
                 'Moved',
                 @{
                     Name       = 'Actions'
-                    Expression = { $_.Actions -join ', ' }
+                    Expression = { ConvertTo-SentenceHC $_.Actions }
                 },
                 @{
                     Name       = 'Errors'
-                    Expression = { $_.Errors -join ', ' }
+                    Expression = { ConvertTo-SentenceHC $_.Errors }
                 }
             }
         }
