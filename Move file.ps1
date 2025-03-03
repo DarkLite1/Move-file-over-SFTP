@@ -297,6 +297,7 @@ try {
                     AcceptKey         = $true
                     Force             = $true
                     ConnectionTimeout = 60
+                    Verbose           = $false
                 }
 
                 if ($SftpOpenSshKeyFile) {
@@ -1192,7 +1193,7 @@ try {
                                 Write-Verbose "Rename temp file '$($tempFile.UploadFilePath)' back to its original name '$($fileToUpload.Name)'"
 
                                 $tempFile.UploadFilePath |
-                                    Rename-Item -NewName $fileToUpload.Name
+                                Rename-Item -NewName $fileToUpload.Name
                             }
                             catch {
                                 [PSCustomObject]@{
