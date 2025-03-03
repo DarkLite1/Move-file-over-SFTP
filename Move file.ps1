@@ -306,7 +306,7 @@ try {
 
                 $sftpSession = New-SFTPSession @params
 
-                Write-Verbose "SFTP session ID '$($sessionParams.SessionId)'"
+                Write-Verbose "SFTP session ID '$($sftpSession.SessionId)'"
 
                 @{
                     SessionId = $sftpSession.SessionID
