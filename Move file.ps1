@@ -1070,7 +1070,7 @@ try {
                                 Save-ActionMessageHC 'moved file from local source folder to local temp folder'
                             }
                             catch {
-                                Save-ErrorMessageHC "Failed moving file to local temp folder because it was most likely in use by another process: $_"
+                                Save-ErrorMessageHC "Failed moving file from local source folder to local temp folder: $_"
 
                                 $Error.RemoveAt(0)
 
