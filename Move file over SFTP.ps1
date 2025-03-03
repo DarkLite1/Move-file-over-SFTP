@@ -1202,7 +1202,7 @@ End {
             '<p><i>* Check the attachment for details</i></p>'
         }
 
-        Get-ScriptRuntimeHC -Stop
+        $null = Get-ScriptRuntimeHC -Stop
 
         if ($sendMailToUser) {
             Write-Verbose 'Send e-mail to the user'
