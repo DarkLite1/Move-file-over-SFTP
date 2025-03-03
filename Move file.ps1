@@ -926,7 +926,7 @@ try {
                 }
                 #endregion
 
-                #region Move files in SFTP temp folder to SFTP destination folder
+                #region Move files from SFTP temp folder to SFTP destination folder
                 $sftpTempFiles = $sftpServerContent.allFilesAndFolders.Where(
                     { 
                         (-not $_.isDirectory ) -and
