@@ -24,7 +24,7 @@ Download a file from the source folder on the SFTP server to the destination fol
 ### Interrupted download
 
 When a file starts downloading and the connection is cut, there are 2 files:
-- one file in the sftp temporary folder (complete moved file)
+- one file in the SFTP temporary folder (complete moved file)
 - one file in the local temporary folder (incomplete downloaded file)
 
 The file in the SFTP temporary folder remains untouched and the incomplete
@@ -50,6 +50,31 @@ The script will leave the file in the local temporary folder an tries to move
 it to the destination folder on the next run.
 
 Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
+
+# Upload
+
+Upload a file from the source folder to the destination folder on the SFTP server. 
+
+A connection to the SFTP server is only made when there are files in the source folder or in the local temporary folder.
+
+## Steps
+1. Move the file from the source folder to the local temporary folder
+2. Upload the file from the local temporary folder to the SFTP incomplete folder
+3. Move the file from the SFTP incomplete folder to the SFTP temporary folder
+4. Move the file from the SFTP temporary folder to the SFTP destination folder
+
+
+## Special cases
+
+### Interrupted upload
+
+When a file starts uploading and the connection is cut, there are 2 files:
+- one file in the local temporary folder (complete moved file)
+- one file in the SFTP incomplete folder (incomplete uploaded file)
+
+The error will be reported and in the next run the the file in the SFTP incomplete folder will be removed and the file in the local temporary folder will be uploaded again.
+
+Any new file in the source folder with the same name will be ignored and only processed during the next run.
 
 # Best practices
 
