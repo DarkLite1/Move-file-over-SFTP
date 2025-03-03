@@ -34,7 +34,7 @@ Any new file in the SFTP source folder with the same name will be ignored and on
 
 ### Source file in use
 
-When a file cannot be moved from the SFTP source folder to the SFTP temporary folder, then the file is in use by another process.
+A file is in use by another process when it cannot be moved from the SFTP source folder to the SFTP temporary folder.
 
 The script will retry to move the file for 12 seconds. When moving the file ultimately fails, it will simply be reported with the error "file in use".
 
@@ -42,9 +42,7 @@ Further processing for this file is ignored. On the next run, the script will tr
 
 ### Destination file in use
 
-When a file is downloaded to the local temporary folder, it can happen
-that the destination file is in use by another process and the file cannot
-be overwritten.
+A file is in use by another process when it cannot be overwritten in the destination folder.
 
 The script will leave the file in the local temporary folder an tries to move
 it to the destination folder on the next run.
@@ -55,7 +53,7 @@ Any new file in the SFTP source folder with the same name will be ignored and on
 
 Upload a file from the source folder to the destination folder on the SFTP server. 
 
-A connection to the SFTP server is only made when there are files in the source folder or in the local temporary folder.
+A connection to the SFTP server is only made when there are files in the source folder or in the local temporary folder. This is done to ensure that the SFTP server is not spammed with connection requests when there is nothing to upload.
 
 ## Steps
 1. Move the file from the source folder to the local temporary folder
@@ -73,6 +71,22 @@ When a file starts uploading and the connection is cut, there are 2 files:
 - one file in the SFTP incomplete folder (incomplete uploaded file)
 
 The error will be reported and in the next run the the file in the SFTP incomplete folder will be removed and the file in the local temporary folder will be uploaded again.
+
+Any new file in the source folder with the same name will be ignored and only processed during the next run.
+
+### Source file in use
+
+A file is in use by another process when it cannot be moved from the source folder to the temporary folder on the file system.
+
+The script will retry to move the file for 12 seconds. When moving the file ultimately fails, it will simply be reported with the error "file in use".
+
+Further processing for this file is ignored. On the next run, the script will try to upload the file again.
+
+### Destination file in use
+
+A file is in use by another process when it cannot be overwritten in the SFTP destination folder. An error is logged.
+
+On the next run another attempt will be made to move the file from the SFTP temporary folder to the SFTP destination folder. A retry will only be attempted when there are files in the local source folder or in the local temporary folder, otherwise the file will be left in the SFTP temporary folder until a new connection to the SFTP server is opened during one of the next runs.
 
 Any new file in the source folder with the same name will be ignored and only processed during the next run.
 
