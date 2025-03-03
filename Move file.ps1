@@ -501,7 +501,7 @@ try {
                             Errors      = @()
                         }
 
-                        Save-ActionMessageHC 'This file is a complete downloaded file from the previous run'
+                        Save-ActionMessageHC 'this file is a complete downloaded file from the previous run'
 
                         if (
                             (-not $OverwriteFile) -and    
@@ -690,7 +690,7 @@ try {
                             }
 
                             if ($isTempFile) {
-                                Save-ActionMessageHC 'This file is a previously moved file in the SFTP temp folder'
+                                Save-ActionMessageHC 'this file is a previously moved file in the SFTP temp folder'
                             }
 
                             Save-ActionMessageHC 'downloaded file from SFTP temp folder to local temp folder'
@@ -905,7 +905,7 @@ try {
                             Errors      = @()
                         }
 
-                        Save-ActionMessageHC 'This file failed to upload completely during the last run'
+                        Save-ActionMessageHC 'this file failed to upload completely during the last run'
                 
                         $params = @{
                             Path = $incompleteFile.FullName
@@ -950,7 +950,7 @@ try {
                             Errors      = @()
                         }
 
-                        Save-ActionMessageHC 'This file is a complete uploaded file from the previous run'
+                        Save-ActionMessageHC 'this file is a complete uploaded file from the previous run'
 
                         if (-not $OverwriteFile) {
                             $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.Where(
@@ -991,6 +991,7 @@ try {
                         continue
                     }
                     finally {
+                        Write-Verbose 'Return result object'
                         $result
                     }
                 }
@@ -1094,7 +1095,7 @@ try {
                             }
 
                             if ($isLocalTempFile) {
-                                Save-ActionMessageHC 'This file is a previously moved file in the local temp folder'
+                                Save-ActionMessageHC 'this file is a previously moved file in the local temp folder'
                             }
 
                             Save-ActionMessageHC 'uploaded file from local temp folder to SFTP incomplete upload folder'
