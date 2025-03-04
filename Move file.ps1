@@ -1065,7 +1065,7 @@ try {
                             Write-Verbose "Move file 'SFTP:$($params.Source)' to 'SFTP:$($params.Destination)'"
 
                             Start-RetryActionHC -ScriptBlock {
-                                Move-SFTPItemHD @params
+                                Move-SFTPItemHC @params
                             }
 
                             Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
