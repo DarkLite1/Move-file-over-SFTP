@@ -1143,7 +1143,7 @@ Describe 'When a file is locked' {
                 ) {
                     $testResult.Actions | Should -Contain $_
                 }
-            }
+            } -Tag test
             It 'Moved' {
                 $testResult.Moved | Should -BeFalse
             }

@@ -141,7 +141,7 @@ Begin {
                     in capitals.
 
                 .EXAMPLE
-                    ConvertTo-SentenceHC @('kiwi is great', 'BANANAS are NOT')
+                    ConvertTo-SentenceHC @('kiwi is great', 'bananas are not')
                     # returns: 'Kiwi is great, bananas are not'
             #>
         
@@ -158,7 +158,7 @@ Begin {
             
             $firstLetter = $sentence.Substring(0, 1).ToUpper()
             $remainingSentence = $sentence.Substring(1)
-            $capitalizedSentence = $firstLetter + $remainingSentence.ToLower()
+            $capitalizedSentence = $firstLetter + $remainingSentence
         
             $capitalizedSentence
         }
