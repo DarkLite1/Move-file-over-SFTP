@@ -1068,7 +1068,7 @@ Describe 'When a file is locked' {
                 ) {
                     $testResult.Errors | Should -Contain $_
                 }
-            } -Tag test
+            }
         }
         It 'the download is not started' {
             Should -Not -Invoke Get-SFTPItem -Scope Context
