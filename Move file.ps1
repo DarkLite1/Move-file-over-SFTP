@@ -1034,7 +1034,7 @@ try {
                             }
 
                             if ($isLocalTempFile) {
-                                Save-ActionMessageHC 'this file is a previously moved file in the local temp folder'
+                                Save-ActionMessageHC 'this file failed during the last run'
                             }
 
                             Save-ActionMessageHC 'uploaded file from local temp folder to SFTP temp folder'

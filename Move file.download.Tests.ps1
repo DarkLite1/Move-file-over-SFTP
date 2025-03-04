@@ -1064,11 +1064,11 @@ Describe 'When a file is locked' {
                     $testResult.Errors | Should -HaveCount 1
                 }
                 It '<_>' -ForEach @(
-                    'Failed moving file from SFTP source folder to SFTP temp folder because it was most likely in use by another process: oops'
+                    'Failed to move file from SFTP source folder to SFTP temp folder: oops'
                 ) {
                     $testResult.Errors | Should -Contain $_
                 }
-            }
+            } -Tag test
         }
         It 'the download is not started' {
             Should -Not -Invoke Get-SFTPItem -Scope Context
