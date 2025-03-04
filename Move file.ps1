@@ -695,7 +695,7 @@ try {
                         if (-not $isTempFile) {
                             $isDuplicateInSftpTempFolder = $sftpServerContent.tempFiles.where(
                                 { 
-                                    $filesToDownload.Name -eq $_.Name 
+                                    $fileToDownload.Name -eq $_.Name 
                                 }
                             )
 
@@ -1050,16 +1050,22 @@ try {
 
                         #region Move file from SFTP temp folder to SFTP destination folder
                         try {
+                            $isDuplicateInSftpDestinationFolder = $sftpServerContent.rootFiles.where(
+                                { 
+                                    $fileToUpload.Name -eq $_.Name 
+                                }
+                            )
+
                             $params = @{
-                                Path        = $tempFile.sftp
+                                Source      = $tempFile.sftp
                                 Destination = "$sftpPath$($result.FileName)"
-                                Force       = $true
+                                isDuplicateFile = [boolean]$isDuplicateInSftpDestinationFolder
                             }
 
-                            Write-Verbose "Move file 'SFTP:$($params.Path)' to 'SFTP:$($params.Destination)'"
+                            Write-Verbose "Move file 'SFTP:$($params.Source)' to 'SFTP:$($params.Destination)'"
 
                             Start-RetryActionHC -ScriptBlock {
-                                Move-SFTPItem @sessionParams @params
+                                Move-SFTPItemHD @params
                             }
 
                             Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
