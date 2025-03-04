@@ -1029,18 +1029,18 @@ try {
 
                             Write-Verbose "Upload file '$($params.Path)' to 'SFTP:$($params.Destination)'"
 
-                            Start-RetryActionHC -ScriptBlock {
-                                Set-SFTPItem @sessionParams @params
-                            }
-
                             if ($isLocalTempFile) {
                                 Save-ActionMessageHC 'this file failed during the last run'
+                            }
+
+                            Start-RetryActionHC -ScriptBlock {
+                                Set-SFTPItem @sessionParams @params
                             }
 
                             Save-ActionMessageHC 'uploaded file from local temp folder to SFTP temp folder'
                         }
                         catch {
-                            Save-ErrorMessageHC "Failed to upload file '$($params.Path)' to '$($params.Destination)': $_"
+                            Save-ErrorMessageHC "failed to upload file in local temp folder to SFTP temp folder: $_"
 
                             $Error.RemoveAt(0)
 
