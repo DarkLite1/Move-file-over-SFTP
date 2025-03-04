@@ -1,14 +1,12 @@
-# Description
-
 Download files from an SFTP server or upload files to an SFTP server.
 
-Simply create an input file based on the [example.JSON file](Example.json) and create a scheduled task to launch the script in an automated way.
+Simply create an input file for this script based on the [example.JSON](Example.json) file. This script dan be executed in an automated way by using Scheduled Tasks.
 
-# Logging
+## Logging
 
-The script sends out an e-mail with a summary table of all source and destination paths. When actions or errors occurred an Excel file is attached with a row for each file and what happened to it.
+All actions performed by the script are logged in an Excel sheet. Each row represents a single file with all its details (uploaded, downloaded, duplicate in destination folder, ...). An e-mail is sent with a summary table of all source and destination paths combined with an action count and an error count.
 
-All logging settings can be configured in the [input file](Example.json).
+Configure the logging settings in the input file based on the [Example.json](Example.json) file.
 
 # Download
 
