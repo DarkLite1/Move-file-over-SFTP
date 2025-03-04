@@ -38,7 +38,17 @@ BeforeAll {
         }
     }
 }
-
+Describe 'when there is no file in the source folder' {
+    BeforeAll {
+        $testResult = .$testScript @testParams
+    }
+    it 'no SFTP sessions is started' {
+        Should -Not -Invoke New-SFTPSession -Scope Describe
+    }
+    It 'no object is returned' {
+        $testResult | Should -BeNullOrEmpty
+    }
+}
 Describe 'When a file is found in the source folder' {
     BeforeAll {
         $testNewItemParams = @{
@@ -110,4 +120,128 @@ Describe 'When a file is found in the source folder' {
             $testResult.Errors | Should -BeNullOrEmpty
         }
     }
-} -Tag test
+}
+Describe 'when a file is' {
+    Context 'in the destination folder and OverwriteFile is false' {
+        BeforeAll {
+            Mock Get-SFTPChildItem {
+                @{
+                    Name        = 'b.txt'
+                    FullName    = '/report/b.txt'
+                    isDirectory = $false
+                }
+            }
+
+            $testNewItemParams = @{
+                Path     = $testParams.Paths.Source
+                Name     = 'b.txt'
+                ItemType = 'File'
+            }
+            New-Item @testNewItemParams
+    
+            $testParams.OverwriteFile = $false
+
+            $testResult = .$testScript @testParams
+        }
+        It 'the upload is not started' {
+            Should -Not -Invoke Set-SFTPItem -Scope Context
+        }
+        Context 'an error object is created with property' {
+            It 'DateTime' {
+                $testResult.DateTime | Should -Not -BeNullOrEmpty
+            }
+            It 'Source' {
+                $testResult.Source | Should -Be $testParams.Paths.Source
+            }
+            It 'Destination' {
+                $testResult.Destination | Should -Be $testParams.Paths.Destination
+            }
+            It 'FileName' {
+                $testResult.FileName | Should -Be 'b.txt'
+            }
+            Context 'Actions' {
+                It 'returns 0 strings:' {
+                    $testResult.Actions.Count | Should -Be 0
+                }
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeFalse
+            }
+            Context 'Errors' {
+                It 'returns 1 string' {
+                    $testResult.Errors.count | Should -Be 1
+                }
+                It '<_>' -ForEach @(
+                    'Duplicate file in destination folder, use OverwriteFile if needed'
+                ) {
+                    $testResult.Errors | Should -Be $_
+                }
+            }
+        }
+    }
+    Context 'in the destination folder and OverwriteFile is true' {
+        BeforeAll {
+            Mock Get-SFTPChildItem {
+                @{
+                    Name        = 'b.txt'
+                    FullName    = '/report/b.txt'
+                    isDirectory = $false
+                }
+            }
+
+            $testNewItemParams = @{
+                Path     = $testParams.Paths.Source
+                Name     = 'b.txt'
+                ItemType = 'File'
+            }
+            New-Item @testNewItemParams
+    
+            $testParams.OverwriteFile = $true
+
+            $testResult = .$testScript @testParams
+        }
+        It 'the upload is started' {
+            Should -Invoke Set-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
+                ($SessionId -eq 1) -and
+                ($Path -eq "$($testParams.Paths.Source)\sftpTransfer\upload\b.txt") -and
+                ($Destination -eq '/report/sftpTransfer/upload') -and
+                ($Force)
+            }
+        }
+        Context 'a success object is created with property' {
+            It 'DateTime' {
+                $testResult.DateTime | Should -Not -BeNullOrEmpty
+            }
+            It 'Source' {
+                $testResult.Source | Should -Be $testParams.Paths.Source
+            }
+            It 'Destination' {
+                $testResult.Destination | Should -Be $testParams.Paths.Destination
+            }
+            It 'FileName' {
+                $testResult.FileName | Should -Be 'b.txt'
+            }
+            Context 'Actions' {
+                It 'returns 5 strings:' {
+                    $testResult.Actions.Count | Should -Be 5
+                }
+                It '<_>' -ForEach @(
+                    'moved file from local source folder to local temp folder', 'uploaded file from local temp folder to SFTP temp folder',
+                    "removed duplicate file 'SFTP:/report/b.txt'",
+                    'moved file from SFTP temp folder to SFTP destination folder',
+                    'removed file in local temp folder'
+                ) {
+                    $testResult.Actions | Should -Contain $_
+                }
+            }
+            It 'Moved' {
+                $testResult.Moved | Should -BeTrue
+            }
+            Context 'Errors' {
+                It 'returns 0 string' {
+                    $testResult.Errors.Count | Should -Be 0
+                }
+            }
+        }
+    }
+}
