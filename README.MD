@@ -68,13 +68,13 @@ This script facilitates automated file transfers between a local file system and
 ## Requirements
 
 * PowerShell
-* `Posh-SSH` module (`Install-Module -Name Posh-SSH`)
+* [Posh-SSH](https://github.com/darkoperator/Posh-SSH) module (`Install-Module -Name Posh-SSH`)
 * Other modules as specified in the script's `#Requires` section (available in the linked repository).
 * A configured SFTP server.
 
 ## Best Practices
 
-* Thoroughly review and customize the `Example.json` file to match your environment.
-* Consult the inline help in `Move file over SFTP.ps1` for detailed parameter explanations.
+* Thoroughly review and customize the [Example.json](Example.json) file to match your environment.
+* Consult the inline help in [Move file over SFTP.ps1](Move%20file%20over%20SFTP.ps1) for detailed parameter explanations.
 * Test the script in a non-production environment before scheduling it for automated execution.
 * Monitor the log files and email summaries to ensure successful file transfers.
