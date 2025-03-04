@@ -280,7 +280,11 @@ try {
                 $customErrorMessage = "$_"
 
                 if ($customErrorMessage -eq 'Exception calling "Delete" with "1" argument(s): "Permission denied"') {
-                    $customErrorMessage = "Failed to remove duplicate file 'SFTP:$Destination', the file is most likely in use by another process: $_"
+                    $customErrorMessage = "file 'SFTP:$Destination' in use by another process: $_"
+                }
+
+                if ($customErrorMessage -eq 'Exception calling "MoveTo" with "1" argument(s): "Permission denied"') {
+                    $customErrorMessage = "file 'SFTP:$Source' in use by another process: $_"
                 }
 
                 $Error.RemoveAt(0)
