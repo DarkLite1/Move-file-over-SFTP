@@ -1,104 +1,80 @@
-### Description
+# SFTP File Transfer Script
 
-Download files from an SFTP server or upload files to an SFTP server.
+This script facilitates automated file transfers between a local file system and an SFTP server, supporting both downloads and uploads. It's designed for scheduled execution, ensuring reliable file synchronization.
 
-Simply create an input file for this script based on the [example.JSON](Example.json) file. This script dan be executed in an automated way by using Scheduled Tasks.
+## Features
 
-### Logging
+* **SFTP Download:** Downloads files from an SFTP server to a local directory.
+* **SFTP Upload:** Uploads files from a local directory to an SFTP server.
+* **Robust Error Handling:** Manages common issues like interrupted transfers and file-in-use scenarios.
+* **Detailed Logging:** Logs all actions to an Excel sheet and sends a summary email.
+* **Configuration via JSON:** Uses a JSON input file for easy configuration.
+* **Scheduled Task Friendly:** Designed for automated execution.
 
-All actions performed by the script are logged in an Excel sheet. Each row represents a single file with all its details (uploaded, downloaded, duplicate in destination folder, ...). An e-mail is sent with a summary table of all source and destination paths combined with an action count and an error count.
+## Getting Started
 
-Configure the logging settings in the input file based on the [Example.json](Example.json) file.
+1.  **Configuration:**
+    * Create a configuration file based on the provided `Example.json`. This file defines SFTP connection details, source and destination paths, and logging settings.
+    * Refer to the inline help in the script (`Move file over SFTP.ps1`) for detailed explanations of each configuration parameter.
+2.  **Dependencies:**
+    * Install the `Posh-SSH` module: `Install-Module -Name Posh-SSH`.
+    * Download any other required modules from the repository linked in the script's `#Requires` section.
+3.  **Execution:**
+    * Run the script (`Move file over SFTP.ps1`) with the path to your configuration file as an argument.
+    * Schedule the script using Scheduled Tasks for automated execution.
 
-# Download
+## Workflow
 
-Download a file from the source folder on the SFTP server to the destination folder on the local file system.
+### Download
 
-### Steps
-1. Move the file from the SFTP source folder to the SFTP temporary folder
-2. Download the file from the SFTP temporary folder to the local temporary folder
-3. Move the file from the local temporary folder to the local destination folder
+1.  **SFTP Stage:**
+    * Moves the file from the SFTP source folder to an SFTP temporary folder.
+2.  **Local Stage:**
+    * Downloads the file from the SFTP temporary folder to a local temporary folder.
+    * Moves the file from the local temporary folder to the local destination folder.
 
-## Special cases
+### Upload
 
-### Interrupted download
+1.  **Local Stage:**
+    * Moves the file from the local source folder to a local temporary folder.
+2.  **SFTP Stage:**
+    * Uploads the file from the local temporary folder to an SFTP temporary folder.
+    * Moves the file from the SFTP temporary folder to the SFTP destination folder.
+    * Removes the local temporary file.
 
-When a file starts downloading and the connection is cut, there are 2 files:
-- one file in the SFTP temporary folder (complete moved file)
-- one file in the local temporary folder (incomplete downloaded file)
+## Error Handling
 
-The file in the SFTP temporary folder remains untouched and the incomplete
-downloaded local temporary file is removed. On the next run of the script, the previously moved SFTP temporary file will be downloaded again.
+### Interrupted Transfers
 
-Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
+* **Download:** The incomplete local temporary file is removed. The SFTP temporary file remains and will be re-downloaded on the next run.
+* **Upload:** The incomplete SFTP temporary file will be deleted and the local temporary file will be re-uploaded on the next run.
 
-### Source file in use
+### File in Use
 
-A file is in use by another process when it cannot be moved from the SFTP source folder to the SFTP temporary folder.
+* **Source (Local/SFTP):** The script retries moving the file for 12 seconds. If it fails, the error "file in use" is logged, and the file is skipped. It will be retried on the next run.
+* **Destination (Local):** The file remains in the local temporary folder and will be retried on the next run.
+* **Destination (SFTP):** The SFTP temporary file is removed and another upload is initiated. The process repeats until the file is successfully moved to the destination.
 
-The script will retry to move the file for 12 seconds. When moving the file ultimately fails, it will simply be reported with the error "file in use".
+### Duplicate in Destination
 
-Further processing for this file is ignored. On the next run, the script will try to download the file again.
+* The script logs when a duplicate file exists in the destination folder.
 
-### Destination file in use
+## Logging and Reporting
 
-A file is in use by another process when it cannot be overwritten in the destination folder.
+* **Excel Logging:** All file transfer actions, including timestamps, source and destination paths, and status, are recorded in an Excel log file.
+* **Email Summary:** A summary email is sent, containing tables of source and destination paths, action counts, and error counts.
+* Logging configurations can be set in the input JSON file.
 
-The script will leave the file in the local temporary folder an tries to move
-it to the destination folder on the next run.
+## Requirements
 
-Any new file in the SFTP source folder with the same name will be ignored and only downloaded during the next run.
+* PowerShell
+* `Posh-SSH` module (`Install-Module -Name Posh-SSH`)
+* Other modules as specified in the script's `#Requires` section (available in the linked repository).
+* A configured SFTP server.
 
-# Upload
+## Best Practices
 
-Upload a file from the source folder to the destination folder on the SFTP server. 
-
-A connection to the SFTP server is only made when there are files in the source folder or in the local temporary folder. This is done to ensure that the SFTP server is not spammed with connection requests when there is nothing to upload.
-
-### Steps
-1. Move the file from the local source folder to the local temporary folder
-2. Upload the file from the local temporary folder to the SFTP temporary folder
-3. Move the file from the SFTP temporary folder to the SFTP destination folder
-4. Remove the file in the local temporary folder
-
-## Special cases
-
-### Interrupted upload
-
-When a file starts uploading and the connection is cut, there are 2 files:
-- one file in the local temporary folder (complete moved file)
-- one file in the SFTP temporary folder (incomplete uploaded file)
-
-The error will be reported and in the next run the the file in the SFTP temporary folder will be removed and the file in the local temporary folder will be uploaded again.
-
-Any new file in the source folder with the same name will be ignored and only uploaded during the next run.
-
-### Source file in use
-
-A file is in use by another process when it cannot be moved from the source folder to the temporary folder on the file system.
-
-The script will retry to move the file for 12 seconds. When moving the file ultimately fails, it will simply be reported with the error "file in use".
-
-Further processing for this file is ignored. On the next run, the script will try to upload the file again.
-
-### Destination file in use
-
-A file is in use by another process when it cannot be overwritten in the SFTP destination folder. At this point there are 3 files:
-- one file in the local temporary folder (complete moved file)
-- one file in the SFTP temporary folder (uploaded file)
-- one file in the SFTP destination folder (file to be replaced, file in use)
-
-On the next run of the script, the file in the SFTP temporary folder will be removed and another upload will be initiated. After the file is uploaded to the SFTP temporary folder, another move to the SFTP destination folder will be attempted. 
-
-The steps above repeat until the file is successfully moved to the SFTP destination folder in one of the script runs.
-
-Any new file in the source folder with the same name will be ignored and only uploaded during the next run.
-
-# Best practices
-
-- Read the [help section in the script](Move%20file%20over%20SFTP.ps1) for an explanation on the input file parameters.
-
-# Requirements
-
-- Download the required modules from the [repository](https://github.com/DarkLite1?tab=repositories) (See the `#Requires` section at the top of [the script](Move%20file%20over%20SFTP.ps1))
-- The machine running the SFTP client needs to have the module [Posh-SSH](https://github.com/darkoperator/Posh-SSH) installed
+* Thoroughly review and customize the `Example.json` file to match your environment.
+* Consult the inline help in `Move file over SFTP.ps1` for detailed parameter explanations.
+* Test the script in a non-production environment before scheduling it for automated execution.
+* Monitor the log files and email summaries to ensure successful file transfers.
