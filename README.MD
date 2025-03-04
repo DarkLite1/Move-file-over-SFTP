@@ -14,7 +14,7 @@ This script facilitates automated file transfers between a local file system and
 ## Getting Started
 
 1.  **Configuration:**
-    * Create a configuration file based on the provided [Example.json](Example.json)`. This file defines SFTP connection details, source and destination paths, and logging settings.
+    * Create a configuration file based on the provided [Example.json](Example.json). This file defines SFTP connection details, source and destination paths, and logging settings.
     * Refer to the inline help in the script ([Move file over SFTP.ps1](Move%20file%20over%20SFTP.ps1)) for detailed explanations of each configuration parameter.
 2.  **Dependencies:**
     * Install the [Posh-SSH](https://github.com/darkoperator/Posh-SSH) module: `Install-Module -Name Posh-SSH`.
