@@ -915,8 +915,6 @@ try {
                             Moved       = $null
                             Errors      = @()
                         }
-
-                        Save-ActionMessageHC 'this is a temp file that failed during the last run'
                 
                         $params = @{
                             Path = $failedFile.FullName
@@ -925,12 +923,16 @@ try {
                             Remove-SFTPItem @sessionParams @params
                         }
                 
-                        Save-ActionMessageHC "removed failed temp file 'SFTP:$($failedFile.FullName)'"
+                        Save-ActionMessageHC 'this is a temp file that failed during the last run'
+
+                        Save-ActionMessageHC "removed file 'SFTP:$($failedFile.FullName)'"
                     }
                     catch {
                         $processedFiles[$failedFile.Name] = $failedFile
 
-                        Save-ErrorMessageHC "Failed to remove failed temp file 'SFTP:$($failedFile.FullName)': $_"
+                        Save-ErrorMessageHC 'this is a temp file that failed during the last run'
+
+                        Save-ErrorMessageHC "Failed to remove file 'SFTP:$($failedFile.FullName)': $_"
                 
                         $Error.RemoveAt(0)
                     }
@@ -1059,8 +1061,8 @@ try {
                             )
 
                             $params = @{
-                                Source      = $tempFile.sftp
-                                Destination = "$sftpPath$($result.FileName)"
+                                Source          = $tempFile.sftp
+                                Destination     = "$sftpPath$($result.FileName)"
                                 isDuplicateFile = [boolean]$isDuplicateInSftpDestinationFolder
                             }
 
