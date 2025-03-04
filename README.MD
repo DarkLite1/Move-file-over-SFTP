@@ -14,7 +14,7 @@ Configure the logging settings in the input file based on the [Example.json](Exa
 
 Download a file from the source folder on the SFTP server to the destination folder on the local file system.
 
-## Steps
+### Steps
 1. Move the file from the source folder to a temporary folder on the SFTP server
 2. Download the file from the SFTP temporary folder to the local temporary folder
 3. Move the file from the local temporary folder to the final destination folder
@@ -55,7 +55,7 @@ Upload a file from the source folder to the destination folder on the SFTP serve
 
 A connection to the SFTP server is only made when there are files in the source folder or in the local temporary folder. This is done to ensure that the SFTP server is not spammed with connection requests when there is nothing to upload.
 
-## Steps
+### Steps
 1. Move the file from the source folder to the local temporary folder
 2. Upload the file from the local temporary folder to the SFTP temporary folder
 3. Move the file from the SFTP temporary folder to the SFTP destination folder
