@@ -893,7 +893,7 @@ try {
 
                 New-SFTPTempFolderHC
 
-                #region Remove incomplete uploaded files in SFTP temp folder
+                #region Remove failed files in SFTP temp folder
                 $sftpFailedTempFiles = $sftpServerContent.allFilesAndFolders.Where(
                     { 
                         (-not $_.isDirectory ) -and
@@ -928,6 +928,8 @@ try {
                         Save-ActionMessageHC "removed failed temp file 'SFTP:$($failedFile.FullName)'"
                     }
                     catch {
+                        $processedFiles[$failedFile.Name] = $failedFile
+
                         Save-ErrorMessageHC "Failed to remove failed temp file 'SFTP:$($failedFile.FullName)': $_"
                 
                         $Error.RemoveAt(0)
