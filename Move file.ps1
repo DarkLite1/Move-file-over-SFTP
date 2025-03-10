@@ -302,7 +302,7 @@ try {
                 if (-not $isSftpTempFolderCreated) {
                     Write-Verbose "Create folder 'SFTP:$($tempFolder.sftp)'"
 
-                    New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
+                    $null = New-SFTPItem @sessionParams -Path $tempFolder.sftp -ItemType Directory -Recurse
                 }
             }
             catch {
