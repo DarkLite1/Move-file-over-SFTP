@@ -8,9 +8,9 @@
 .DESCRIPTION
     Move files to or from an SFTP server.
 
-    The move CmdLets (Move-Item and Move-SFTPItem) are used because they fail 
+    The move CmdLets (Move-Item and Move-SFTPItem) are used because they fail
     when a file is in use. The download CmdLet 'Get-SFTPItem' does not fail when
-    a file is in use. 
+    a file is in use.
 
     # Download
 
@@ -23,21 +23,21 @@
 
     ### Interrupted download
 
-    When a file starts downloading and the connection is cut, we have 2 files, 
+    When a file starts downloading and the connection is cut, we have 2 files,
     one in the SFTP temp folder and one in the local temp folder.
-    
+
     The file in the SFTP temp folder remains untouched and the incomplete
-    downloaded local temp file is removed. On the next run of the script, the 
+    downloaded local temp file is removed. On the next run of the script, the
     SFTP temp file will be downloaded again.
-    
+
     Any new file in the SFTP source folder with the same name will be ignored and only processed during the next run.
 
     ### Cannot overwrite destination file
 
     When a file is downloaded to the local temp folder, it can happen
     that the destination file is in use by another process and the file cannot
-    be overwritten. 
-    
+    be overwritten.
+
     The script will leave the file in the local temp folder an tries to move
     it to the destination folder on the next run.
 
@@ -69,11 +69,11 @@
 
 .PARAMETER AttemptCount
     How many times will we attempt to execute CmdLets that might fail on first
-    attempt. A file that is locked cannot be moved, with this counter, multiple 
+    attempt. A file that is locked cannot be moved, with this counter, multiple
     attempts can be made.
 
 .PARAMETER WaitSecondsBetweenAttempts
-    When a CmdLet fails, the script will wait x amount of seconds before trying 
+    When a CmdLet fails, the script will wait x amount of seconds before trying
     to execute the CmdLet again.
 #>
 
@@ -106,14 +106,14 @@ try {
                 )
 
                 $tempFiles = $allFilesAndFolders.Where(
-                    { 
+                    {
                         (-not $_.isDirectory ) -and
                         ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
                     }
                 )
 
                 $rootFiles = $allFilesAndFolders.Where(
-                    { 
+                    {
                         (-not $_.isDirectory ) -and
                         ($_.FullName -eq "$sftpPath$($_.Name)")
                     }
@@ -141,15 +141,15 @@ try {
                     Get-ChildItem -LiteralPath $Path -Recurse
                 )
 
-                $rootFiles = 
+                $rootFiles =
                 $allFilesAndFolders.Where(
                     {
                         (-not $_.PSIsContainer) -and
                         ($_.Directory.FullName -eq $Path)
                     }
                 )
-                
-                $tempFiles = 
+
+                $tempFiles =
                 $allFilesAndFolders.Where(
                     {
                         (-not $_.PSIsContainer) -and
@@ -168,7 +168,7 @@ try {
             }
         }
         function Get-SFTPItemHC {
-            <# 
+            <#
                 .SYNOPSIS
                     Download a file
 
@@ -202,18 +202,18 @@ try {
             foreach ($warningMessage in $warningMessages) {
                 throw $warningMessage
             }
-        
+
             foreach ($errorMessage in $errorMessages) {
                 throw $errorMessage
             }
         }
         function Get-SFTPChildItemHC {
-            <# 
+            <#
                 .SYNOPSIS
                     List folder content on SFTP server
 
                 .DESCRIPTION
-                    Get-SFTPChildItem does not throw an error, only a non 
+                    Get-SFTPChildItem does not throw an error, only a non
                     terminating error
 
                 .LINK
@@ -238,11 +238,11 @@ try {
                 WarningVariable = 'warningMessages'
             }
             Get-SFTPChildItem @sessionParams @params
-            
+
             foreach ($warningMessage in $warningMessages) {
                 throw $warningMessage
             }
-        
+
             foreach ($errorMessage in $errorMessages) {
                 throw $errorMessage
             }
@@ -255,24 +255,22 @@ try {
                 [string]$Destination,
                 [boolean]$isDuplicateFile = $false
             )
-        
+
             try {
                 $moveParams = @{
                     Path        = $Source
                     Destination = $Destination
-                    Force       = $true
                 }
-        
+
                 Write-Verbose "Move file 'SFTP:$Source' to 'SFTP:$Destination'"
-        
-                
+
                 Start-RetryActionHC -ScriptBlock {
                     if ($isDuplicateFile) {
                         Remove-SFTPItem @sessionParams -Path $Destination
-        
+
                         Save-ActionMessageHC "removed duplicate file 'SFTP:$Destination'"
                     }
-        
+
                     Move-SFTPItem @sessionParams @moveParams
                 }
             }
@@ -288,7 +286,7 @@ try {
                 }
 
                 $Error.RemoveAt(0)
-        
+
                 throw $customErrorMessage
             }
         }
@@ -378,21 +376,21 @@ try {
                 if (Test-Path @testPathParams) {
                     try {
                         Write-Verbose "Remove file '$Path'"
-                    
+
                         $Path | Remove-Item -Force
                     }
                     catch {
                         Save-ErrorMessageHC "Failed to remove file '$Path': $_"
 
                         $Error.RemoveAt(0)
-                    } 
+                    }
                 }
             }
         }
         function Start-RetryActionHC {
-            <# 
+            <#
                 .SYNOPSIS
-                    Run a CmdLet multiple times. 
+                    Run a CmdLet multiple times.
 
                 .DESCRIPTION
                     This is useful for cases where a file is locked.
@@ -406,12 +404,12 @@ try {
                 [ValidateRange(1, 30)]
                 [int]$WaitSecondsBetweenAttempts = $WaitSecondsBetweenAttempts
             )
-        
+
             $attempt = @{
                 count   = 0
                 success = $false
             }
-        
+
             while (
                 (-not $attempt.success) -and
                 ($attempt.count -lt $AttemptCount)
@@ -419,9 +417,9 @@ try {
                 try {
                     $attempt.count++
                     Write-Verbose "Attempt $($attempt.count)/$AttemptCount"
-        
+
                     & $ScriptBlock -ErrorAction 'Stop'
-        
+
                     $attempt.success = $true
                 }
                 catch {
@@ -436,13 +434,13 @@ try {
                     $Error.RemoveAt(0)
                 }
             }
-        
+
             if (-not $attempt.success) {
                 throw $errorMessage
             }
         }
         function Save-ErrorMessageHC {
-            <# 
+            <#
                 .SYNOPSIS
                     Add an error message to the result object and log
                     a warning message.
@@ -457,7 +455,7 @@ try {
             $result.Errors += $ErrorMessage
         }
         function Save-ActionMessageHC {
-            <# 
+            <#
                 .SYNOPSIS
                     Add an action message to the result object and log
                     a verbose message.
@@ -471,7 +469,7 @@ try {
 
             $result.Actions += $ActionMessage
         }
- 
+
         try {
             $path = $_
 
@@ -499,8 +497,8 @@ try {
             #endregion
 
             $tempFolderName = @{
-                download = 'sftpTransfer/download' 
-                upload   = 'sftpTransfer/upload' 
+                download = 'sftpTransfer/download'
+                upload   = 'sftpTransfer/upload'
             }
 
             if ($path.Source -like 'sftp*' ) {
@@ -511,7 +509,7 @@ try {
                 $tempFolder = @{}
 
                 $joinPath = @{
-                    Path      = $path.Destination 
+                    Path      = $path.Destination
                     ChildPath = $tempFolderName.download
                 }
                 $tempFolder.local = Join-Path @joinPath
@@ -527,7 +525,7 @@ try {
 
                 #region Move previously downloaded files from local temp folder to local destination folder
                 foreach (
-                    $localTempFile in 
+                    $localTempFile in
                     $localFolderContent.tempFiles
                 ) {
                     try {
@@ -549,7 +547,7 @@ try {
                         Save-ActionMessageHC 'this file is a complete downloaded file from the previous run'
 
                         if (
-                            (-not $OverwriteFile) -and    
+                            (-not $OverwriteFile) -and
                             ($localFolderContent.rootFiles.Name -contains $localTempFile.Name)
                         ) {
                             Save-ErrorMessageHC "Duplicate file name '$($result.FileName)' in the destination folder, use OverwriteFile if needed"
@@ -670,24 +668,24 @@ try {
                         }
 
                         $tempFile = @{
-                            sftp  = '{0}/{1}' -f  
+                            sftp  = '{0}/{1}' -f
                             $tempFolder.sftp, $result.FileName
-                            local = '{0}\{1}' -f 
+                            local = '{0}\{1}' -f
                             $tempFolder.local, $result.FileName
                         }
 
                         #region Test duplicate file in destination folder
                         $isDuplicateFileInDestinationFolder = $localFolderContent.rootFiles.where(
-                            { 
-                                $fileToDownload.Name -eq $_.Name 
+                            {
+                                $fileToDownload.Name -eq $_.Name
                             }
                         )
 
                         if (
-                            $isDuplicateFileInDestinationFolder -and 
+                            $isDuplicateFileInDestinationFolder -and
                             (-not $OverwriteFile)
                         ) {
-                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
+                            Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'
 
                             Continue
                         }
@@ -695,11 +693,11 @@ try {
 
                         #region Move file from SFTP source folder to SFTP temp folder
                         $isTempFile = $fileToDownload.FullName -eq $tempFile.sftp
-                        
+
                         if (-not $isTempFile) {
                             $isDuplicateInSftpTempFolder = $sftpServerContent.tempFiles.where(
-                                { 
-                                    $fileToDownload.Name -eq $_.Name 
+                                {
+                                    $fileToDownload.Name -eq $_.Name
                                 }
                             )
 
@@ -758,7 +756,7 @@ try {
                         #region Remove file in SFTP temp folder
                         try {
                             Write-Verbose "Remove file 'SFTP:$($tempFile.sftp)'"
-                            
+
                             Start-RetryActionHC -ScriptBlock {
                                 $params = @{
                                     Path = $tempFile.sftp
@@ -799,14 +797,14 @@ try {
                                 if (Test-Path @testPathParams) {
                                     # remove-item throws the error file in use
                                     Remove-Item -LiteralPath $params.Destination
-                                    
+
                                     Save-ActionMessageHC 'removed duplicate file in destination folder'
                                 }
                                 # move-item has an error 'Cannot create file'
                                 Move-Item @params
 
                                 Save-ActionMessageHC 'moved file in local temp folder to destination folder'
-                            }                            
+                            }
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move temp file to destination folder: $_"
@@ -844,7 +842,7 @@ try {
                 $tempFolder = @{}
 
                 $joinPath = @{
-                    Path      = $path.Source 
+                    Path      = $path.Source
                     ChildPath = $tempFolderName.upload
                 }
                 $tempFolder.local = Join-Path @joinPath
@@ -892,19 +890,19 @@ try {
                 #endregion
 
                 $sessionParams = Open-SFTPSessionHC
-                                
+
                 $sftpServerContent = Get-FolderContentSftpServerHC
 
                 New-SFTPTempFolderHC
 
                 #region Remove failed files in SFTP temp folder
                 $sftpFailedTempFiles = $sftpServerContent.allFilesAndFolders.Where(
-                    { 
+                    {
                         (-not $_.isDirectory ) -and
                         ($_.FullName -eq "$($tempFolder.sftp)/$($_.Name)")
                     }
                 )
-                
+
                 foreach ($failedFile in $sftpFailedTempFiles) {
                     try {
                         Write-Verbose "Remove failed temp file 'SFTP:$($failedFile.FullName)'"
@@ -919,14 +917,14 @@ try {
                             Moved       = $null
                             Errors      = @()
                         }
-                
+
                         $params = @{
                             Path = $failedFile.FullName
                         }
                         Start-RetryActionHC -ScriptBlock {
                             Remove-SFTPItem @sessionParams @params
                         }
-                
+
                         Save-ActionMessageHC 'this is a temp file that failed during the last run'
 
                         Save-ActionMessageHC "removed file 'SFTP:$($failedFile.FullName)'"
@@ -937,7 +935,7 @@ try {
                         Save-ErrorMessageHC 'this is a temp file that failed during the last run'
 
                         Save-ErrorMessageHC "Failed to remove file 'SFTP:$($failedFile.FullName)': $_"
-                
+
                         $Error.RemoveAt(0)
                     }
                     finally {
@@ -976,31 +974,31 @@ try {
                         }
 
                         $tempFile = @{
-                            sftp  = '{0}/{1}' -f  
+                            sftp  = '{0}/{1}' -f
                             $tempFolder.sftp, $result.FileName
-                            local = '{0}\{1}' -f 
+                            local = '{0}\{1}' -f
                             $tempFolder.local, $result.FileName
                         }
 
                         #region Test duplicate file in destination folder
                         if (-not $OverwriteFile) {
                             $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
-                                { 
-                                    $fileToUpload.Name -eq $_.Name 
+                                {
+                                    $fileToUpload.Name -eq $_.Name
                                 }
                             )
-    
+
                             if ($isDuplicateFileInDestinationFolder) {
-                                Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'    
-    
+                                Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'
+
                                 Continue
-                            }  
+                            }
                         }
                         #endregion
 
                         #region Move file from local source folder to local temp folder
                         $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
-                        
+
                         if (-not $isLocalTempFile) {
                             try {
                                 $params = @{
@@ -1059,8 +1057,8 @@ try {
                         #region Move file from SFTP temp folder to SFTP destination folder
                         try {
                             $isDuplicateInSftpDestinationFolder = $sftpServerContent.rootFiles.where(
-                                { 
-                                    $fileToUpload.Name -eq $_.Name 
+                                {
+                                    $fileToUpload.Name -eq $_.Name
                                 }
                             )
 
@@ -1072,7 +1070,7 @@ try {
 
                             Move-SFTPItemHC @params
 
-                            Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'                 
+                            Save-ActionMessageHC 'moved file from SFTP temp folder to SFTP destination folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to move file from SFTP temp folder to SFTP destination folder: $_"
@@ -1086,18 +1084,18 @@ try {
                         #region Remove local temp file
                         try {
                             Write-Verbose "Remove file '$($tempFile.local)'"
-                                    
+
                             Start-RetryActionHC -ScriptBlock {
                                 $tempFile.local | Remove-Item -Force
                             }
-        
+
                             Save-ActionMessageHC 'removed file in local temp folder'
                         }
                         catch {
                             Save-ErrorMessageHC "Failed to remove file '$($tempFile.local)' in the local temp folder: $_"
-                                    
+
                             $Error.RemoveAt(0)
-        
+
                             continue
                         }
                         #endregion

@@ -79,8 +79,7 @@ Describe 'When a file is found in the source folder' {
         Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/sftpTransfer/upload/b.txt') -and
-            ($Destination -eq '/report/b.txt') -and
-            ($Force)
+            ($Destination -eq '/report/b.txt')
         }
     }
     It 'remove file in local source folder' {
@@ -106,8 +105,8 @@ Describe 'When a file is found in the source folder' {
             }
             It '<_>' -ForEach @(
                 'moved file from local source folder to local temp folder',
-                'uploaded file from local temp folder to SFTP temp folder', 
-                'moved file from SFTP temp folder to SFTP destination folder', 
+                'uploaded file from local temp folder to SFTP temp folder',
+                'moved file from SFTP temp folder to SFTP destination folder',
                 'removed file in local temp folder'
             ) {
                 $testResult.Actions | Should -Contain $_
@@ -138,7 +137,7 @@ Describe 'when a file is' {
                 ItemType = 'File'
             }
             New-Item @testNewItemParams
-    
+
             $testParams.OverwriteFile = $false
 
             $testResult = .$testScript @testParams
@@ -195,7 +194,7 @@ Describe 'when a file is' {
                 ItemType = 'File'
             }
             New-Item @testNewItemParams
-    
+
             $testParams.OverwriteFile = $true
 
             $testResult = .$testScript @testParams

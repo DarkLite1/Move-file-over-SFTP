@@ -23,7 +23,7 @@ BeforeAll {
         WaitSecondsBetweenAttempts = 1
     }
 
-    $testLocalTempFolder = '{0}\sftpTransfer\download' -f 
+    $testLocalTempFolder = '{0}\sftpTransfer\download' -f
     $testParams.Paths.Destination
 
     Mock Get-SFTPChildItem
@@ -55,13 +55,13 @@ Describe 'When a file is found on the SFTP server' {
 
         Mock Get-SFTPItem {
             $testNewItemParams = @{
-                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                Path     = '{0}\sftpTransfer\download\b.txt' -f
                 $testParams.Paths.Destination
                 ItemType = 'File'
             }
             $null = New-Item @testNewItemParams
         }
-    
+
         $testResult = .$testScript @testParams
     }
     It 'Get list of files on the SFTP server recursively' {
@@ -80,8 +80,8 @@ Describe 'When a file is found on the SFTP server' {
     }
     It 'create a temp folder on the local file system' {
         $testJoinParams = @{
-            Path      = $testParams.Paths.Destination 
-            ChildPath = 'sftpTransfer/download' 
+            Path      = $testParams.Paths.Destination
+            ChildPath = 'sftpTransfer/download'
         }
         $testTempFolder = Join-Path @testJoinParams
 
@@ -91,8 +91,7 @@ Describe 'When a file is found on the SFTP server' {
         Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
             ($SessionId -eq 1) -and
             ($Path -eq '/report/b.txt') -and
-            ($Destination -eq '/report/sftpTransfer/download/b.txt' ) -and
-            ($Force)
+            ($Destination -eq '/report/sftpTransfer/download/b.txt' )
         }
     }
     It 'Download the file from the temp folder on the SFTP server to the temp folder on the local file system' {
@@ -107,8 +106,8 @@ Describe 'When a file is found on the SFTP server' {
         "$($testParams.Paths.Destination)\b.txt" | Should -Exist
     }
     It 'The file is no longer in the temp folder on the local file system' {
-        '{0}\sftpTransfer\download\b.txt' -f 
-        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+        '{0}\sftpTransfer\download\b.txt' -f
+        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
             Should -Not -Exist
     }
     Context 'a success object is created with property' {
@@ -160,9 +159,9 @@ Describe 'Create an object with Error property when' {
             Mock New-SFTPSession {
                 throw 'Failed authenticating'
             }
-    
+
             $error.Clear()
-    
+
             $testResult = .$testScript @testParams
         }
         It 'an error object is created' {
@@ -198,7 +197,7 @@ Describe 'Create an object with Error property when' {
             It 'an error object is created' {
                 $testResult.Errors |
                     Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
-    
+
                 $testResult.Actions | Should -BeNullOrEmpty
                 $testResult.FileName | Should -BeNullOrEmpty
             }
@@ -228,7 +227,7 @@ Describe 'Create an object with Error property when' {
             It 'an error object is created' {
                 $testResult.Errors |
                     Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
-    
+
                 $testResult.Actions | Should -BeNullOrEmpty
                 $testResult.FileName | Should -BeNullOrEmpty
             }
@@ -261,7 +260,7 @@ Describe 'Create an object with Error property when' {
         It 'creates a warning' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning
-                # throw 'Oops' 
+                # throw 'Oops'
                 Write-Warning 'Oops'
             }
 
@@ -276,7 +275,7 @@ Describe 'Create an object with Error property when' {
         It 'throws a terminating warning' {
             Mock Get-SFTPItem {
                 # bug in CmdLet, dos not throw bu creates warning
-                # throw 'Oops' 
+                # throw 'Oops'
                 throw 'Oops'
             }
 
@@ -287,7 +286,7 @@ Describe 'Create an object with Error property when' {
             $testResult.Errors | Should -BeLike 'Failed to download file*Oops'
 
             $error | Should -HaveCount 0
-        } 
+        }
     }
 }
 Describe 'When a file is' {
@@ -304,13 +303,13 @@ Describe 'When a file is' {
                         isDirectory = $false
                     }
                 }
-    
+
                 $testParams = Copy-ObjectHC $testParams
             }
             Context 'OverWriteFile is false' {
                 BeforeAll {
                     $testParams.OverwriteFile = $false
-                
+
                     $testResult = .$testScript @testParams
                 }
                 It 'nothing is downloaded' {
@@ -353,15 +352,15 @@ Describe 'When a file is' {
                     BeforeAll {
                         Mock Get-SFTPItem {
                             $testNewItemParams = @{
-                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f
                                 $testParams.Paths.Destination
                                 ItemType = 'File'
                             }
                             $null = New-Item @testNewItemParams
                         }
-    
+
                         $testParams.OverwriteFile = $true
-                
+
                         $testResult = .$testScript @testParams
                     }
                     It 'the download is started' {
@@ -402,7 +401,7 @@ Describe 'When a file is' {
                         }
                     }
                     It 'the file is no longer in the temp folder on the local file system' {
-                        '{0}\sftpTransfer\download\b.txt' -f 
+                        '{0}\sftpTransfer\download\b.txt' -f
                         $testParams.Paths.Destination | Should -Not -Exist
                     }
                 }
@@ -410,19 +409,19 @@ Describe 'When a file is' {
                     BeforeAll {
                         Mock Get-SFTPItem {
                             $testNewItemParams = @{
-                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f
                                 $testParams.Paths.Destination
                                 ItemType = 'File'
                             }
                             $null = New-Item @testNewItemParams
                         }
-        
+
                         Mock Remove-Item {
                             throw 'The process cannot access the file because it is being used by another process'
                         }
-        
+
                         $testParams.OverwriteFile = $true
-                    
+
                         $testResult = .$testScript @testParams
                     }
                     Context 'an error object is created with property' {
@@ -468,7 +467,7 @@ Describe 'When a file is' {
                         Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly
                     }
                     It 'the file in the local temp folder stays in place' {
-                        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
                             Should -Exist
                     }
                 }
@@ -483,13 +482,13 @@ Describe 'When a file is' {
                         isDirectory = $false
                     }
                 }
-    
+
                 $testParams = Copy-ObjectHC $testParams
             }
             Context 'OverWriteFile is false' {
                 BeforeAll {
                     $testParams.OverwriteFile = $false
-                
+
                     $testResult = .$testScript @testParams
                 }
                 It 'nothing is downloaded' {
@@ -532,15 +531,15 @@ Describe 'When a file is' {
                     BeforeAll {
                         Mock Get-SFTPItem {
                             $testNewItemParams = @{
-                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f
                                 $testParams.Paths.Destination
                                 ItemType = 'File'
                             }
                             $null = New-Item @testNewItemParams
                         }
-    
+
                         $testParams.OverwriteFile = $true
-                
+
                         $testResult = .$testScript @testParams
                     }
                     It 'the download is started' {
@@ -581,7 +580,7 @@ Describe 'When a file is' {
                         }
                     }
                     It 'the file is no longer in the temp folder on the local file system' {
-                        '{0}\sftpTransfer\download\b.txt' -f 
+                        '{0}\sftpTransfer\download\b.txt' -f
                         $testParams.Paths.Destination | Should -Not -Exist
                     }
                 }
@@ -589,19 +588,19 @@ Describe 'When a file is' {
                     BeforeAll {
                         Mock Get-SFTPItem {
                             $testNewItemParams = @{
-                                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                                Path     = '{0}\sftpTransfer\download\b.txt' -f
                                 $testParams.Paths.Destination
                                 ItemType = 'File'
                             }
                             $null = New-Item @testNewItemParams
                         }
-        
+
                         Mock Remove-Item {
                             throw 'The process cannot access the file because it is being used by another process'
                         }
-        
+
                         $testParams.OverwriteFile = $true
-                    
+
                         $testResult = .$testScript @testParams
                     }
                     Context 'an error object is created with property' {
@@ -647,7 +646,7 @@ Describe 'When a file is' {
                         Should -Invoke Get-SFTPItem -Scope Context -Times 1 -Exactly
                     }
                     It 'the file in the local temp folder stays in place' {
-                        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
                             Should -Exist
                     }
                 }
@@ -669,7 +668,7 @@ Describe 'When a file is' {
                         isDirectory = $false
                     }
                 }
-         
+
                 Mock Get-SFTPItem {
                     $null = New-Item -Path "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
                 }
@@ -682,7 +681,7 @@ Describe 'When a file is' {
                     ($Path -eq '/report/sftpTransfer/download/b.txt') -and
                     ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
                 }
-                "$($testParams.Paths.Destination)\b.txt" | 
+                "$($testParams.Paths.Destination)\b.txt" |
                     Should -Exist
             }
             It 'the new file in the SFTP source folder is not downloaded' {
@@ -693,11 +692,11 @@ Describe 'When a file is' {
                 }
             }
             It 'the file is no longer in the temp download folder' {
-                "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+                "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
                     Should -Not -Exist
             }
             It 'the file is moved to the destination folder' {
-                "$($testParams.Paths.Destination)\b.txt" | 
+                "$($testParams.Paths.Destination)\b.txt" |
                     Should -Exist
             }
             Context 'a success object is created with property' {
@@ -738,7 +737,7 @@ Describe 'When a file is' {
 }
 Describe 'When there are no files on the SFTP server' {
     BeforeAll {
-        Mock Get-SFTPChildItem 
+        Mock Get-SFTPChildItem
 
         $testResult = .$testScript @testParams
 
@@ -773,7 +772,7 @@ Describe 'When a download fails' {
 
         Mock Get-SFTPItem {
             $testNewItemParams = @{
-                Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                Path     = '{0}\sftpTransfer\download\b.txt' -f
                 $testParams.Paths.Destination
                 ItemType = 'File'
             }
@@ -781,11 +780,11 @@ Describe 'When a download fails' {
 
             throw 'Oops'
         }
-        
+
         $testResult = .$testScript @testParams
     }
     It 'the partially downloaded file is removed in the local temp folder' {
-        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+        "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
             Should -Not -Exist
     }
     It 'the destination file is left untouched' {
@@ -853,7 +852,7 @@ Describe 'Previously failed download' {
 
             Mock Get-SFTPItem {
                 $testNewItemParams = @{
-                    Path     = '{0}\sftpTransfer\download\b.txt' -f 
+                    Path     = '{0}\sftpTransfer\download\b.txt' -f
                     $testParams.Paths.Destination
                     ItemType = 'File'
                 }
@@ -908,21 +907,21 @@ Describe 'Previously failed download' {
     Context 'when there is a file in the local temp folder because the file in the destination folder was in use by another process ' {
         BeforeAll {
             Mock Get-SFTPChildItem
-            
+
             $testParams = Copy-ObjectHC $testParams
-    
+
             New-Item -Path "$($testParams.Paths.Destination)\sftpTransfer\download" -ItemType Directory
-    
+
             New-Item -Path "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" -ItemType File
-    
+
             $testResult = .$testScript @testParams
         }
         It 'the previously downloaded file is moved to the destination folder' {
-            "$($testParams.Paths.Destination)\b.txt" | 
+            "$($testParams.Paths.Destination)\b.txt" |
                 Should -Exist
         }
         It 'the file is no longer in the temp download folder' {
-            "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" | 
+            "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
                 Should -Not -Exist
         }
         Context 'a success object is created with property' {
@@ -961,16 +960,16 @@ Describe 'Previously failed download' {
 Describe 'When a file is locked' {
     BeforeAll {
         function Lock-FileHC {
-            <# 
+            <#
                 .SYNOPSIS
                     Lock a file
-        
+
                 .EXAMPLE
                     $file = 'C:\file.txt'
-        
+
                     # lock a file
                     $lockedFile = Lock-FileHC -Path $file
-        
+
                     # unlock a file
                     Unlock-FileHC -LockedFile $lockedFile -Verbose
             #>
@@ -979,7 +978,7 @@ Describe 'When a file is locked' {
                 [ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
                 [string]$Path
             )
-        
+
             try {
                 Write-Verbose "Lock file '$Path'"
                 [System.io.File]::Open($Path, 'Open', 'Read', 'None')
@@ -988,18 +987,18 @@ Describe 'When a file is locked' {
                 throw "Failed to lock file '$Path': $_"
             }
         }
-        
+
         function Unlock-FileHC {
-            <# 
+            <#
                 .SYNOPSIS
                     Unlock a file
-        
+
                 .EXAMPLE
                     $file = 'C:\file.txt'
-        
+
                     # lock a file
                     $lockedFile = Lock-FileHC -Path $file
-        
+
                     # unlock a file
                     Unlock-FileHC -LockedFile $lockedFile -Verbose
             #>
@@ -1007,7 +1006,7 @@ Describe 'When a file is locked' {
                 [Parameter(Mandatory)]
                 [System.IO.FileStream]$LockedFile
             )
-        
+
             try {
                 Write-Verbose "Unlock file '$LockedFile'"
                 $LockedFile.Close()
@@ -1026,11 +1025,11 @@ Describe 'When a file is locked' {
                     isDirectory = $false
                 }
             }
-    
+
             Mock Move-SFTPItem {
                 throw 'oops'
             }
-    
+
             $testResult = .$testScript @testParams
         }
         It 'the file cannot be moved to the SFTP temp folder' {
@@ -1080,7 +1079,7 @@ Describe 'When a file is locked' {
                 localTempPath   = '{0}\b.txt' -f $testLocalTempFolder
                 destinationPath = '{0}\b.txt' -f $testParams.Paths.Destination
             }
-            
+
             Remove-Item "$($testParams.Paths.Destination)/*" -Recurse
 
             Mock Get-SFTPChildItem {
@@ -1090,7 +1089,7 @@ Describe 'When a file is locked' {
                     isDirectory = $false
                 }
             }
-    
+
             Mock Get-SFTPItem {
                 $testNewItemParams = @{
                     Path     = $testFile.localTempPath
