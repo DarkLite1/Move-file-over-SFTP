@@ -134,35 +134,35 @@ Param (
 Begin {
     Try {
         function ConvertTo-SentenceHC {
-            <# 
+            <#
                 .SYNOPSIS
-                    Create a comma separated sentence from an 
-                    array of strings, with the first letter 
+                    Create a comma separated sentence from an
+                    array of strings, with the first letter
                     in capitals.
 
                 .EXAMPLE
                     ConvertTo-SentenceHC @('kiwi is great', 'bananas are not')
                     # returns: 'Kiwi is great, bananas are not'
             #>
-        
+
             [OutputType([string])]
             Param (
                 [string[]]$text
             )
-        
+
             if (-not $text) {
                 return
             }
-        
+
             $sentence = $text -join ', '
-            
+
             $firstLetter = $sentence.Substring(0, 1).ToUpper()
             $remainingSentence = $sentence.Substring(1)
             $capitalizedSentence = $firstLetter + $remainingSentence
-        
+
             $capitalizedSentence
         }
-        
+
         Function Get-EnvironmentVariableValueHC {
             Param(
                 [String]$Name
@@ -611,9 +611,8 @@ Process {
                         $SftpOpenSshKeyFile = $null
                         $FileExtensions = $null
                         $OverwriteFile = $null
-                        $RetryCountOnLockedFiles = $null
-                        $RetryWaitSeconds = $null
-                        $PartialFileExtension = $null
+                        $AttemptCount = $null
+                        $WaitSecondsBetweenAttempts = $null
 
                         Write-Verbose $M
                         # Write-EventLog @EventVerboseParams -Message $M
@@ -805,9 +804,9 @@ End {
                 },
                 @{
                     Name       = 'SourceComputer'
-                    Expression = { 
+                    Expression = {
                         if ($_.Source.startsWith('sftp')) {
-                            $task.Sftp.ComputerName 
+                            $task.Sftp.ComputerName
                         }
                         else {
                             $action.ComputerName
@@ -816,12 +815,12 @@ End {
                 },
                 @{
                     Name       = 'DestinationComputer'
-                    Expression = { 
+                    Expression = {
                         if ($_.Source.startsWith('sftp')) {
                             $action.ComputerName
                         }
                         else {
-                            $task.Sftp.ComputerName 
+                            $task.Sftp.ComputerName
                         }
                     }
                 },
@@ -918,30 +917,30 @@ End {
                             $action.Job.Results += $excelFileJobResults | Select-Object -Property *, @{
                                 Name       = 'Source'
                                 Expression = { $_.SourcePath }
-                            }, 
+                            },
                             @{
                                 Name       = 'Destination'
                                 Expression = { $_.DestinationPath }
-                            }, 
+                            },
                             @{
                                 Name       = 'ComputerName'
-                                Expression = { 
+                                Expression = {
                                     if ($_.SourcePath.startsWith('sftp')) {
-                                        $_.DestinationComputer 
+                                        $_.DestinationComputer
                                     }
                                     else {
-                                        $_.SourceComputer 
+                                        $_.SourceComputer
                                     }
                                 }
                             },
                             @{
                                 Name       = 'SftpServer'
-                                Expression = { 
+                                Expression = {
                                     if ($_.SourcePath.startsWith('sftp')) {
-                                        $_.SourceComputer 
+                                        $_.SourceComputer
                                     }
                                     else {
-                                        $_.DestinationComputer 
+                                        $_.DestinationComputer
                                     }
                                 }
                             }
@@ -1032,13 +1031,13 @@ End {
 
                 #region Get temp moved files too
                 $jobResultPaths = $action.Job.Results.Where(
-                    { 
+                    {
                         ($actionPaths.Source -notcontains $_.Source) -or
-                        ($actionPaths.Destination -notcontains $_.Destination) 
+                        ($actionPaths.Destination -notcontains $_.Destination)
                     }
                 )
 
-                $allPaths = $jobResultPaths + $actionPaths | 
+                $allPaths = $jobResultPaths + $actionPaths |
                 Sort-Object -Property {
                     '{0}-{1}' -f $_.Source, $_.Destination
                 } -Unique
