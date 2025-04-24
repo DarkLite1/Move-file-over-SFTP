@@ -400,7 +400,7 @@ try {
                 [Parameter(Mandatory)]
                 [scriptblock]$ScriptBlock,
                 [ValidateRange(1, 25)]
-                [int]$RetryCount = $AttemptCount,
+                [int]$AttemptCount = $AttemptCount,
                 [ValidateRange(1, 30)]
                 [int]$WaitSecondsBetweenAttempts = $WaitSecondsBetweenAttempts
             )
