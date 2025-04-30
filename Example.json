@@ -9,7 +9,8 @@
           "UserName": "APP_X_SFTP_USERNAME",
           "Password": "APP_X_SFTP_PASSWORD",
           "PasswordKeyFile": null
-        }
+        },
+        "Port": 22
       },
       "Option": {
         "OverwriteFile": true,
@@ -39,7 +40,8 @@
           "UserName": "PROCESS-NETWORK_SFTP_USERNAME",
           "Password": "PROCESS-NETWORK_SFTP_PASSWORD",
           "PasswordKeyFile": null
-        }
+        },
+        "Port": 22
       },
       "Option": {
         "OverwriteFile": false,
@@ -137,12 +139,13 @@
       {
         "TaskName": "(Mandatory) Name of the task. Used in the email and log files.",
         "Sftp": {
-          "ComputerName": "(Mandatory) SFTP server name",
+          "ComputerName": "(Mandatory) The name of the computer where the SFTP server is running.",
           "Credential": {
             "UserName": "(Mandatory) SFTP user name",
             "Password": "(Mandatory 'Password' or 'PasswordKeyFile') SFTP password",
             "PasswordKeyFile": "(Mandatory 'Password' or 'PasswordKeyFile') Path to the SFTP password key file used to authenticate to the SFTP server. This is an SSH private key file in the OpenSSH format."
-          }
+          },
+          "Port": "(Optional) The TCP port number used to connect to the SFTP server. Defaults to 22 if not specified."
         },
         "Option": {
           "OverwriteFile": "(Mandatory) Specifies whether to overwrite duplicate files in the destination folder. Possible values: true - Overwrite duplicate files; false - Do not overwrite duplicate files and log an error.",
@@ -150,11 +153,11 @@
         },
         "Actions": [
           {
-            "ComputerName": "(Mandatory) The client where the SFTP code will be executed. This computer needs to have the module 'Posh-SSH' installed.",
+            "ComputerName": "(Mandatory) The name of the computer where the SFTP commands will be run. Ensure the 'Posh-SSH' PowerShell module is installed on this machine. Possible values: 'SERVER1' - A remote server name; 'localhost' - The local system.",
             "Paths": [
               {
                 "Source": "(Mandatory) The path to the source folder. Possible values: 'sftp:\\path' - A string that starts with 'sftp:\\' representing a folder on the SFTP server defined in 'Sftp.ComputerName'; 'c:\\path' - A string representing a folder on the file system in 'Actions.ComputerName'.",
-                "Destination": "(Mandatory) The path to the destination folder. Possible values: 'sftp:\\path' - A string that starts with 'sftp:\\' representing a folder on the SFTP server defined in 'Sftp.ComputerName'; 'c:\\path' - A string representing a folder on the file system in 'Actions.ComputerName'.",
+                "Destination": "(Mandatory) The path to the destination folder. Possible values: 'sftp:\\path' - A string that starts with 'sftp:\\' representing a folder on the SFTP server defined in 'Sftp.ComputerName'; 'c:\\path' - A string representing a folder on the file system in 'Actions.ComputerName'."
               }
             ]
           }

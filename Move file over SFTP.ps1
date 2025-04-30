@@ -14,87 +14,8 @@
     in parallel when MaxConcurrentActions is more than 1.
 
 .PARAMETER ConfigurationJsonFile
-    A .JSON file that contains all the parameters used by the script.
-
-.PARAMETER Tasks
-    Each task is a collection of upload and/or download actions. Tasks will
-    always run in sequential order, one after the other.
-
-    A single task can only talk to one SFTP server. Keep this in mind when
-    creating your input file.
-
-.PARAMETER Tasks.TaskName
-    Name of the task. This name is used identify the task in the Excel log file
-    and in the e-mail sent to the user.
-
-.PARAMETER Tasks.Sftp.ComputerName
-    The SFTP server or endpoint. This can be a hostname, IP address or URL.
-
-.PARAMETER Tasks.Sftp.Credential.UserName
-    The user name used to authenticate to the SFTP server.
-
-    This is an environment variable on the computer that is running this script.
-
-.PARAMETER Tasks.Sftp.Credential.Password
-    The password used to authenticate to the SFTP server.
-
-    This is an environment variable on the computer that is running this script.
-
-.PARAMETER Tasks.Sftp.Credential.PasswordKeyFile
-    The password used to authenticate to the SFTP server.
-
-    This is an SSH private key file in the OpenSSH format.
-
-.PARAMETER Tasks.Actions
-    Each action represents a connection to a remote computer, when
-    ComputerName is used. When ComputerName is not used, the SFTP code is
-    executed on the localhost.
-
-    All the Actions of a Task run in parallel when MaxConcurrentActions is more
-    than 1.
-
-.PARAMETER Tasks.Actions.ComputerName
-    The client where the SFTP code will be executed. This computer needs to
-    have the module 'Posh-SSH' installed.
-
-.PARAMETER Tasks.Actions.Paths
-    Combination of 'Source' and 'Destination' folder where one is an
-    SFTP path ('sftp:\xxx\') and the other a file system path
-    ('c:\xxx' or '\\SERVER\xxx').
-
-.PARAMETER Tasks.Option.OverwriteFile
-    Overwrite a file in the 'Destination' folder when it already exists.
-
-.PARAMETER Tasks.Option.FileExtensions
-    Only move files with the extensions defined in 'FileExtensions'
-    ('.txt', 'csv', ...). If 'FileExtensions' is left blank, all files in the
-    'Source' folder are moved to the 'Destination' folder.
-
-.PARAMETER SendMail
-    Contains all the information for sending e-mails.
-
-.PARAMETER SendMail.To
-    Destination e-mail addresses.
-
-.PARAMETER SendMail.When
-    When does the script need to send an e-mail.
-
-    Valid values:
-    - Always              : Always sent an e-mail
-    - Never               : Never sent an e-mail
-    - OnlyOnError         : Only sent an e-mail when errors where detected
-    - OnlyOnErrorOrAction : Only sent an e-mail when errors where detected or
-                            when items were uploaded
-
-.PARAMETER ExportExcelFile.When
-    When does the script create an Excel log file.
-
-    Valid values:
-    - Never               : Never create an Excel log file
-    - OnlyOnError         : Only create an Excel log file when
-                            errors where detected
-    - OnlyOnErrorOrAction : Only create an Excel log file when
-                            errors where detected or when items were uploaded
+    Contains all the parameters used by the script.
+    See 'Example.json' for a detailed explanation of parameters.
 
 .PARAMETER PSSessionConfiguration
     The version of PowerShell on the remote endpoint as returned by
@@ -114,8 +35,6 @@
 [CmdLetBinding()]
 Param (
     [Parameter(Mandatory)]
-    [String]$ScriptName,
-    [Parameter(Mandatory)]
     [String]$ConfigurationJsonFile,
     [HashTable]$ScriptPath = @{
         MoveFile = "$PSScriptRoot\Move file.ps1"
@@ -130,6 +49,13 @@ Param (
 )
 
 Begin {
+    $ErrorActionPreference = 'stop'
+
+    $eventLogData = [System.Collections.Generic.List[PSObject]]::new()
+    $logFileData = [System.Collections.Generic.List[PSObject]]::new()
+    $systemErrors = [System.Collections.Generic.List[PSObject]]::new()
+    $scriptStartTime = Get-Date
+
     Try {
         function ConvertTo-SentenceHC {
             <#
@@ -169,10 +95,14 @@ Begin {
             [Environment]::GetEnvironmentVariable($Name)
         }
 
-        Get-ScriptRuntimeHC -Start
-        Import-EventLogParamsHC -Source $ScriptName
-        Write-EventLog @EventStartParams
-        $Error.Clear()
+        $eventLogData.Add(
+            [PSCustomObject]@{
+                Message   = 'Script started'
+                DateTime  = $scriptStartTime
+                EntryType = 'Information'
+                EventID   = '100'
+            }
+        )
 
         #region Test path exists
         $scriptPathItem = @{}
@@ -196,27 +126,13 @@ Begin {
         )
         #endregion
 
-        #region Create log folder
-        try {
-            $logParams = @{
-                LogFolder    = New-Item -Path $LogFolder -ItemType 'Directory' -Force -ErrorAction 'Stop'
-                Name         = $ScriptName
-                Date         = 'ScriptStartTime'
-                NoFormatting = $true
-            }
-            $logFile = New-LogFileNameHC @LogParams
-        }
-        Catch {
-            throw "Failed creating the log folder '$LogFolder': $_"
-        }
-        #endregion
-
         #region Import .json file
         Write-Verbose "Import .json file '$ConfigurationJsonFile'"
-        # Write-EventLog @EventVerboseParams -Message $M
 
-        $file = Get-Content $ConfigurationJsonFile -Raw -EA Stop -Encoding UTF8 |
-            ConvertFrom-Json
+        $jsonFileItem = Get-Item -LiteralPath $ConfigurationJsonFile -ErrorAction Stop
+
+        $jsonFileContent = Get-Content $jsonFileItem -Raw -Encoding UTF8 |
+        ConvertFrom-Json
         #endregion
 
         #region Test .json file properties
@@ -226,45 +142,45 @@ Begin {
             @(
                 'MaxConcurrentActions', 'SendMail', 'ExportExcelFile', 'Tasks'
             ).where(
-                { -not $file.$_ }
+                { -not $jsonFileContent.$_ }
             ).foreach(
                 { throw "Property '$_' not found" }
             )
 
             #region Test SendMail
             @('To', 'When').Where(
-                { -not $file.SendMail.$_ }
+                { -not $jsonFileContent.SendMail.$_ }
             ).foreach(
                 { throw "Property 'SendMail.$_' not found" }
             )
 
-            if ($file.SendMail.When -notMatch '^Never$|^Always$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
-                throw "Property 'SendMail.When' with value '$($file.SendMail.When)' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
+            if ($jsonFileContent.SendMail.When -notMatch '^Never$|^Always$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
+                throw "Property 'SendMail.When' with value '$($jsonFileContent.SendMail.When)' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
             }
             #endregion
 
             #region Test ExportExcelFile
             @('When').Where(
-                { -not $file.ExportExcelFile.$_ }
+                { -not $jsonFileContent.ExportExcelFile.$_ }
             ).foreach(
                 { throw "Property 'ExportExcelFile.$_' not found" }
             )
 
-            if ($file.ExportExcelFile.When -notMatch '^Never$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
-                throw "Property 'ExportExcelFile.When' with value '$($file.ExportExcelFile.When)' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
+            if ($jsonFileContent.ExportExcelFile.When -notMatch '^Never$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
+                throw "Property 'ExportExcelFile.When' with value '$($jsonFileContent.ExportExcelFile.When)' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
             }
             #endregion
 
             #region Test integer value
             try {
-                [int]$MaxConcurrentActions = $file.MaxConcurrentActions
+                [int]$MaxConcurrentActions = $jsonFileContent.MaxConcurrentActions
             }
             catch {
-                throw "Property 'MaxConcurrentActions' needs to be a number, the value '$($file.MaxConcurrentActions)' is not supported."
+                throw "Property 'MaxConcurrentActions' needs to be a number, the value '$($jsonFileContent.MaxConcurrentActions)' is not supported."
             }
             #endregion
 
-            $Tasks = $file.Tasks
+            $Tasks = $jsonFileContent.Tasks
 
             foreach ($task in $Tasks) {
                 @(
@@ -289,6 +205,12 @@ Begin {
                     { -not $task.Sftp.Credential.$_ }
                 ).foreach(
                     { throw "Property 'Tasks.Sftp.Credential.$_' not found" }
+                )
+
+                @('MatchFileNameRegex').where(
+                    { -not $task.Option.$_ }
+                ).foreach(
+                    { throw "Property 'Tasks.Option.$_' not found" }
                 )
 
                 if (
@@ -319,14 +241,6 @@ Begin {
                         throw "Property 'Tasks.Option.$boolean' is not a boolean value"
                     }
                 }
-                #endregion
-
-                #region Test file extensions
-                $task.Option.FileExtensions.Where(
-                    { $_ -and ($_ -notLike '.*') }
-                ).foreach(
-                    { throw "Property 'Tasks.Option.FileExtensions' needs to start with a dot. For example: '.txt', '.xml', ..." }
-                )
                 #endregion
 
                 if (-not $task.Actions) {
@@ -1123,12 +1037,12 @@ End {
             ($exportToExcel) -and
             (
                 (
-                    ($file.ExportExcelFile.When -eq 'OnlyOnError') -and
+                    ($jsonFileContent.ExportExcelFile.When -eq 'OnlyOnError') -and
                     ($counter.Total.Errors)
                 ) -or
                 (
                     (
-                        $file.ExportExcelFile.When -eq 'OnlyOnErrorOrAction'
+                        $jsonFileContent.ExportExcelFile.When -eq 'OnlyOnErrorOrAction'
                     ) -and
                     (
                         ($counter.Total.Errors) -or
@@ -1185,14 +1099,14 @@ End {
                 $ReportOnly
             ) -or
             (
-                $file.SendMail.When -eq 'Always'
+                $jsonFileContent.SendMail.When -eq 'Always'
             ) -or
             (
-                ($file.SendMail.When -eq 'OnlyOnError') -and
+                ($jsonFileContent.SendMail.When -eq 'OnlyOnError') -and
                 ($counter.Total.Errors)
             ) -or
             (
-                ($file.SendMail.When -eq 'OnlyOnErrorOrAction') -and
+                ($jsonFileContent.SendMail.When -eq 'OnlyOnErrorOrAction') -and
                 (
                     ($counter.Total.Errors) -or
                     ($counter.Total.MovedFiles)
@@ -1205,7 +1119,7 @@ End {
 
         #region Send mail
         $mailParams += @{
-            To             = $file.SendMail.To
+            To             = $jsonFileContent.SendMail.To
             Message        = "
                             $systemErrorsHtmlList
                             $(
