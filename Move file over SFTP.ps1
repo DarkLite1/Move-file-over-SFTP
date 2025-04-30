@@ -17,10 +17,6 @@
     Contains all the parameters used by the script.
     See 'Example.json' for a detailed explanation of parameters.
 
-.PARAMETER PSSessionConfiguration
-    The version of PowerShell on the remote endpoint as returned by
-    Get-PSSessionConfiguration.
-
 .PARAMETER ReportOnly
     This switch is not in the input file but meant as an argument to the script.
 
@@ -36,16 +32,10 @@
 Param (
     [Parameter(Mandatory)]
     [String]$ConfigurationJsonFile,
+    [Switch]$ReportOnly,
     [HashTable]$ScriptPath = @{
         MoveFile = "$PSScriptRoot\Move file.ps1"
-    },
-    [Switch]$ReportOnly,
-    [String]$PSSessionConfiguration = 'PowerShell.7',
-    [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\File or folder\Move file over SFTP\$ScriptName",
-    [String[]]$ScriptAdmin = @(
-        $env:POWERSHELL_SCRIPT_ADMIN,
-        $env:POWERSHELL_SCRIPT_ADMIN_BACKUP
-    )
+    }
 )
 
 Begin {
@@ -93,6 +83,21 @@ Begin {
             )
 
             [Environment]::GetEnvironmentVariable($Name)
+        }
+
+        function Test-IsValidRegex {
+            param(
+                [Parameter(Mandatory=$true)]
+                [string]$Regex
+            )
+            try {
+                $null = [regex]::IsMatch('', $Regex)
+
+                return $true
+            }
+            catch {
+                return $false               # An exception indicates an invalid regex
+            }
         }
 
         $eventLogData.Add(
@@ -212,6 +217,10 @@ Begin {
                 ).foreach(
                     { throw "Property 'Tasks.Option.$_' not found" }
                 )
+
+                if (-not (Test-IsValidRegex $task.Option.MatchFileNameRegex)) {
+                    throw "Property 'Tasks.Option.MatchFileNameRegex' with value '$($task.Option.MatchFileNameRegex)' is not a valid regex pattern."
+                }
 
                 if (
                     $task.Sftp.Credential.Password -and
@@ -333,6 +342,14 @@ Begin {
 
         #region Convert .json file
         Write-Verbose 'Convert .json file'
+
+        #region Set PSSessionConfiguration
+        $PSSessionConfiguration = $jsonFileContent.PSSessionConfiguration
+
+        if (-not $PSSessionConfiguration) {
+            $PSSessionConfiguration = 'PowerShell.7'
+        }
+        #endregion
 
         try {
             foreach ($task in $Tasks) {

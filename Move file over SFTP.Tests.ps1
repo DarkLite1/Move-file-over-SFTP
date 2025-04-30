@@ -104,13 +104,10 @@ BeforeAll {
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
-        ScriptName  = 'Test (Brecht)'
         ConfigurationJsonFile  = $testOutParams.FilePath
         ScriptPath  = @{
             MoveFile = (New-Item 'TestDrive:/u.ps1' -ItemType 'File').FullName
         }
-        LogFolder   = (New-Item 'TestDrive:/log' -ItemType Directory).FullName
-        ScriptAdmin = 'admin@contoso.com'
     }
 
     Function Get-EnvironmentVariableValueHC {
@@ -149,130 +146,55 @@ BeforeAll {
     Mock Write-EventLog
 }
 Describe 'the mandatory parameters are' {
-    It '<_>' -ForEach @('ConfigurationJsonFile', 'ScriptName') {
+    It '<_>' -ForEach @('ConfigurationJsonFile') {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
             Should -BeTrue
     }
 }
-Describe 'send an e-mail to the admin when' {
-    BeforeAll {
-        $MailAdminParams = {
-            ($To -eq $testParams.ScriptAdmin) -and
-            ($Priority -eq 'High') -and
-            ($Subject -eq 'FAILURE')
-        }
-    }
+Describe 'create an error log file when' {
     It 'the log folder cannot be created' {
-        $testNewParams = Copy-ObjectHC $testParams
-        $testNewParams.LogFolder = 'xxx:://notExistingLocation'
+        $testNewInputFile = Copy-ObjectHC $testInputFile
+        $testNewInputFile.Settings.SaveLogFiles.Where.Folder = 'x:\notExistingLocation'
 
-        .$testScript @testNewParams
+        & $realCmdLet.OutFile @testOutParams -InputObject (
+            $testNewInputFile | ConvertTo-Json -Depth 7
+        )
 
-        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-            (&$MailAdminParams) -and
-            ($Message -like '*Failed creating the log folder*')
-        }
+        .$testScript @testParams
+
+        $LASTEXITCODE | Should -Be 1
+
+        Should -Not -Invoke Out-File
     }
-    Context 'the file is not found' {
-        It 'ScriptPath.MoveFile' {
-            $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.ScriptPath.MoveFile = 'c:\upDoesNotExist.ps1'
-
-            $testInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
-
-            .$testScript @testNewParams
-
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*ScriptPath.MoveFile 'c:\upDoesNotExist.ps1' not found*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
-            }
-        }
-    }
-    Context 'the ConfigurationJsonFile' {
+    Context 'the ImportFile' {
         It 'is not found' {
-            $testNewParams = Copy-ObjectHC $testParams
+            $testNewParams = $testParams.clone()
             $testNewParams.ConfigurationJsonFile = 'nonExisting.json'
 
             .$testScript @testNewParams
 
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like 'Cannot find Path*nonExisting.json*')
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
-            }
+            $LASTEXITCODE | Should -Be 1
+
+            Should -Not -Invoke Out-File
         }
         Context 'property' {
-            It '<_> not found' -ForEach @(
-                'MaxConcurrentActions', 'Tasks', 'SendMail', 'ExportExcelFile'
-            ) {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.$_ = $null
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property '$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'MaxConcurrentActions not a number' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.MaxConcurrentActions = 'wrong'
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'MaxConcurrentActions' needs to be a number, the value 'wrong' is not supported.*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
             It 'Tasks.<_> not found' -ForEach @(
-                'TaskName', 'Sftp', 'Actions', 'Option'
+                'TaskName', 'Sftp', 'Option', 'Actions'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                & $realCmdLet.OutFile @testOutParams -InputObject (
+                    $testNewInputFile | ConvertTo-Json -Depth 7
+                )
 
                 .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and
-                    ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'Tasks.TaskName not found' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].TaskName = $null
+                $LASTEXITCODE | Should -Be 1
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.TaskName' not found*")
+                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
+                    ($LiteralPath -like '* - Errors.json') -and
+                    ($InputObject -like "*Property 'Tasks.$_' not found*")
                 }
             }
             It 'Tasks.Sftp.<_> not found' -ForEach @(
@@ -281,17 +203,17 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                & $realCmdLet.OutFile @testOutParams -InputObject (
+                    $testNewInputFile | ConvertTo-Json -Depth 7
+                )
 
                 .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
+                $LASTEXITCODE | Should -Be 1
+
+                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
+                    ($LiteralPath -like '* - Errors.json') -and
+                    ($InputObject -like "*Property 'Tasks.Sftp.$_' not found*")
                 }
             }
             It 'Tasks.Sftp.Credential.<_> not found' -ForEach @(
@@ -300,468 +222,56 @@ Describe 'send an e-mail to the admin when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.Credential.$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                & $realCmdLet.OutFile @testOutParams -InputObject (
+                    $testNewInputFile | ConvertTo-Json -Depth 7
+                )
 
                 .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            Context 'Tasks.Sftp.Credential' {
-                It 'Password or PasswordKeyFile are missing' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Sftp.Credential.Password = $null
-                    $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = $null
+                $LASTEXITCODE | Should -Be 1
 
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.Password' or 'Tasks.Sftp.Credential.PasswordKeyFile' not found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                It 'Password and PasswordKeyFile used at the same time' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Sftp.Credential.Password = 'a'
-                    $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'b'
-
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.Password' and 'Tasks.Sftp.Credential.PasswordKeyFile' cannot be used at the same time*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                It 'PasswordKeyFile does not exist' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Sftp.Credential.Password = $null
-                    $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'a'
-
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                It 'PasswordKeyFile is an empty file' {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Sftp.Credential.Password = $null
-                    $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = (New-Item 'TestDrive:\a.pub' -ItemType File).FullName
-
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
+                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
+                    ($LiteralPath -like '* - Errors.json') -and
+                    ($InputObject -like "*Property 'Tasks.Sftp.Credential.$_' not found*")
                 }
             }
-
-            Context 'Tasks.Actions' {
-                It 'Tasks.Actions.<_> not found' -ForEach @(
-                    'Paths'
-                ) {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Actions[0].$_ = $null
-
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.$_' not found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                Context 'Tasks.Actions.ComputerName' {
-                    It 'property ComputerName not found' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Actions[0].Remove('ComputerName')
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.ComputerName' not found*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'Duplicate ComputerName' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-
-                        $testNewInputFile.Tasks[0].Actions = @(
-                            $testNewInputFile.Tasks[0].Actions[0],
-                            $testNewInputFile.Tasks[0].Actions[0]
-                        )
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.ComputerName' found: $($testNewInputFile.Tasks[0].Actions[0].ComputerName)*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                }
-                It 'Tasks.Actions.Paths.<_> not found' -ForEach @(
-                    'Source', 'Destination'
-                ) {
-                    $testNewInputFile = Copy-ObjectHC $testInputFile
-                    $testNewInputFile.Tasks[0].Actions[0].Paths[0].$_ = $null
-
-                    $testNewInputFile | ConvertTo-Json -Depth 7 |
-                        Out-File @testOutParams
-
-                    .$testScript @testParams
-
-                    Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.$_' not found*")
-                    }
-                    Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                        $EntryType -eq 'Error'
-                    }
-                }
-                Context 'Tasks.Actions.Paths' {
-                    It 'Source + Destination are both local paths' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = 'TestDrive:\a'
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'Source + Destination are both SFTP paths' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = '/out/a'
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = '/out/b'
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It "Source + Destination both start with 'sftp'" {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = 'sftp/a'
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'sftp\b'
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It "Source + Destination have not path starting with 'sftp:/'" {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = '/a/'
-                        $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'Duplicate Source paths' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-
-                        $testSourceFolder = (New-Item 'TestDrive:\i' -ItemType Directory).FullName
-
-                        $testNewInputFile.Tasks[0].Actions[0].Paths = @(
-                            @{
-                                Source      = $testSourceFolder
-                                Destination = 'sftp:/folder/a/'
-                            }
-                            @{
-                                Source      = $testSourceFolder
-                                Destination = 'sftp:/folder/b/'
-                            }
-                        )
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.Paths.Source' found: '$testSourceFolder'*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                    It 'Duplicate Destination paths' {
-                        $testNewInputFile = Copy-ObjectHC $testInputFile
-
-                        $testNewInputFile.Tasks[0].Actions[0].Paths = @(
-                            @{
-                                Source      = (New-Item 'TestDrive:\e' -ItemType Directory).FullName
-                                Destination = 'sftp:/folder/a/'
-                            }
-                            @{
-                                Source      = (New-Item 'TestDrive:\g' -ItemType Directory).FullName
-                                Destination = 'sftp:/folder/a/'
-                            }
-                        )
-
-                        $testNewInputFile | ConvertTo-Json -Depth 7 |
-                            Out-File @testOutParams
-
-                        .$testScript @testParams
-
-                        Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                            (&$MailAdminParams) -and
-                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.Paths.Destination' found: '$($testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination)'*")
-                        }
-                        Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                            $EntryType -eq 'Error'
-                        }
-                    }
-                }
-            }
-            It 'Tasks.Option.<_> not a boolean' -ForEach @(
-                'OverwriteFile'
+            It 'Tasks.Option.<_> not found' -ForEach @(
+                'MatchFileNameRegex'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Option.$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Option.$_' is not a boolean value*")
-                }
-            }
-            It 'SendMail.<_> not found' -ForEach @(
-                'To', 'When'
-            ) {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.SendMail.$_ = $null
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'SendMail.$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'ExportExcelFile.<_> not found' -ForEach @(
-                'When'
-            ) {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.ExportExcelFile.$_ = $null
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'ExportExcelFile.$_' not found*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'ExportExcelFile.When is not valid' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.ExportExcelFile.When = 'wrong'
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'ExportExcelFile.When' with value 'wrong' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'SendMail.When is not valid' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.SendMail.When = 'wrong'
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
-
-                .$testScript @testParams
-
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'SendMail.When' with value 'wrong' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
-                }
-                Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                    $EntryType -eq 'Error'
-                }
-            }
-            It 'Tasks.Name is not unique' {
-                $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks = @(
-                    Copy-ObjectHC $testInputFile.Tasks[0]
-                    Copy-ObjectHC $testInputFile.Tasks[0]
+                & $realCmdLet.OutFile @testOutParams -InputObject (
+                    $testNewInputFile | ConvertTo-Json -Depth 7
                 )
-                $testNewInputFile.Tasks[0].TaskName = 'Name1'
-                $testNewInputFile.Tasks[1].TaskName = 'Name1'
-
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
 
                 .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.TaskName' with value 'Name1' is not unique*")
+                $LASTEXITCODE | Should -Be 1
+
+                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
+                    ($LiteralPath -like '* - Errors.json') -and
+                    ($InputObject -like "*Property 'Tasks.Option.$_' not found*")
                 }
             }
-            It 'Tasks.Actions.Parameter.FileExtension does not start with a dot' {
+            It 'Tasks.Actions.<_> not found' -ForEach @(
+                'ComputerName', 'Paths'
+            ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].Option.FileExtensions = @('txt', '.xml')
+                $testNewInputFile.Tasks[0].Option.$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 |
-                    Out-File @testOutParams
+                & $realCmdLet.OutFile @testOutParams -InputObject (
+                    $testNewInputFile | ConvertTo-Json -Depth 7
+                )
 
                 .$testScript @testParams
 
-                Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                        (&$MailAdminParams) -and
-                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Option.FileExtensions' needs to start with a dot. For example: '.txt', '.xml'*")
+                $LASTEXITCODE | Should -Be 1
+
+                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
+                    ($LiteralPath -like '* - Errors.json') -and
+                    ($InputObject -like "*Property 'Tasks.Option.$_' not found*")
                 }
-            }
-        }
-        It 'the SFTP password is not found in the environment variables' {
-            Mock Get-EnvironmentVariableValueHC {
-                'user'
-            } -ParameterFilter {
-                $Name -eq $testInputFile.Tasks[0].Sftp.Credential.UserName
-            }
-            Mock Get-EnvironmentVariableValueHC -ParameterFilter {
-                $Name -eq $testInputFile.Tasks[0].Sftp.Credential.Password
-            }
-
-            $testInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
-
-            .$testScript @testParams
-
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*Environment variable '`$ENV:$($testInputFile.Tasks[0].Sftp.Credential.Password)' in 'Sftp.Credential.Password' not found*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
-            }
-        }
-        It 'the SFTP user name is not found in the environment variables' {
-            Mock Get-EnvironmentVariableValueHC {
-                'pass'
-            } -ParameterFilter {
-                $Name -eq $testInputFile.Tasks[0].Sftp.Credential.Password
-            }
-            Mock Get-EnvironmentVariableValueHC -ParameterFilter {
-                $Name -eq $testInputFile.Tasks[0].Sftp.Credential.UserName
-            }
-
-            $testInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
-
-            .$testScript @testParams
-
-            Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
-                    (&$MailAdminParams) -and ($Message -like "*Environment variable '`$ENV:$($testInputFile.Tasks[0].Sftp.Credential.UserName)' in 'Sftp.Credential.UserName' not found*")
-            }
-            Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
-                $EntryType -eq 'Error'
             }
         }
     }
