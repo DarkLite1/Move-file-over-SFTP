@@ -86,6 +86,8 @@ Param (
     [PSCustomObject[]]$Paths,
     [Parameter(Mandatory)]
     [Int]$MaxConcurrentActions,
+    [Parameter(Mandatory)]
+    [Int]$SftpPort,
     [String[]]$SftpOpenSshKeyFile,
     [String[]]$FileExtensions,
     [Boolean]$OverwriteFile,
@@ -337,9 +339,10 @@ try {
                 $params = @{
                     ComputerName      = $SftpComputerName
                     Credential        = $sftpCredential
+                    Port              = $SftpPort
+                    ConnectionTimeout = 60
                     AcceptKey         = $true
                     Force             = $true
-                    ConnectionTimeout = 60
                     Verbose           = $false
                 }
 

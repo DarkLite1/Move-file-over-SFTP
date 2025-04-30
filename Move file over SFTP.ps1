@@ -251,9 +251,9 @@ Begin {
                 $task.Actions | Group-Object -Property {
                     $_.ComputerName
                 } |
-                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                        throw "Duplicate 'Tasks.Actions.ComputerName' found: $($_.Name)"
-                    }
+                Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                    throw "Duplicate 'Tasks.Actions.ComputerName' found: $($_.Name)"
+                }
                 #endregion
 
                 foreach ($action in $task.Actions) {
@@ -304,16 +304,16 @@ Begin {
 
                     #region Test unique Source Destination
                     $action.Paths | Group-Object -Property 'Source' |
-                        Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                            throw "Duplicate 'Tasks.Actions.Paths.Source' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
-                        }
+                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                        throw "Duplicate 'Tasks.Actions.Paths.Source' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
+                    }
                     #endregion
 
                     #region Test unique Source Destination
                     $action.Paths | Group-Object -Property 'Destination' |
-                        Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                            throw "Duplicate 'Tasks.Actions.Paths.Destination' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
-                        }
+                    Where-Object { $_.Count -ge 2 } | ForEach-Object {
+                        throw "Duplicate 'Tasks.Actions.Paths.Destination' found: '$($_.Name)'. Use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
+                    }
                     #endregion
                 }
             }
@@ -395,6 +395,29 @@ Begin {
                 }
                 #endregion
 
+                #region Set SFTP port
+                if (-not $task.Sftp.Port) {
+                    $task.Sftp.Port = 22
+                }
+                else {
+                    #region Test integer value
+                    try {
+                        [int]$task.Sftp.Port = $task.Sftp.Port
+
+                        if (
+                            $task.Sftp.Port -lt 0 -or 
+                            $task.Sftp.Port -gt 65535
+                        ) {
+                            throw 'a negative number is not supported'
+                        }
+                    }
+                    catch {
+                        throw "Property 'Tasks.Sftp.Port' must be a valid TCP port number between 0 and 65535. The value '$($task.Sftp.Port)' is not supported."
+                    }
+                    #endregion
+                }
+                #endregion
+
                 foreach ($action in $task.Actions) {
                     #region Set ComputerName
                     if ($action.ComputerName) {
@@ -470,12 +493,13 @@ Process {
                         $task.Sftp.Credential.Object,
                         $action.Paths,
                         $MaxConcurrentActions,
+                        $task.Sftp.Port,
                         $task.Sftp.Credential.PasswordKeyFile,
                         $task.Option.FileExtensions,
                         $task.Option.OverwriteFile
                     }
 
-                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' FileExtensions '{5}' OverwriteFile '{6}'" -f
+                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' Sftp.Port '{5}' FileExtensions '{6}' OverwriteFile '{7}'" -f
                     $task.TaskName,
                     $action.ComputerName,
                     $invokeParams.ArgumentList[0],
@@ -485,8 +509,9 @@ Process {
                         ) -join ', '
                     ),
                     $invokeParams.ArgumentList[3],
-                    $($invokeParams.ArgumentList[5] -join ', '),
-                    $invokeParams.ArgumentList[6]
+                    $invokeParams.ArgumentList[4],
+                    $($invokeParams.ArgumentList[6] -join ', '),
+                    $invokeParams.ArgumentList[7]
                     #endregion
 
                     #region Start job
@@ -520,6 +545,7 @@ Process {
                         $SftpComputerName = $null
                         $Paths = $null
                         $SftpCredential = $null
+                        $SftpPort = $null
                         $SftpOpenSshKeyFile = $null
                         $FileExtensions = $null
                         $OverwriteFile = $null
@@ -586,8 +612,8 @@ Process {
 
             if (
                 $psSessionParams.ComputerName = $Tasks.Actions.ComputerName |
-                    Sort-Object -Unique |
-                    Where-Object { $_ -ne $env:COMPUTERNAME }
+                Sort-Object -Unique |
+                Where-Object { $_ -ne $env:COMPUTERNAME }
             ) {
                 #region Open PS remoting sessions
                 Write-Verbose "Connect to $($psSessionParams.ComputerName.Count) remote computers"
