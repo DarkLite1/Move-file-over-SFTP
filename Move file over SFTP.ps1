@@ -85,9 +85,9 @@ Begin {
             [Environment]::GetEnvironmentVariable($Name)
         }
 
-        function Test-IsValidRegex {
+        function Test-IsValidRegexHC {
             param(
-                [Parameter(Mandatory=$true)]
+                [Parameter(Mandatory = $true)]
                 [string]$Regex
             )
             try {
@@ -218,7 +218,9 @@ Begin {
                     { throw "Property 'Tasks.Option.$_' not found" }
                 )
 
-                if (-not (Test-IsValidRegex $task.Option.MatchFileNameRegex)) {
+                if (-not 
+                    (Test-IsValidRegexHC $task.Option.MatchFileNameRegex)
+                ) {
                     throw "Property 'Tasks.Option.MatchFileNameRegex' with value '$($task.Option.MatchFileNameRegex)' is not a valid regex pattern."
                 }
 
