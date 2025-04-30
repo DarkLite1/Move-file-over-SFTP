@@ -85,7 +85,7 @@ Param (
     [Parameter(Mandatory)]
     [PSCustomObject[]]$Paths,
     [Parameter(Mandatory)]
-    [Int]$MaxConcurrentJobs,
+    [Int]$MaxConcurrentActions,
     [String[]]$SftpOpenSshKeyFile,
     [String[]]$FileExtensions,
     [Boolean]$OverwriteFile,
@@ -482,7 +482,7 @@ try {
             #endregion
 
             #region Declare variables for code running in parallel
-            if (-not $MaxConcurrentJobs) {
+            if (-not $MaxConcurrentActions) {
                 $VerbosePreference = $using:VerbosePreference
 
                 $SftpComputerName = $using:SftpComputerName
@@ -1149,7 +1149,7 @@ try {
     }
 
     #region Run code serial or parallel
-    $foreachParams = if ($MaxConcurrentJobs -eq 1) {
+    $foreachParams = if ($MaxConcurrentActions -eq 1) {
         @{
             Process = $scriptBlock
         }
@@ -1157,7 +1157,7 @@ try {
     else {
         @{
             Parallel      = $scriptBlock
-            ThrottleLimit = $MaxConcurrentJobs
+            ThrottleLimit = $MaxConcurrentActions
         }
     }
 

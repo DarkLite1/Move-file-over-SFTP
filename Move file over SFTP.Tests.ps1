@@ -4,7 +4,7 @@
 
 BeforeAll {
     $testInputFile = @{
-        MaxConcurrentJobs = 1
+        MaxConcurrentActions = 1
         Tasks             = @(
             @{
                 TaskName = 'App x'
@@ -208,7 +208,7 @@ Describe 'send an e-mail to the admin when' {
         }
         Context 'property' {
             It '<_> not found' -ForEach @(
-                'MaxConcurrentJobs', 'Tasks', 'SendMail', 'ExportExcelFile'
+                'MaxConcurrentActions', 'Tasks', 'SendMail', 'ExportExcelFile'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.$_ = $null
@@ -226,9 +226,9 @@ Describe 'send an e-mail to the admin when' {
                     $EntryType -eq 'Error'
                 }
             }
-            It 'MaxConcurrentJobs not a number' {
+            It 'MaxConcurrentActions not a number' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.MaxConcurrentJobs = 'wrong'
+                $testNewInputFile.MaxConcurrentActions = 'wrong'
 
                 $testNewInputFile | ConvertTo-Json -Depth 7 |
                     Out-File @testOutParams
@@ -237,7 +237,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'MaxConcurrentJobs' needs to be a number, the value 'wrong' is not supported.*")
+                        ($Message -like "*$ImportFile*Property 'MaxConcurrentActions' needs to be a number, the value 'wrong' is not supported.*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -806,7 +806,7 @@ Describe 'execute the SFTP script when' {
                 ($ArgumentList[0] -eq $testInputFile.Tasks[0].Sftp.ComputerName) -and
                 ($ArgumentList[1].GetType().Name -eq 'PSCredential') -and
                 ($ArgumentList[2].GetType().BaseType.Name -eq 'Array') -and
-                ($ArgumentList[3] -eq $testInputFile.MaxConcurrentJobs) -and
+                ($ArgumentList[3] -eq $testInputFile.MaxConcurrentActions) -and
                 (-not $ArgumentList[4]) -and
                 ($ArgumentList[5] -eq $testInputFile.Tasks[0].Option.FileExtensions) -and
                 ($ArgumentList[6] -eq $testInputFile.Tasks[0].Option.OverwriteFile)

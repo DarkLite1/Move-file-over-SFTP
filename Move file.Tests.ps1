@@ -22,7 +22,7 @@ BeforeAll {
                 Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
             }
         )
-        MaxConcurrentJobs = 1
+        MaxConcurrentActions = 1
         FileExtensions    = @()
         OverwriteFile     = $false
     }
@@ -49,7 +49,7 @@ Describe 'the mandatory parameters are' {
         'Paths',
         'SftpComputerName',
         'SftpCredential',
-        'MaxConcurrentJobs'
+        'MaxConcurrentActions'
     ) {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
         Should -BeTrue

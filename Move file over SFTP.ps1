@@ -13,7 +13,7 @@
     installed.
 
     Tasks will always run in sequential order, one after the other. Actions run
-    in parallel when MaxConcurrentJobs is more than 1.
+    in parallel when MaxConcurrentActions is more than 1.
 
 .PARAMETER ImportFile
     A .JSON file that contains all the parameters used by the script.
@@ -52,7 +52,7 @@
     ComputerName is used. When ComputerName is not used, the SFTP code is
     executed on the localhost.
 
-    All the Actions of a Task run in parallel when MaxConcurrentJobs is more
+    All the Actions of a Task run in parallel when MaxConcurrentActions is more
     than 1.
 
 .PARAMETER Tasks.Actions.ComputerName
@@ -226,7 +226,7 @@ Begin {
 
         try {
             @(
-                'MaxConcurrentJobs', 'SendMail', 'ExportExcelFile', 'Tasks'
+                'MaxConcurrentActions', 'SendMail', 'ExportExcelFile', 'Tasks'
             ).where(
                 { -not $file.$_ }
             ).foreach(
@@ -259,10 +259,10 @@ Begin {
 
             #region Test integer value
             try {
-                [int]$MaxConcurrentJobs = $file.MaxConcurrentJobs
+                [int]$MaxConcurrentActions = $file.MaxConcurrentActions
             }
             catch {
-                throw "Property 'MaxConcurrentJobs' needs to be a number, the value '$($file.MaxConcurrentJobs)' is not supported."
+                throw "Property 'MaxConcurrentActions' needs to be a number, the value '$($file.MaxConcurrentActions)' is not supported."
             }
             #endregion
 
@@ -541,10 +541,10 @@ Process {
                     $action = $_
 
                     #region Declare variables for code running in parallel
-                    if (-not $MaxConcurrentJobs) {
+                    if (-not $MaxConcurrentActions) {
                         $task = $using:task
                         $psSessions = $using:psSessions
-                        $MaxConcurrentJobs = $using:MaxConcurrentJobs
+                        $MaxConcurrentActions = $using:MaxConcurrentActions
                         $scriptPathItem = $using:scriptPathItem
                         $PSSessionConfiguration = $using:PSSessionConfiguration
                         $EventVerboseParams = $using:EventVerboseParams
@@ -557,13 +557,13 @@ Process {
                         ArgumentList = $task.Sftp.ComputerName,
                         $task.Sftp.Credential.Object,
                         $action.Paths,
-                        $MaxConcurrentJobs,
+                        $MaxConcurrentActions,
                         $task.Sftp.Credential.PasswordKeyFile,
                         $task.Option.FileExtensions,
                         $task.Option.OverwriteFile
                     }
 
-                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentJobs '{4}' FileExtensions '{5}' OverwriteFile '{6}'" -f
+                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' FileExtensions '{5}' OverwriteFile '{6}'" -f
                     $task.TaskName,
                     $action.ComputerName,
                     $invokeParams.ArgumentList[0],
@@ -637,7 +637,7 @@ Process {
 
                     #region Get job results
                     if ($action.Job.Results.Count -ne 0) {
-                        $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentJobs '{4}' FileExtensions '{5}' OverwriteFile '{6}': {7} object{8}" -f
+                        $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' FileExtensions '{5}' OverwriteFile '{6}': {7} object{8}" -f
                         $task.TaskName,
                         $action.ComputerName,
                         $invokeParams.ArgumentList[0],
@@ -713,7 +713,7 @@ Process {
             #endregion
 
             #region Run code serial or parallel
-            $foreachParams = if ($MaxConcurrentJobs -eq 1) {
+            $foreachParams = if ($MaxConcurrentActions -eq 1) {
                 @{
                     Process = $scriptBlock
                 }
@@ -721,7 +721,7 @@ Process {
             else {
                 @{
                     Parallel      = $scriptBlock
-                    ThrottleLimit = $MaxConcurrentJobs
+                    ThrottleLimit = $MaxConcurrentActions
                 }
             }
 
