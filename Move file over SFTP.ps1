@@ -84,10 +84,10 @@ Begin {
 
             [Environment]::GetEnvironmentVariable($Name)
         }
-
+      
         function Test-IsValidRegexHC {
             param(
-                [Parameter(Mandatory = $true)]
+                [Parameter(Mandatory)]
                 [string]$Regex
             )
             try {
@@ -96,7 +96,7 @@ Begin {
                 return $true
             }
             catch {
-                return $false               # An exception indicates an invalid regex
+                return $false
             }
         }
 
