@@ -106,7 +106,7 @@ BeforeAll {
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
         ScriptName  = 'Test (Brecht)'
-        ImportFile  = $testOutParams.FilePath
+        ConfigurationJsonFile  = $testOutParams.FilePath
         ScriptPath  = @{
             MoveFile = (New-Item 'TestDrive:/u.ps1' -ItemType 'File').FullName
         }
@@ -150,7 +150,7 @@ BeforeAll {
     Mock Write-EventLog
 }
 Describe 'the mandatory parameters are' {
-    It '<_>' -ForEach @('ImportFile', 'ScriptName') {
+    It '<_>' -ForEach @('ConfigurationJsonFile', 'ScriptName') {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
             Should -BeTrue
     }
@@ -192,10 +192,10 @@ Describe 'send an e-mail to the admin when' {
             }
         }
     }
-    Context 'the ImportFile' {
+    Context 'the ConfigurationJsonFile' {
         It 'is not found' {
             $testNewParams = Copy-ObjectHC $testParams
-            $testNewParams.ImportFile = 'nonExisting.json'
+            $testNewParams.ConfigurationJsonFile = 'nonExisting.json'
 
             .$testScript @testNewParams
 
@@ -220,7 +220,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property '$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property '$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -237,7 +237,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'MaxConcurrentActions' needs to be a number, the value 'wrong' is not supported.*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'MaxConcurrentActions' needs to be a number, the value 'wrong' is not supported.*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -256,7 +256,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                     (&$MailAdminParams) -and
-                    ($Message -like "*$ImportFile*Property 'Tasks.$_' not found*")
+                    ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -273,7 +273,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.TaskName' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.TaskName' not found*")
                 }
             }
             It 'Tasks.Sftp.<_> not found' -ForEach @(
@@ -289,7 +289,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Sftp.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -308,7 +308,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Sftp.Credential.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -327,7 +327,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Sftp.Credential.Password' or 'Tasks.Sftp.Credential.PasswordKeyFile' not found*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.Password' or 'Tasks.Sftp.Credential.PasswordKeyFile' not found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -345,7 +345,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Sftp.Credential.Password' and 'Tasks.Sftp.Credential.PasswordKeyFile' cannot be used at the same time*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Sftp.Credential.Password' and 'Tasks.Sftp.Credential.PasswordKeyFile' cannot be used at the same time*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -363,7 +363,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
+                            ($Message -like "*$ConfigurationJsonFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -381,7 +381,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
+                            ($Message -like "*$ConfigurationJsonFile*Failed converting the task.Sftp.Credential.PasswordKeyFile*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -403,7 +403,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Actions.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.$_' not found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -421,7 +421,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Actions.ComputerName' not found*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.ComputerName' not found*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -442,7 +442,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Duplicate 'Tasks.Actions.ComputerName' found: $($testNewInputFile.Tasks[0].Actions[0].ComputerName)*")
+                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.ComputerName' found: $($testNewInputFile.Tasks[0].Actions[0].ComputerName)*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -462,7 +462,7 @@ Describe 'send an e-mail to the admin when' {
 
                     Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Actions.Paths.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.$_' not found*")
                     }
                     Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                         $EntryType -eq 'Error'
@@ -481,7 +481,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -499,7 +499,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -517,7 +517,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -535,7 +535,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
+                            ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Actions.Paths.Source' and 'Tasks.Actions.Paths.Destination' needs to have one SFTP path ('sftp:/....') and one folder path (c:\... or \\server$\...)*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -564,7 +564,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Duplicate 'Tasks.Actions.Paths.Source' found: '$testSourceFolder'*")
+                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.Paths.Source' found: '$testSourceFolder'*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -591,7 +591,7 @@ Describe 'send an e-mail to the admin when' {
 
                         Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                             (&$MailAdminParams) -and
-                            ($Message -like "*$ImportFile*Duplicate 'Tasks.Actions.Paths.Destination' found: '$($testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination)'*")
+                            ($Message -like "*$ConfigurationJsonFile*Duplicate 'Tasks.Actions.Paths.Destination' found: '$($testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination)'*")
                         }
                         Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                             $EntryType -eq 'Error'
@@ -612,7 +612,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Option.$_' is not a boolean value*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Option.$_' is not a boolean value*")
                 }
             }
             It 'SendMail.<_> not found' -ForEach @(
@@ -628,7 +628,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'SendMail.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'SendMail.$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -647,7 +647,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'ExportExcelFile.$_' not found*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'ExportExcelFile.$_' not found*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -664,7 +664,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'ExportExcelFile.When' with value 'wrong' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'ExportExcelFile.When' with value 'wrong' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -681,7 +681,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'SendMail.When' with value 'wrong' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'SendMail.When' with value 'wrong' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'*")
                 }
                 Should -Invoke Write-EventLog -Exactly 1 -ParameterFilter {
                     $EntryType -eq 'Error'
@@ -703,7 +703,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.TaskName' with value 'Name1' is not unique*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.TaskName' with value 'Name1' is not unique*")
                 }
             }
             It 'Tasks.Actions.Parameter.FileExtension does not start with a dot' {
@@ -717,7 +717,7 @@ Describe 'send an e-mail to the admin when' {
 
                 Should -Invoke Send-MailHC -Exactly 1 -ParameterFilter {
                         (&$MailAdminParams) -and
-                        ($Message -like "*$ImportFile*Property 'Tasks.Option.FileExtensions' needs to start with a dot. For example: '.txt', '.xml'*")
+                        ($Message -like "*$ConfigurationJsonFile*Property 'Tasks.Option.FileExtensions' needs to start with a dot. For example: '.txt', '.xml'*")
                 }
             }
         }
@@ -1186,7 +1186,7 @@ Describe 'ReportOnly' {
         BeforeAll {
             $testExportParams = @{
                 WorksheetName = 'Overview'
-                Path          = $testParams.LogFolder + '\' + (Get-Date).ToString('yyyy-MM-dd') + ' - ' + $testParams.ScriptName + ' - ' + (Split-Path $testParams.ImportFile -Leaf).TrimEnd('.json') + ' - Log.xlsx'
+                Path          = $testParams.LogFolder + '\' + (Get-Date).ToString('yyyy-MM-dd') + ' - ' + $testParams.ScriptName + ' - ' + (Split-Path $testParams.ConfigurationJsonFile -Leaf).TrimEnd('.json') + ' - Log.xlsx'
             }
             $testExportedExcelRows | Export-Excel @testExportParams
 

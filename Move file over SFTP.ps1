@@ -15,7 +15,7 @@
     Tasks will always run in sequential order, one after the other. Actions run
     in parallel when MaxConcurrentActions is more than 1.
 
-.PARAMETER ImportFile
+.PARAMETER ConfigurationJsonFile
     A .JSON file that contains all the parameters used by the script.
 
 .PARAMETER Tasks
@@ -118,7 +118,7 @@ Param (
     [Parameter(Mandatory)]
     [String]$ScriptName,
     [Parameter(Mandatory)]
-    [String]$ImportFile,
+    [String]$ConfigurationJsonFile,
     [HashTable]$ScriptPath = @{
         MoveFile = "$PSScriptRoot\Move file.ps1"
     },
@@ -214,10 +214,10 @@ Begin {
         #endregion
 
         #region Import .json file
-        Write-Verbose "Import .json file '$ImportFile'"
+        Write-Verbose "Import .json file '$ConfigurationJsonFile'"
         # Write-EventLog @EventVerboseParams -Message $M
 
-        $file = Get-Content $ImportFile -Raw -EA Stop -Encoding UTF8 |
+        $file = Get-Content $ConfigurationJsonFile -Raw -EA Stop -Encoding UTF8 |
             ConvertFrom-Json
         #endregion
 
@@ -415,7 +415,7 @@ Begin {
             #endregion
         }
         catch {
-            throw "Input file '$ImportFile': $_"
+            throw "Input file '$ConfigurationJsonFile': $_"
         }
         #endregion
 
@@ -521,7 +521,7 @@ Begin {
             }
         }
         catch {
-            throw "Input file '$ImportFile': $_"
+            throw "Input file '$ConfigurationJsonFile': $_"
         }
         #endregion
     }
@@ -857,7 +857,7 @@ End {
             $excelFileLogParams = @{
                 LogFolder    = $logParams.LogFolder
                 Format       = 'yyyy-MM-dd'
-                Name         = "$ScriptName - $((Split-Path $ImportFile -Leaf).TrimEnd('.json')) - Log.xlsx"
+                Name         = "$ScriptName - $((Split-Path $ConfigurationJsonFile -Leaf).TrimEnd('.json')) - Log.xlsx"
                 Date         = 'ScriptStartTime'
                 NoFormatting = $true
             }
