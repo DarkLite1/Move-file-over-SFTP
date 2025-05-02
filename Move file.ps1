@@ -59,9 +59,8 @@
     The password used to authenticate to the SFTP server. This is an
     SSH private key file in the OpenSSH format converted to an array of strings.
 
-.PARAMETER FileExtensions
-    Only the files with a matching file extension will be downloaded. If blank,
-    all files will be downloaded.
+.PARAMETER MatchFileNameRegex
+    Regex to select specific file names to download.
 
 .PARAMETER OverwriteFile
     When a file that is being downloaded is already present with the same name
@@ -88,8 +87,9 @@ Param (
     [Int]$MaxConcurrentActions,
     [Parameter(Mandatory)]
     [Int]$SftpPort,
+    [Parameter(Mandatory)]
+    [String]$MatchFileNameRegex,
     [String[]]$SftpOpenSshKeyFile,
-    [String[]]$FileExtensions,
     [Boolean]$OverwriteFile,
     [Int]$AttemptCount = 5,
     [Int]$WaitSecondsBetweenAttempts = 3
@@ -492,7 +492,7 @@ try {
                 $SftpOpenSshKeyFile = $using:SftpOpenSshKeyFile
                 $sftpCredential = $using:sftpCredential
 
-                $FileExtensions = $using:FileExtensions
+                $MatchFileNameRegex = $using:MatchFileNameRegex
                 $OverwriteFile = $using:OverwriteFile
                 $AttemptCount = $using:AttemptCount
                 $WaitSecondsBetweenAttempts = $using:WaitSecondsBetweenAttempts
@@ -606,21 +606,15 @@ try {
 
                 $sftpServerContent = Get-FolderContentSftpServerHC
 
-                #region Select files to download by file extension
+                #region Select files to download
                 try {
                     $filesToDownload = $sftpServerContent.tempFiles + $sftpServerContent.rootFiles
 
-                    if ($FileExtensions) {
-                        Write-Verbose "Select files with extension '$FileExtensions'"
+                    Write-Verbose "Select files matching regex '$MatchFileNameRegex'"
 
-                        $fileExtensionFilter = (
-                            $FileExtensions | ForEach-Object { "$_$" }
-                        ) -join '|'
-
-                        $filesToDownload = $filesToDownload.where(
-                            { $_.Name -match $fileExtensionFilter }
-                        )
-                    }
+                    $filesToDownload = $filesToDownload.where(
+                        { $_.Name -match $MatchFileNameRegex }
+                    )
 
                     Write-Verbose "Found $($filesToDownload.Count) file(s) on the SFTP server to download"
                 }
@@ -867,13 +861,11 @@ try {
                 try {
                     $filesToUpload = $localFolderContent.tempFiles + $localFolderContent.rootFiles
 
-                    if ($FileExtensions) {
-                        Write-Verbose "Select files with extension '$FileExtensions'"
+                    Write-Verbose "Select files matching regex '$MatchFileNameRegex'"
 
-                        $filesToUpload = $filesToUpload.where(
-                            { $FileExtensions -contains $_.Extension }
-                        )
-                    }
+                    $filesToUpload = $filesToUpload.where(
+                        { $_.Name -match $MatchFileNameRegex }
+                    )
 
                     Write-Verbose "Found $($filesToUpload.Count) file(s) to upload"
                 }

@@ -9,9 +9,9 @@ BeforeAll {
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
-        SftpComputerName  = 'PC1'
-        SftpCredential    = New-Object @params
-        Paths             = @(
+        SftpComputerName     = 'PC1'
+        SftpCredential       = New-Object @params
+        Paths                = @(
             @{
                 Source      = (New-Item 'TestDrive:/f1' -ItemType 'Directory').FullName
                 Destination = 'sftp:/data/'
@@ -22,8 +22,8 @@ BeforeAll {
             }
         )
         MaxConcurrentActions = 1
-        FileExtensions    = @()
-        OverwriteFile     = $false
+        MatchFileNameRegex   = '.*'
+        OverwriteFile        = $false
     }
 
     Mock Get-SFTPChildItem

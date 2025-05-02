@@ -17,7 +17,7 @@ BeforeAll {
                 }
                 Option   = @{
                     OverwriteFile  = $false
-                    FileExtensions = @('.txt')
+                    MatchFileNameRegex = '\.txt$'
                 }
                 Actions  = @(
                     @{
@@ -316,9 +316,10 @@ Describe 'execute the SFTP script when' {
                 ($ArgumentList[1].GetType().Name -eq 'PSCredential') -and
                 ($ArgumentList[2].GetType().BaseType.Name -eq 'Array') -and
                 ($ArgumentList[3] -eq $testInputFile.MaxConcurrentActions) -and
-                (-not $ArgumentList[4]) -and
-                ($ArgumentList[5] -eq $testInputFile.Tasks[0].Option.FileExtensions) -and
-                ($ArgumentList[6] -eq $testInputFile.Tasks[0].Option.OverwriteFile)
+                ($ArgumentList[4] -eq 22) -and
+                ($ArgumentList[5] -eq $testInputFile.Tasks[0].Option.MatchFileNameRegex) -and
+                (-not $ArgumentList[6])
+                ($ArgumentList[7] -eq $testInputFile.Tasks[0].Option.OverwriteFile)
             }
         )
 

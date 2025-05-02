@@ -15,8 +15,8 @@ BeforeAll {
             Source      = 'SFTP:/report/'
             Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
         }
-        MaxConcurrentActions          = 1
-        FileExtensions             = @()
+        MaxConcurrentActions       = 1
+        MatchFileNameRegex         = '.*'
         OverwriteFile              = $false
         AttemptCount               = 1
         WaitSecondsBetweenAttempts = 1
@@ -107,7 +107,7 @@ Describe 'When a file is found on the SFTP server' {
     It 'The file is no longer in the temp folder on the local file system' {
         '{0}\sftpTransfer\download\b.txt' -f
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-            Should -Not -Exist
+        Should -Not -Exist
     }
     Context 'a success object is created with property' {
         It 'DateTime' {
@@ -195,7 +195,7 @@ Describe 'Create an object with Error property when' {
             }
             It 'an error object is created' {
                 $testResult.Errors |
-                    Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
                 $testResult.Actions | Should -BeNullOrEmpty
                 $testResult.FileName | Should -BeNullOrEmpty
@@ -225,7 +225,7 @@ Describe 'Create an object with Error property when' {
             }
             It 'an error object is created' {
                 $testResult.Errors |
-                    Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
+                Should -Be "Failed retrieving the content of SFTP folder '/notExisting/'. Most likely the path does not exist on the SFTP server: path not found"
 
                 $testResult.Actions | Should -BeNullOrEmpty
                 $testResult.FileName | Should -BeNullOrEmpty
@@ -250,7 +250,7 @@ Describe 'Create an object with Error property when' {
         $testResult = .$testScript @testParams
 
         $testResult.Errors |
-            Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
+        Should -BeLike "*Path 'TestDrive:/notExisting/' not found on the file system"
 
         Should -Not -Invoke Get-SFTPItem
         Should -Not -Invoke Rename-SFTPFile
@@ -467,7 +467,7 @@ Describe 'When a file is' {
                     }
                     It 'the file in the local temp folder stays in place' {
                         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-                            Should -Exist
+                        Should -Exist
                     }
                 }
             }
@@ -646,7 +646,7 @@ Describe 'When a file is' {
                     }
                     It 'the file in the local temp folder stays in place' {
                         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-                            Should -Exist
+                        Should -Exist
                     }
                 }
             }
@@ -681,7 +681,7 @@ Describe 'When a file is' {
                     ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
                 }
                 "$($testParams.Paths.Destination)\b.txt" |
-                    Should -Exist
+                Should -Exist
             }
             It 'the new file in the SFTP source folder is not downloaded' {
                 Should -Not -Invoke Move-SFTPItem -Scope Context -ParameterFilter {
@@ -692,11 +692,11 @@ Describe 'When a file is' {
             }
             It 'the file is no longer in the temp download folder' {
                 "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-                    Should -Not -Exist
+                Should -Not -Exist
             }
             It 'the file is moved to the destination folder' {
                 "$($testParams.Paths.Destination)\b.txt" |
-                    Should -Exist
+                Should -Exist
             }
             Context 'a success object is created with property' {
                 It 'DateTime' {
@@ -784,7 +784,7 @@ Describe 'When a download fails' {
     }
     It 'the partially downloaded file is removed in the local temp folder' {
         "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-            Should -Not -Exist
+        Should -Not -Exist
     }
     It 'the destination file is left untouched' {
         $testParams.Paths.Destination | Should -Exist
@@ -917,11 +917,11 @@ Describe 'Previously failed download' {
         }
         It 'the previously downloaded file is moved to the destination folder' {
             "$($testParams.Paths.Destination)\b.txt" |
-                Should -Exist
+            Should -Exist
         }
         It 'the file is no longer in the temp download folder' {
             "$($testParams.Paths.Destination)\sftpTransfer\download\b.txt" |
-                Should -Not -Exist
+            Should -Not -Exist
         }
         Context 'a success object is created with property' {
             It 'DateTime' {
