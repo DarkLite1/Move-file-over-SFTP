@@ -719,98 +719,135 @@ End {
             [Parameter(Mandatory)]
             [String]$PartialPath,
             [Parameter(Mandatory)]
-            [String[]]$FileExtensions
+            [String[]]$FileExtensions,
+            [hashtable]$ExcelFile = @{
+                SheetName = 'Overview'
+                TableName = 'Overview'
+                CellStyle = $null
+            },
+            [Switch]$Append
         )
-
+    
         $allLogFilePaths = @()
-
+    
         foreach (
             $fileExtension in
             $FileExtensions | Sort-Object -Unique
         ) {
-            $logFilePath = "$PartialPath{0}" -f $fileExtension
-
-            $M = "Export {0} object{1} to '$logFilePath'" -f
-            $DataToExport.Count,
-            $(if ($DataToExport.Count -ne 1) { 's' })
-            Write-Verbose $M
-
-            switch ($fileExtension) {
-                '.csv' {
-                    $params = @{
-                        LiteralPath       = $logFilePath
-                        Append            = $true
-                        Delimiter         = ';'
-                        NoTypeInformation = $true
+            try {
+                $logFilePath = "$PartialPath{0}" -f $fileExtension
+    
+                $M = "Export {0} object{1} to '$logFilePath'" -f
+                $DataToExport.Count,
+                $(if ($DataToExport.Count -ne 1) { 's' })
+                Write-Verbose $M
+    
+                switch ($fileExtension) {
+                    '.csv' {
+                        $params = @{
+                            LiteralPath       = $logFilePath
+                            Append            = $Append
+                            Delimiter         = ';'
+                            NoTypeInformation = $true
+                        }
+                        $DataToExport | Export-Csv @params
+    
+                        break
                     }
-                    $DataToExport | Export-Csv @params
-
-                    $allLogFilePaths += $logFilePath
-                    break
-                }
-                '.json' {
-                    #region Convert error object to error message string
-                    $convertedDataToExport = foreach (
-                        $exportObject in
-                        $DataToExport
-                    ) {
-                        foreach ($property in $exportObject.PSObject.Properties) {
-                            $name = $property.Name
-                            $value = $property.Value
-                            if (
-                                $value -is [System.Management.Automation.ErrorRecord]
-                            ) {
+                    '.json' {
+                        #region Convert error object to error message string
+                        $convertedDataToExport = foreach (
+                            $exportObject in
+                            $DataToExport
+                        ) {
+                            foreach ($property in $exportObject.PSObject.Properties) {
+                                $name = $property.Name
+                                $value = $property.Value
                                 if (
-                                    $value.Exception -and $value.Exception.Message
+                                    $value -is [System.Management.Automation.ErrorRecord]
                                 ) {
-                                    $exportObject.$name = $value.Exception.Message
-                                }
-                                else {
-                                    $exportObject.$name = $value.ToString()
+                                    if (
+                                        $value.Exception -and $value.Exception.Message
+                                    ) {
+                                        $exportObject.$name = $value.Exception.Message
+                                    }
+                                    else {
+                                        $exportObject.$name = $value.ToString()
+                                    }
                                 }
                             }
+                            $exportObject
                         }
-                        $exportObject
+                        #endregion
+    
+                        if (
+                            $Append -and 
+                            (Test-Path -LiteralPath $logFilePath -PathType Leaf)
+                        ) {
+                            $params = @{
+                                LiteralPath = $logFilePath 
+                                Raw         = $true
+                                Encoding    = 'UTF8'
+                            }
+                            $jsonFileContent = Get-Content @params | ConvertFrom-Json
+    
+                            $convertedDataToExport = [array]$convertedDataToExport + [array]$jsonFileContent
+                        }
+    
+                        $convertedDataToExport |
+                        ConvertTo-Json -Depth 7 |
+                        Out-File -LiteralPath $logFilePath
+    
+                        break
                     }
-                    #endregion
-
-                    $convertedDataToExport |
-                    ConvertTo-Json -Depth 7 |
-                    Out-File -LiteralPath $logFilePath -Append
-
-                    $allLogFilePaths += $logFilePath
-                    break
-                }
-                '.txt' {
-                    $DataToExport |
-                    Format-List -Property * -Force |
-                    Out-File -LiteralPath $logFilePath -Append
-
-                    $allLogFilePaths += $logFilePath
-                    break
-                }
-                '.xlsx' {
-                    $excelParams = @{
-                        Path          = $logFilePath
-                        Append        = $true
-                        AutoNameRange = $true
-                        AutoSize      = $true
-                        FreezeTopRow  = $true
-                        WorksheetName = 'Overview'
-                        TableName     = 'Overview'
-                        Verbose       = $false
+                    '.txt' {
+                        $params = @{
+                            LiteralPath = $logFilePath 
+                            Append      = $Append
+                        }
+    
+                        $DataToExport | Format-List -Property * -Force |
+                        Out-File @params
+    
+                        break
                     }
-                    $DataToExport | Export-Excel @excelParams
-
-                    $allLogFilePaths += $logFilePath
-                    break
+                    '.xlsx' {
+                        if (
+                            (-not $Append) -and 
+                            (Test-Path -LiteralPath $logFilePath -PathType Leaf)
+                        ) {
+                            $logFilePath | Remove-Item
+                        }
+    
+                        $excelParams = @{
+                            Path          = $logFilePath
+                            Append        = $true
+                            AutoNameRange = $true
+                            AutoSize      = $true
+                            FreezeTopRow  = $true
+                            WorksheetName = $ExcelFile.SheetName
+                            TableName     = $ExcelFile.TableName
+                            Verbose       = $false
+                        }
+                        if ($ExcelFile.CellStyle) {
+                            $excelParams.CellStyleSB = $ExcelFile.CellStyle
+                        }
+                        $DataToExport | Export-Excel @excelParams
+    
+                        break
+                    }
+                    default {
+                        throw "Log file extension '$_' not supported. Supported values are '.csv', '.json', '.txt' or '.xlsx'."
+                    }
                 }
-                default {
-                    throw "Log file extension '$_' not supported. Supported values are '.xlsx', '.txt' or '.csv'."
-                }
+    
+                $allLogFilePaths += $logFilePath
+            }
+            catch {
+                Write-Warning "Failed creating log file '$logFilePath': $_"
             }
         }
-
+    
         $allLogFilePaths
     }
 
@@ -865,6 +902,65 @@ End {
         }
 
         $fullPath
+    }
+
+    function Get-LogFileDataHC {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory)]
+            [String]$PartialPath,
+            [Parameter(Mandatory)]
+            [String[]]$FileExtensions,
+            [String]$ExcelFileSheetName = 'Overview'
+        )
+    
+        foreach (
+            $fileExtension in
+            $FileExtensions | Sort-Object -Unique
+        ) {
+            try {
+                $logFilePath = "$PartialPath{0}" -f $fileExtension
+    
+                $M = "Log file path '$logFilePath'"
+                Write-Verbose $M
+    
+                if (-not (Test-Path -LiteralPath $logFilePath -PathType Leaf)) {
+                    Write-Warning "Path '$logFilePath' not found"
+                    Continue
+                }
+    
+                switch ($fileExtension) {
+                    '.csv' {
+                        $params = @{
+                            LiteralPath = $logFilePath
+                            Delimiter   = ';'
+                        }
+                        return Import-Csv @params
+                    }
+                    '.json' {
+                        $params = @{
+                            LiteralPath = $logFilePath 
+                            Raw         = $true
+                            Encoding    = 'UTF8'
+                        }
+                        return Get-Content @params | ConvertFrom-Json
+                    }
+                    '.xlsx' {
+                        $params = @{
+                            Path          = $logFilePath 
+                            WorksheetName = $ExcelFileSheetName
+                        }
+                        return Import-Excel @params
+                    }
+                    default {
+                        Write-Warning "Log file extension '$_' not supported for reading log data. Supported values are '.csv', '.json' or '.xlsx'."
+                    }
+                }
+            }
+            catch {
+                Write-Warning "Failed retrieving log file data in '$logFilePath': $_"
+            }
+        }
     }
 
     function Send-MailKitMessageHC {
@@ -1543,7 +1639,7 @@ End {
         $counter.Total.Errors += $countSystemErrors
         #endregion
 
-        #region Create Excel objects
+        #region Create log file data
         $logFileData = foreach ($task in $Tasks) {
             Write-Verbose "Task '$($task.TaskName)'"
 
@@ -1641,7 +1737,7 @@ End {
                             PartialPath    = "$baseLogName - Actions"
                             FileExtensions = $logFileExtensions
                         }
-                        $allLogFilePaths += Out-LogFileHC @params
+                        $allLogFilePaths += Out-LogFileHC @params -Append
                     }
                     elseif ($isLog.onlyActionErrors) {
                         if ($logFileDataErrors) {
@@ -1650,7 +1746,7 @@ End {
                                 PartialPath    = "$baseLogName - Action errors"
                                 FileExtensions = $logFileExtensions
                             }
-                            $allLogFilePaths += Out-LogFileHC @params
+                            $allLogFilePaths += Out-LogFileHC @params -Append
                         }
                     }
                 }
@@ -1661,7 +1757,7 @@ End {
                         PartialPath    = "$baseLogName - Errors"
                         FileExtensions = $logFileExtensions
                     }
-                    $allLogFilePaths += Out-LogFileHC @params
+                    $allLogFilePaths += Out-LogFileHC @params -Append
                 }
                 #endregion
             }
@@ -1678,8 +1774,8 @@ End {
         }
         #endregion
 
+        #region Get previous log file data
         if ($ReportOnly -or $logFileData) {
-            #region Get Excel file path
             $excelParams = @{
                 Path          = "$baseLogName.xlsx"
                 AutoNameRange = $true
@@ -1692,9 +1788,7 @@ End {
             }
 
             Write-Verbose "Excel file path '$($excelParams.Path)'"
-            #endregion
 
-            #region Add results from Excel file
             if (
                 ($ReportOnly) -and
                 (Test-Path -LiteralPath $excelParams.Path -PathType 'Leaf')
@@ -1766,174 +1860,7 @@ End {
                     }
                 }
             }
-            #endregion
         }
-
-        #region Create HTML table
-        Write-Verbose 'Create HTML table'
-
-        $htmlTable = @('<table>')
-
-        foreach ($task in $Tasks) {
-            Write-Verbose "Task '$($task.TaskName)'"
-
-            #region Create HTML table header
-            $htmlTable += "
-                <tr style=`"background-color: lightgrey;`">
-                    <th style=`"text-align: center;`" colspan=`"2`">$($task.TaskName)</th>
-                    <th>sftp:/$($task.SFTP.ComputerName)</th>
-                </tr>
-                <tr>
-                    <th>Source</th>
-                    <th>Destination</th>
-                    <th>Result</th>
-                </tr>"
-            #endregion
-
-            foreach ($action in $task.Actions) {
-                #region Counter
-                $counter.Action = @{
-                    MovedFiles = 0
-                    Errors     = 0
-                }
-
-                $counter.Action.MovedFiles = $action.Job.Results.Where(
-                    { $_.Moved }
-                ).Count
-
-                $counter.Action.Errors = $action.Job.Results.Where(
-                    { $_.Errors }
-                ).Count
-
-                $counter.Total.Errors += $counter.Action.Errors
-                $counter.Total.Errors += $action.Job.Error.Count
-
-                $counter.Total.MovedFiles += $counter.Action.MovedFiles
-                #endregion
-
-                #region Log errors
-                if ($counter.Action.Errors) {
-                    $action.Job.Results.Where(
-                        { $_.Error }
-                    ).foreach(
-                        {
-                            $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Error)"
-                            Write-Warning $M
-                            Write-EventLog @EventErrorParams -Message $M
-                        }
-                    )
-                }
-                #endregion
-
-                #region Create HTML Error row
-                if ($action.Job.Error) {
-                    $htmlTable += "
-                    <tr style=`"background-color: #f78474;`">
-                        <td colspan=`"3`">ERROR: $($action.Job.Error)</td>
-                    </tr>"
-
-                    $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' {0}: $($action.Job.Error)" -f
-                    $(
-                        $action.Paths.ForEach(
-                            {
-                                "Source '$($_.Source)' Destination '$($_.Destination)'"
-                            }
-                        )
-                    )
-                    Write-Warning $M
-                    Write-EventLog @EventErrorParams -Message $M
-                }
-                #endregion
-
-                $actionPaths = $action.Paths
-
-                #region Get temp moved files too
-                $jobResultPaths = $action.Job.Results.Where(
-                    {
-                        ($actionPaths.Source -notcontains $_.Source) -or
-                        ($actionPaths.Destination -notcontains $_.Destination)
-                    }
-                )
-
-                $allPaths = $jobResultPaths + $actionPaths |
-                Sort-Object -Property {
-                    '{0}-{1}' -f $_.Source, $_.Destination
-                } -Unique
-                #endregion
-
-                foreach ($path in $allPaths) {
-                    #region Counter
-                    $counter.Path = @{
-                        MovedFiles = 0
-                        Errors     = 0
-                    }
-
-                    $counter.Path.Errors += $action.Job.Results.Where(
-                        {
-                        ($_.Errors) -and
-                        ($_.Source -eq $path.Source) -and
-                        ($_.Destination -eq $path.Destination)
-                        }).Count
-
-                    $counter.Path.MovedFiles += $action.Job.Results.Where(
-                        {
-                        ($_.Source -eq $path.Source) -and
-                        ($_.Destination -eq $path.Destination) -and
-                        ($_.Moved)
-                        }).Count
-                    #endregion
-
-                    #region Create HTML table row
-                    $htmlTable += "
-                        $(
-                            if (
-                                $action.Job.Error.Count -or
-                                $counter.Path.Errors
-                            ) {
-                                '<tr style="background-color: #f78474">'
-                            }
-                            else {
-                                '<tr>'
-                            }
-                        )
-                        <td>
-                            $($path.Source)
-                        </td>
-                        <td>
-                            $($path.Destination)
-                        </td>
-                        <td>
-                            $(
-                                $result = "$($counter.Path.MovedFiles) moved"
-
-                                if ($counter.Path.Errors) {
-                                    $result += ', {0} error{1}' -f
-                                    $(
-                                        $counter.Path.Errors
-                                    ),
-                                    $(
-                                        if($counter.Path.Errors -ne 1) {'s'}
-                                    )
-                                }
-
-                                $result
-                            )
-                        </td>
-                    </tr>"
-                    #endregion
-                }
-
-                #region Create HTML Action summary row
-                $htmlTable += "
-                <tr>
-                    <th colspan=`"2`"></th>
-                    <th>$($counter.Action.MovedFiles) moved on $($action.ComputerName)</th>
-                </tr>"
-                #endregion
-            }
-        }
-
-        $htmlTable += '</table>'
         #endregion
 
         #region Create Excel worksheet Overview
@@ -1979,6 +1906,173 @@ End {
 
             $mailParams.Attachments = $excelParams.Path
         }
+        #endregion
+
+        #region Create HTML table
+        Write-Verbose 'Create HTML table'
+
+        $htmlTable = @('<table>')
+        
+        foreach ($task in $Tasks) {
+            Write-Verbose "Task '$($task.TaskName)'"
+        
+            #region Create HTML table header
+            $htmlTable += "
+                        <tr style=`"background-color: lightgrey;`">
+                            <th style=`"text-align: center;`" colspan=`"2`">$($task.TaskName)</th>
+                            <th>sftp:/$($task.SFTP.ComputerName)</th>
+                        </tr>
+                        <tr>
+                            <th>Source</th>
+                            <th>Destination</th>
+                            <th>Result</th>
+                        </tr>"
+            #endregion
+        
+            foreach ($action in $task.Actions) {
+                #region Counter
+                $counter.Action = @{
+                    MovedFiles = 0
+                    Errors     = 0
+                }
+        
+                $counter.Action.MovedFiles = $action.Job.Results.Where(
+                    { $_.Moved }
+                ).Count
+        
+                $counter.Action.Errors = $action.Job.Results.Where(
+                    { $_.Errors }
+                ).Count
+        
+                $counter.Total.Errors += $counter.Action.Errors
+                $counter.Total.Errors += $action.Job.Error.Count
+        
+                $counter.Total.MovedFiles += $counter.Action.MovedFiles
+                #endregion
+        
+                #region Log errors
+                if ($counter.Action.Errors) {
+                    $action.Job.Results.Where(
+                        { $_.Error }
+                    ).foreach(
+                        {
+                            $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Error)"
+                            Write-Warning $M
+                            Write-EventLog @EventErrorParams -Message $M
+                        }
+                    )
+                }
+                #endregion
+        
+                #region Create HTML Error row
+                if ($action.Job.Error) {
+                    $htmlTable += "
+                            <tr style=`"background-color: #f78474;`">
+                                <td colspan=`"3`">ERROR: $($action.Job.Error)</td>
+                            </tr>"
+        
+                    $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' {0}: $($action.Job.Error)" -f
+                    $(
+                        $action.Paths.ForEach(
+                            {
+                                "Source '$($_.Source)' Destination '$($_.Destination)'"
+                            }
+                        )
+                    )
+                    Write-Warning $M
+                    Write-EventLog @EventErrorParams -Message $M
+                }
+                #endregion
+        
+                $actionPaths = $action.Paths
+        
+                #region Get temp moved files too
+                $jobResultPaths = $action.Job.Results.Where(
+                    {
+                                ($actionPaths.Source -notcontains $_.Source) -or
+                                ($actionPaths.Destination -notcontains $_.Destination)
+                    }
+                )
+        
+                $allPaths = $jobResultPaths + $actionPaths |
+                Sort-Object -Property {
+                    '{0}-{1}' -f $_.Source, $_.Destination
+                } -Unique
+                #endregion
+        
+                foreach ($path in $allPaths) {
+                    #region Counter
+                    $counter.Path = @{
+                        MovedFiles = 0
+                        Errors     = 0
+                    }
+        
+                    $counter.Path.Errors += $action.Job.Results.Where(
+                        {
+                                ($_.Errors) -and
+                                ($_.Source -eq $path.Source) -and
+                                ($_.Destination -eq $path.Destination)
+                        }).Count
+        
+                    $counter.Path.MovedFiles += $action.Job.Results.Where(
+                        {
+                                ($_.Source -eq $path.Source) -and
+                                ($_.Destination -eq $path.Destination) -and
+                                ($_.Moved)
+                        }).Count
+                    #endregion
+        
+                    #region Create HTML table row
+                    $htmlTable += "
+                                $(
+                                    if (
+                                        $action.Job.Error.Count -or
+                                        $counter.Path.Errors
+                                    ) {
+                                        '<tr style="background-color: #f78474">'
+                                    }
+                                    else {
+                                        '<tr>'
+                                    }
+                                )
+                                <td>
+                                    $($path.Source)
+                                </td>
+                                <td>
+                                    $($path.Destination)
+                                </td>
+                                <td>
+                                    $(
+                                        $result = "$($counter.Path.MovedFiles) moved"
+        
+                                        if ($counter.Path.Errors) {
+                                            $result += ', {0} error{1}' -f
+                                            $(
+                                                $counter.Path.Errors
+                                            ),
+                                            $(
+                                                if($counter.Path.Errors -ne 1) {'s'}
+                                            )
+                                        }
+        
+                                        $result
+                                    )
+                                </td>
+                            </tr>"
+                    #endregion
+                }
+        
+                #region Create HTML Action summary row
+                $htmlTable += "
+                        <tr>
+                            <th colspan=`"2`"></th>
+                            <th>$($counter.Action.MovedFiles) moved on $($action.ComputerName)</th>
+                        </tr>"
+                #endregion
+            }
+        }
+        
+        $htmlTable += '</table>'
         #endregion
 
         #region Mail subject and priority
