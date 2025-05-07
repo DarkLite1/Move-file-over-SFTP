@@ -925,7 +925,7 @@ End {
                 Write-Verbose $M
     
                 if (-not (Test-Path -LiteralPath $logFilePath -PathType Leaf)) {
-                    Write-Warning "Path '$logFilePath' not found"
+                    Write-Verbose "Path '$logFilePath' not found"
                     Continue
                 }
     
@@ -1731,33 +1731,46 @@ End {
 
                 #region Create log file
                 if ($logFileData) {
-                    if ($isLog.allActions) {
-                        $params = @{
-                            DataToExport   = $logFileData
-                            PartialPath    = "$baseLogName - Actions"
-                            FileExtensions = $logFileExtensions
-                        }
-                        $allLogFilePaths += Out-LogFileHC @params -Append
-                    }
-                    elseif ($isLog.onlyActionErrors) {
-                        if ($logFileDataErrors) {
-                            $params = @{
-                                DataToExport   = $logFileDataErrors
-                                PartialPath    = "$baseLogName - Action errors"
-                                FileExtensions = $logFileExtensions
+                    $params = @{
+                        FileExtensions = $logFileExtensions
+                        Append         = $true
+                        ExcelFile      = @{
+                            SheetName = 'Overview'
+                            TableName = 'Overview'
+                            CellStyle = {
+                                Param (
+                                    $WorkSheet,
+                                    $TotalRows,
+                                    $LastColumn
+                                )
+                
+                                @($WorkSheet.Names['FileSize'].Style).ForEach(
+                                    { $_.NumberFormat.Format = '0.00\ \K\B' }
+                                )
                             }
-                            $allLogFilePaths += Out-LogFileHC @params -Append
                         }
+                    }
+
+                    if ($isLog.allActions) {
+                        $params.DataToExport = $logFileData
+                        $params.PartialPath = "$baseLogName - Actions"
+                        $allLogFilePaths += Out-LogFileHC @params
+                    }
+                    elseif ($isLog.onlyActionErrors -and $logFileDataErrors) {
+                        $params.DataToExport = $logFileDataErrors
+                        $params.PartialPath = "$baseLogName - Action errors"
+                        $allLogFilePaths += Out-LogFileHC @params
                     }
                 }
 
-                if ($systemErrors -and $isLog.SystemErrors) {
+                if ($isLog.SystemErrors -and $systemErrors) {
                     $params = @{
                         DataToExport   = $systemErrors
                         PartialPath    = "$baseLogName - Errors"
                         FileExtensions = $logFileExtensions
+                        Append         = $true
                     }
-                    $allLogFilePaths += Out-LogFileHC @params -Append
+                    $allLogFilePaths += Out-LogFileHC @params
                 }
                 #endregion
             }
@@ -1776,34 +1789,19 @@ End {
 
         #region Get previous log file data
         if ($ReportOnly -or $logFileData) {
-            $excelParams = @{
-                Path          = "$baseLogName.xlsx"
-                AutoNameRange = $true
-                Append        = $true
-                AutoSize      = $true
-                FreezeTopRow  = $true
-                WorksheetName = 'Overview'
-                TableName     = 'Overview'
-                Verbose       = $false
+            $params = @{
+                PartialPath    = "$baseLogName - Actions"
+                FileExtensions = $logFileExtensions
+            }
+            
+            if ($isLog.onlyActionErrors) {
+                $params.PartialPath = "$baseLogName - Action errors"
             }
 
-            Write-Verbose "Excel file path '$($excelParams.Path)'"
+            $previousLogFileData = Get-LogFileDataHC @params
 
-            if (
-                ($ReportOnly) -and
-                (Test-Path -LiteralPath $excelParams.Path -PathType 'Leaf')
-            ) {
-                Write-Verbose 'Import Excel file'
-
-                $importExcelParams = @{
-                    Path          = $excelParams.Path
-                    WorksheetName = $excelParams.WorksheetName
-                }
-                $excelFile = Import-Excel @importExcelParams
-
-                $mailParams.Attachments = $excelParams.Path
-
-                Write-Verbose 'Add results from Excel file'
+            if ($previousLogFileData) {
+                Write-Verbose 'Add results from previous runs'
 
                 foreach ($task in $Tasks) {
                     Write-Verbose "Task '$($task.TaskName)'"
@@ -1814,7 +1812,8 @@ End {
                         foreach ($path in $action.Paths) {
                             Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
 
-                            $excelFileJobResults = $excelFile | Where-Object {
+                            $filteredPreviousLogFileData = 
+                            $previousLogFileData | Where-Object {
                                 ($path.Source -eq $_.SourcePath) -and
                                 ($path.Destination -eq $_.DestinationPath) -and (
                                     ($_.SourcePath.startsWith('sftp') -and $action.ComputerName -eq $_.DestinationComputer) -or
@@ -1822,11 +1821,13 @@ End {
                                 )
                             }
 
-                            if (-not $excelFileJobResults) {
+                            if (-not $filteredPreviousLogFileData) {
                                 continue
                             }
 
-                            $action.Job.Results += $excelFileJobResults | Select-Object -Property *, @{
+                            $action.Job.Results += 
+                            $filteredPreviousLogFileData | 
+                            Select-Object -Property *, @{
                                 Name       = 'Source'
                                 Expression = { $_.SourcePath }
                             },
@@ -1860,51 +1861,6 @@ End {
                     }
                 }
             }
-        }
-        #endregion
-
-        #region Create Excel worksheet Overview
-        $createExcelFile = $false
-
-        if (
-            ($logFileData) -and
-            (
-                (
-                    ($jsonFileContent.ExportExcelFile.When -eq 'OnlyOnError') -and
-                    ($counter.Total.Errors)
-                ) -or
-                (
-                    (
-                        $jsonFileContent.ExportExcelFile.When -eq 'OnlyOnErrorOrAction'
-                    ) -and
-                    (
-                        ($counter.Total.Errors) -or
-                        ($counter.Total.MovedFiles)
-                    )
-                )
-            )
-        ) {
-            $createExcelFile = $true
-        }
-
-        if ($createExcelFile) {
-            $M = "Export {0} rows to Excel sheet '{1}'" -f
-            $logFileData.Count, $excelParams.WorksheetName
-            Write-Verbose $M; Write-EventLog @EventOutParams -Message $M
-
-            $logFileData | Export-Excel @excelParams -CellStyleSB {
-                Param (
-                    $WorkSheet,
-                    $TotalRows,
-                    $LastColumn
-                )
-
-                @($WorkSheet.Names['FileSize'].Style).ForEach(
-                    { $_.NumberFormat.Format = '0.00\ \K\B' }
-                )
-            }
-
-            $mailParams.Attachments = $excelParams.Path
         }
         #endregion
 
