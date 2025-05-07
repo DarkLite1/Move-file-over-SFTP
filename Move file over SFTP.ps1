@@ -1592,7 +1592,6 @@ End {
         $saveLogFiles = $settings.SaveLogFiles
 
         $allLogFilePaths = @()
-        $logFileDataErrors = $logFileData.Where({ $_.Error })
         $baseLogName = $null
         $logFolderPath = $null
 
@@ -1695,10 +1694,10 @@ End {
                 }
             }
         }
+
+        $logFileDataErrors = $logFileData | Where-Object { $_.Error }
         #endregion
     
-        $mailParams = @{}
-
         #region Create log files
         try {
             $logFolder = Get-StringValueHC $saveLogFiles.Where.Folder
@@ -1786,6 +1785,103 @@ End {
             Write-Warning $systemErrors[-1].Message
         }
         #endregion
+
+        #region Remove old log files
+        if ($saveLogFiles.DeleteLogsAfterDays -gt 0 -and $logFolderPath) {
+            $cutoffDate = (Get-Date).AddDays(-$saveLogFiles.DeleteLogsAfterDays)
+
+            Write-Verbose "Removing log files older than $cutoffDate from '$logFolderPath'"
+
+            Get-ChildItem -Path $logFolderPath -File |
+            Where-Object { $_.LastWriteTime -lt $cutoffDate } |
+            ForEach-Object {
+                try {
+                    $fileToRemove = $_
+                    Write-Verbose "Deleting old log file '$_''"
+                    Remove-Item -Path $_.FullName -Force
+                }
+                catch {
+                    $systemErrors.Add(
+                        [PSCustomObject]@{
+                            DateTime = Get-Date
+                            Message  = "Failed to remove file '$fileToRemove': $_"
+                        }
+                    )
+
+                    Write-Warning $systemErrors[-1].Message
+
+                    if ($baseLogName -and $isLog.systemErrors) {
+                        $params = @{
+                            DataToExport   = $systemErrors[-1]
+                            PartialPath    = "$baseLogName - Errors"
+                            FileExtensions = $logFileExtensions
+                        }
+                        $allLogFilePaths += Out-LogFileHC @params -EA Ignore
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Write events to event log
+        try {
+            $saveInEventLog.LogName = Get-StringValueHC $saveInEventLog.LogName
+
+            if ($saveInEventLog.Save -and $saveInEventLog.LogName) {
+                $systemErrors | ForEach-Object {
+                    $eventLogData.Add(
+                        [PSCustomObject]@{
+                            Message   = $_.Message
+                            DateTime  = $_.DateTime
+                            EntryType = 'Error'
+                            EventID   = '2'
+                        }
+                    )
+                }
+
+                $eventLogData.Add(
+                    [PSCustomObject]@{
+                        Message   = 'Script ended'
+                        DateTime  = Get-Date
+                        EntryType = 'Information'
+                        EventID   = '199'
+                    }
+                )
+
+                $params = @{
+                    Source  = $scriptName
+                    LogName = $saveInEventLog.LogName
+                    Events  = $eventLogData
+                }
+                Write-EventsToEventLogHC @params
+
+            }
+            elseif ($saveInEventLog.Save -and (-not $saveInEventLog.LogName)) {
+                throw "Both 'Settings.SaveInEventLog.Save' and 'Settings.SaveInEventLog.LogName' are required to save events in the event log."
+            }
+        }
+        catch {
+            $systemErrors.Add(
+                [PSCustomObject]@{
+                    DateTime = Get-Date
+                    Message  = "Failed writing events to event log: $_"
+                }
+            )
+
+            Write-Warning $systemErrors[-1].Message
+
+            if ($baseLogName -and $isLog.systemErrors) {
+                $params = @{
+                    DataToExport   = $systemErrors[-1]
+                    PartialPath    = "$baseLogName - Errors"
+                    FileExtensions = $logFileExtensions
+                }
+                $allLogFilePaths += Out-LogFileHC @params -EA Ignore
+            }
+        }
+        #endregion
+
+
 
         #region Get previous log file data
         if ($ReportOnly -or $logFileData) {
