@@ -1606,36 +1606,9 @@ End {
         $counter = @{
             Total = @{
                 MovedFiles = 0
-                Errors     = 0
+                Errors     = $systemErrors.Count
             }
         }
-        #endregion
-
-        #region Create system error html lists
-        $countSystemErrors = (
-            $Error.Exception.Message | Measure-Object
-        ).Count
-
-        $systemErrorsHtmlList = if ($countSystemErrors) {
-            '<p>Detected <b>{0} system error{1}</b>:{2}</p>' -f $countSystemErrors,
-            $(
-                if ($countSystemErrors -ne 1) { 's' }
-            ),
-            $(
-                $errorList = $Error.Exception.Message | Where-Object { $_ }
-                $errorList | ConvertTo-HtmlListHC
-
-                $errorList.foreach(
-                    {
-                        $M = "System error: $_"
-                        Write-Warning $M
-                        Write-EventLog @EventErrorParams -Message $M
-                    }
-                )
-            )
-        }
-
-        $counter.Total.Errors += $countSystemErrors
         #endregion
 
         #region Create log file data
@@ -1881,8 +1854,6 @@ End {
         }
         #endregion
 
-
-
         #region Get previous log file data
         if ($ReportOnly -or $logFileData) {
             $params = @{
@@ -2127,61 +2098,280 @@ End {
         $htmlTable += '</table>'
         #endregion
 
-        #region Mail subject and priority
-        $mailParams += @{
-            Priority = 'Normal'
-            Subject  = @("$($counter.Total.MovedFiles) moved")
+        #region Send email
+        try {
+            $isSendMail = $false
+
+            if ($ReportOnly) {
+                $isSendMail = $true
+            }
+            else {                
+                switch ($sendMail.When) {
+                    'Never' {
+                        break
+                    }
+                    'Always' {
+                        $isSendMail = $true
+                        break
+                    }
+                    'OnError' {
+                        if ($counter.Total.Errors) {
+                            $isSendMail = $true
+                        }
+                        break
+                    }
+                    'OnErrorOrAction' {
+                        if ($counter.Total.Errors -or $logFileData) {
+                            $isSendMail = $true
+                        }
+                        break
+                    }
+                    default {
+                        throw "SendMail.When '$($sendMail.When)' not supported. Supported values are 'Never', 'Always', 'OnError' or 'OnErrorOrAction'."
+                    }
+                }
+            }
+
+            if ($isSendMail) {
+                #region Test mandatory fields
+                @{
+                    'From'                 = $sendMail.From
+                    'Smtp.ServerName'      = $sendMail.Smtp.ServerName
+                    'Smtp.Port'            = $sendMail.Smtp.Port
+                    'AssemblyPath.MailKit' = $sendMail.AssemblyPath.MailKit
+                    'AssemblyPath.MimeKit' = $sendMail.AssemblyPath.MimeKit
+                }.GetEnumerator() |
+                Where-Object { -not $_.Value } | ForEach-Object {
+                    throw "Input file property 'Settings.SendMail.$($_.Key)' cannot be blank"
+                }
+                #endregion
+
+                $mailParams = @{
+                    From                = Get-StringValueHC $sendMail.From
+                    Subject             = "$($counter.Total.MovedFiles) moved"
+                    SmtpServerName      = Get-StringValueHC $sendMail.Smtp.ServerName
+                    SmtpPort            = Get-StringValueHC $sendMail.Smtp.Port
+                    MailKitAssemblyPath = Get-StringValueHC $sendMail.AssemblyPath.MailKit
+                    MimeKitAssemblyPath = Get-StringValueHC $sendMail.AssemblyPath.MimeKit
+                }
+
+                $mailParams.Body = @"
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+    body {
+        font-family:verdana;
+        font-size:14px;
+        background-color:white;
+    }
+    h1 {
+        margin-bottom: 0;
+    }
+    h2 {
+        margin-bottom: 0;
+    }
+    h3 {
+        margin-bottom: 0;
+    }
+    p.italic {
+        font-style: italic;
+        font-size: 12px;
+    }
+    table {
+        border-collapse:collapse;
+        border:0px none;
+        padding:3px;
+        text-align:left;
+    }
+    td, th {
+        border-collapse:collapse;
+        border:1px none;
+        padding:3px;
+        text-align:left;
+    }
+    #aboutTable th {
+        color: rgb(143, 140, 140);
+        font-weight: normal;
+    }
+    #aboutTable td {
+        color: rgb(143, 140, 140);
+        font-weight: normal;
+    }
+    base {
+        target="_blank"
+    }
+</style>
+</head>
+<body>
+<table>
+    <h1>$scriptName</h1>
+    <hr size="2" color="#06cc7a">
+
+    $($sendMail.Body)
+
+    $(
+        if ($systemErrors.Count) {
+            '<table>
+                <tr style="background-color: #ffe5ec;">
+                    <th>System errors</th>
+                    <td>{0}</td>
+                </tr>
+            </table>' -f $($systemErrors.Count)
         }
+    )
 
-        if ($counter.Total.Errors) {
-            $mailParams.Priority = 'High'
-            $mailParams.Subject += '{0} error{1}' -f
-            $counter.Total.Errors,
-            $(if ($counter.Total.Errors -ne 1) { 's' })
+    $(
+        if ($ReportOnly) {
+            '<p>Summary of all SFTP actions <b>executed today</b>:</p>'
         }
+        else {
+            '<p>Summary of SFTP actions:</p>'
+        }
+    )
 
-        $mailParams.Subject = $mailParams.Subject -join ', '
-        #endregion
+    $htmlTable
 
-        #region Check to send mail to user
-        $sendMailToUser = $false
+    $(
+        if ($allLogFilePaths) {
+            '<p><i>* Check the attachment(s) for details</i></p>'
+        }
+    )
 
-        if (
-            (
-                $ReportOnly
-            ) -or
-            (
-                $jsonFileContent.SendMail.When -eq 'Always'
-            ) -or
-            (
-                ($jsonFileContent.SendMail.When -eq 'OnlyOnError') -and
-                ($counter.Total.Errors)
-            ) -or
-            (
-                ($jsonFileContent.SendMail.When -eq 'OnlyOnErrorOrAction') -and
-                (
-                    ($counter.Total.Errors) -or
-                    ($counter.Total.MovedFiles)
-                )
+    <hr size="2" color="#06cc7a">
+    <table id="aboutTable">
+        $(
+            if ($scriptStartTime) {
+                '<tr>
+                    <th>Start time</th>
+                    <td>{0:00}/{1:00}/{2:00} {3:00}:{4:00} ({5})</td>
+                </tr>' -f
+                $scriptStartTime.Day,
+                $scriptStartTime.Month,
+                $scriptStartTime.Year,
+                $scriptStartTime.Hour,
+                $scriptStartTime.Minute,
+                $scriptStartTime.DayOfWeek
+            }
+        )
+        $(
+            if ($scriptStartTime) {
+                $runTime = New-TimeSpan -Start $scriptStartTime -End (Get-Date)
+                '<tr>
+                    <th>Duration</th>
+                    <td>{0:00}:{1:00}:{2:00}</td>
+                </tr>' -f
+                $runTime.Hours, $runTime.Minutes, $runTime.Seconds
+            }
+        )
+        $(
+            if ($logFolderPath) {
+                '<tr>
+                    <th>Log files</th>
+                    <td><a href="{0}">Open log folder</a></td>
+                </tr>' -f $logFolderPath
+            }
+        )
+        <tr>
+            <th>Host</th>
+            <td>$($host.Name)</td>
+        </tr>
+        <tr>
+            <th>PowerShell</th>
+            <td>$($PSVersionTable.PSVersion.ToString())</td>
+        </tr>
+        <tr>
+            <th>Computer</th>
+            <td>$env:COMPUTERNAME</td>
+        </tr>
+        <tr>
+            <th>Account</th>
+            <td>$env:USERDNSDOMAIN\$env:USERNAME</td>
+        </tr>
+    </table>
+</table>
+</body>
+</html>
+"@
+
+                if ($sendMail.FromDisplayName) {
+                    $mailParams.FromDisplayName = $sendMail.FromDisplayName
+                }
+
+                if ($sendMail.Subject) {
+                    $mailParams.Subject = '{0}, {1}' -f
+                    $mailParams.Subject, $sendMail.Subject
+                }
+
+                if ($sendMail.To) {
+                    $mailParams.To = $sendMail.To
+                }
+
+                if ($sendMail.Bcc) {
+                    $mailParams.Bcc = $sendMail.Bcc
+                }
+
+                if ($counter.Total.Errors) {
+                    $mailParams.Priority = 'High'
+                    $mailParams.Subject = '{0} error{1}, {2}' -f
+                    $counter.Total.Errors,
+                    $(if ($counter.Total.Errors -ne 1) { 's' }),
+                    $mailParams.Subject
+                }
+
+                if ($allLogFilePaths) {
+                    $mailParams.Attachments = $allLogFilePaths |
+                    Sort-Object -Unique
+                }
+
+                if ($sendMail.Smtp.ConnectionType) {
+                    $mailParams.SmtpConnectionType = Get-StringValueHC $sendMail.Smtp.ConnectionType
+                }
+
+                #region Create SMTP credential
+                $smtpUserName = Get-StringValueHC $sendMail.Smtp.UserName
+                $smtpPassword = Get-StringValueHC $sendMail.Smtp.Password
+
+                if ( $smtpUserName -and $smtpPassword) {
+                    try {
+                        $securePassword = ConvertTo-SecureString -String $smtpPassword -AsPlainText -Force
+
+                        $credential = New-Object System.Management.Automation.PSCredential($smtpUserName, $securePassword)
+
+                        $mailParams.Credential = $credential
+                    }
+                    catch {
+                        throw "Failed to create credential: $_"
+                    }
+                }
+                elseif ($smtpUserName -or $smtpPassword) {
+                    throw "Both 'Settings.SendMail.Smtp.Username' and 'Settings.SendMail.Smtp.Password' are required when authentication is needed."
+                }
+                #endregion
+
+                Write-Verbose "Send email to '$($mailParams.To)' subject '$($mailParams.Subject)'"
+
+                Send-MailKitMessageHC @mailParams
+            }
+        }
+        catch {
+            $systemErrors.Add(
+                [PSCustomObject]@{
+                    DateTime = Get-Date
+                    Message  = "Failed sending email: $_"
+                }
             )
-        ) {
-            $sendMailToUser = $true
-        }
-        #endregion
 
-        #region Send mail
-        $mailParams += @{
-            Message = "
-                $systemErrorsHtmlList
-                $(
-                    if ($ReportOnly) {
-                        '<p>Summary of all SFTP actions <b>executed today</b>:</p>'
-                    }
-                    else {
-                        '<p>Summary of SFTP actions:</p>'
-                    }
-                )
-                $htmlTable"
+            Write-Warning $systemErrors[-1].Message
+
+            if ($baseLogName -and $isLog.systemErrors) {
+                $params = @{
+                    DataToExport   = $systemErrors[-1]
+                    PartialPath    = "$baseLogName - Errors"
+                    FileExtensions = $logFileExtensions
+                }
+                $null = Out-LogFileHC @params -EA Ignore
+            }
         }
         #endregion
     }
