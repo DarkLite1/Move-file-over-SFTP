@@ -172,7 +172,7 @@
       "SendMail": {
         "When": "(Mandatory) Specifies when to send an email notification. Possible values: 'OnError' - Send email only when a system error or an action error occurs; 'OnErrorOrAction' - Send email when the script performed actions or when errors occurred; 'Always' - Send email when the script is finished, regardless of success or failure; 'Never' - Do not send email.",
         "From": "(Mandatory) The sender's email address. Supports environment variables (e.g., 'ENV:MAIL_FROM_ADDRESS').",
-        "FromDisplayName": "(Optional) The display name to show for the sender. Email clients may display this differently. It is most likely to be shown if the sender's email address is not recognized (e.g., not in the address book).",
+        "FromDisplayName": "(Optional) The display name to show for the sender. Email clients may display this differently. It is most likely to be shown if the sender's email address is not recognized (e.g., not in the address book). Supports environment variables (e.g., 'ENV:MAIL_FROM_DISPLAY_NAME').",
         "To": "(Mandatory 'To' or 'Bcc') An array of recipient email addresses. The script will send an email to all addresses in the array.",
         "Bcc": "(Mandatory 'To' or 'Bcc') An array of BCC email addresses.",
         "Subject": "(Optional) The subject line of the email. Default value: 'N actions, N errors'",
