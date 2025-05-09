@@ -144,36 +144,12 @@ Begin {
 
         try {
             @(
-                'MaxConcurrentActions', 'SendMail', 'ExportExcelFile', 'Tasks'
+                'MaxConcurrentActions', 'Tasks'
             ).where(
                 { -not $jsonFileContent.$_ }
             ).foreach(
                 { throw "Property '$_' not found" }
             )
-
-            #region Test SendMail
-            @('To', 'When').Where(
-                { -not $jsonFileContent.SendMail.$_ }
-            ).foreach(
-                { throw "Property 'SendMail.$_' not found" }
-            )
-
-            if ($jsonFileContent.SendMail.When -notMatch '^Never$|^Always$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
-                throw "Property 'SendMail.When' with value '$($jsonFileContent.SendMail.When)' is not valid. Accepted values are 'Always', 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
-            }
-            #endregion
-
-            #region Test ExportExcelFile
-            @('When').Where(
-                { -not $jsonFileContent.ExportExcelFile.$_ }
-            ).foreach(
-                { throw "Property 'ExportExcelFile.$_' not found" }
-            )
-
-            if ($jsonFileContent.ExportExcelFile.When -notMatch '^Never$|^OnlyOnError$|^OnlyOnErrorOrAction$') {
-                throw "Property 'ExportExcelFile.When' with value '$($jsonFileContent.ExportExcelFile.When)' is not valid. Accepted values are 'Never', 'OnlyOnError' or 'OnlyOnErrorOrAction'"
-            }
-            #endregion
 
             #region Test integer value
             try {
@@ -479,14 +455,22 @@ Begin {
         #endregion
     }
     catch {
-        Write-Warning $_
-        Send-MailHC -To $ScriptAdmin -Subject 'FAILURE' -Priority 'High' -Message $_ -Header $ScriptName
-        Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"
-        Write-EventLog @EventEndParams; Exit 1
+        $systemErrors.Add(
+            [PSCustomObject]@{
+                DateTime = Get-Date
+                Message  = "Input file '$ConfigurationJsonFile': $_"
+            }
+        )
+
+        Write-Warning $systemErrors[-1].Message
+
+        return
     }
 }
 
 Process {
+    if ($systemErrors) { return }
+
     Try {
         if (-not $ReportOnly) {
             $scriptBlock = {
@@ -695,10 +679,14 @@ Process {
         }
     }
     Catch {
-        Write-Warning $_
-        Send-MailHC -To $ScriptAdmin -Subject 'FAILURE' -Priority 'High' -Message $_ -Header $ScriptName
-        Write-EventLog @EventErrorParams -Message "FAILURE:`n`n- $_"
-        Write-EventLog @EventEndParams; Exit 1
+        $systemErrors.Add(
+            [PSCustomObject]@{
+                DateTime = Get-Date
+                Message  = $_
+            }
+        )
+
+        Write-Warning $systemErrors[-1].Message
     }
     Finally {
         if ($psSessions.Values.Session) {

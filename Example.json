@@ -136,7 +136,7 @@
     }
   },
   "?": {
-    "MaxConcurrentActions": "(Optional) Maximum number of 'Actions' to run in parallel, 'Tasks' are always run sequentially. Possible values: 1 - Run one task at a time, this is the default; 5 - Run 5 tasks in parallel; 10 - Run 10 tasks in parallel; ...",
+    "MaxConcurrentActions": "(Mandatory) Maximum number of 'Actions' to run in parallel, 'Tasks' are always run sequentially. Possible values: 1 - Run one action at a time, this is the default; 5 - Run 5 actions in parallel; 10 - Run 10 actions in parallel; ...",
     "Tasks": [
       {
         "TaskName": "(Mandatory) Name of the task. Used in the email and log files.",

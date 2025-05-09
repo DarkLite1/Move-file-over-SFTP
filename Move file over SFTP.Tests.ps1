@@ -2,9 +2,13 @@
 #Requires -Version 7
 
 BeforeAll {
+    $realCmdLet = @{
+        OutFile = Get-Command Out-File
+    }
+
     $testInputFile = @{
         MaxConcurrentActions = 1
-        Tasks             = @(
+        Tasks                = @(
             @{
                 TaskName = 'App x'
                 Sftp     = @{
@@ -16,7 +20,7 @@ BeforeAll {
                     }
                 }
                 Option   = @{
-                    OverwriteFile  = $false
+                    OverwriteFile      = $false
                     MatchFileNameRegex = '\.txt$'
                 }
                 Actions  = @(
@@ -36,12 +40,42 @@ BeforeAll {
                 )
             }
         )
-        SendMail          = @{
-            To   = 'bob@contoso.com'
-            When = 'Always'
-        }
-        ExportExcelFile   = @{
-            When = 'OnlyOnErrorOrAction'
+        Settings             = @{
+            ScriptName     = 'Test (Brecht)'
+            SendMail       = @{
+                When         = 'Always'
+                From         = 'm@example.com'
+                To           = '007@example.com'
+                Subject      = 'Email subject'
+                Body         = 'Email body'
+                Smtp         = @{
+                    ServerName     = 'SMTP_SERVER'
+                    Port           = 25
+                    ConnectionType = 'StartTls'
+                    UserName       = 'bob'
+                    Password       = 'pass'
+                }
+                AssemblyPath = @{
+                    MailKit = 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll'
+                    MimeKit = 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll'
+                }
+            }
+            SaveLogFiles   = @{
+                What                = @{
+                    SystemErrors     = $true
+                    AllActions       = $true
+                    OnlyActionErrors = $false
+                }
+                Where               = @{
+                    Folder         = (New-Item 'TestDrive:/log' -ItemType Directory).FullName
+                    FileExtensions = @('.json', '.csv')
+                }
+                deleteLogsAfterDays = 1
+            }
+            SaveInEventLog = @{
+                Save    = $true
+                LogName = 'Scripts'
+            }
         }
     }
 
@@ -104,8 +138,8 @@ BeforeAll {
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $testParams = @{
-        ConfigurationJsonFile  = $testOutParams.FilePath
-        ScriptPath  = @{
+        ConfigurationJsonFile = $testOutParams.FilePath
+        ScriptPath            = @{
             MoveFile = (New-Item 'TestDrive:/u.ps1' -ItemType 'File').FullName
         }
     }
@@ -144,11 +178,76 @@ BeforeAll {
     Mock Remove-PSSession
     Mock Send-MailHC
     Mock Write-EventLog
+
+    function Copy-ObjectHC {
+        <#
+        .SYNOPSIS
+            Make a deep copy of an object using JSON serialization.
+
+        .DESCRIPTION
+            Uses ConvertTo-Json and ConvertFrom-Json to create an independent
+            copy of an object. This method is generally effective for objects
+            that can be represented in JSON format.
+
+        .PARAMETER InputObject
+            The object to copy.
+
+        .EXAMPLE
+            $newArray = Copy-ObjectHC -InputObject $originalArray
+        #>
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory)]
+            [Object]$InputObject
+        )
+
+        $jsonString = $InputObject | ConvertTo-Json -Depth 100
+
+        $deepCopy = $jsonString | ConvertFrom-Json
+
+        return $deepCopy
+    }
+    function Send-MailKitMessageHC {
+        param (
+            [parameter(Mandatory)]
+            [string]$MailKitAssemblyPath,
+            [parameter(Mandatory)]
+            [string]$MimeKitAssemblyPath,
+            [parameter(Mandatory)]
+            [string]$SmtpServerName,
+            [parameter(Mandatory)]
+            [ValidateSet(25, 465, 587, 2525)]
+            [int]$SmtpPort,
+            [parameter(Mandatory)]
+            [ValidatePattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')]
+            [string]$From,
+            [parameter(Mandatory)]
+            [string]$Body,
+            [parameter(Mandatory)]
+            [string]$Subject,
+            [string[]]$To,
+            [string[]]$Bcc,
+            [int]$MaxAttachmentSize = 20MB,
+            [ValidateSet(
+                'None', 'Auto', 'SslOnConnect', 'StartTls', 'StartTlsWhenAvailable'
+            )]
+            [string]$SmtpConnectionType = 'None',
+            [ValidateSet('Normal', 'Low', 'High')]
+            [string]$Priority = 'Normal',
+            [string[]]$Attachments,
+            [PSCredential]$Credential
+        )
+    }
+
+    Mock Send-MailKitMessageHC
+    Mock New-EventLog
+    Mock Write-EventLog
+    Mock Out-File
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @('ConfigurationJsonFile') {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
-            Should -BeTrue
+        Should -BeTrue
     }
 }
 Describe 'create an error log file when' {
@@ -196,7 +295,7 @@ Describe 'create an error log file when' {
                     ($LiteralPath -like '* - Errors.json') -and
                     ($InputObject -like "*Property 'Tasks.$_' not found*")
                 }
-            }
+            } -Tag test
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
@@ -284,7 +383,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -297,7 +396,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'sftp:/a'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -331,7 +430,7 @@ Describe 'execute the SFTP script when' {
     Context 'Tasks.Actions.ComputerName is not the localhost' {
         BeforeAll {
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -358,7 +457,7 @@ Describe 'execute the SFTP script when' {
             $testNewInputFile.Tasks[0].Actions[0].ComputerName = 'localhost'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -385,7 +484,7 @@ Describe 'execute the SFTP script when' {
             $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'TestDrive:\key.txt'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
         }
@@ -399,7 +498,7 @@ Describe 'execute the SFTP script when' {
 Describe 'when the SFTP script runs successfully' {
     BeforeAll {
         $testInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+        Out-File @testOutParams
 
         .$testScript @testParams
     }
@@ -426,13 +525,13 @@ Describe 'when the SFTP script runs successfully' {
                 $actualRow.DestinationPath | Should -Be $testRow.DestinationPath
                 $actualRow.Moved | Should -Be $testRow.Moved
                 $actualRow.DateTime.ToString('yyyyMMdd') |
-                    Should -Be $testRow.DateTime.ToString('yyyyMMdd')
+                Should -Be $testRow.DateTime.ToString('yyyyMMdd')
                 $actualRow.Actions -join ', ' | 
-                    Should -Be ($testRow.Actions -join ', ')
+                Should -Be ($testRow.Actions -join ', ')
                 $actualRow.FileName | Should -Be $testRow.FileName
                 $actualRow.FileSize | Should -Be $testRow.FileSize
                 $actualRow.Errors -join ', ' | 
-                    Should -Be ($testRow.Errors -join ', ')
+                Should -Be ($testRow.Errors -join ', ')
             }
         }
     }
@@ -455,24 +554,24 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'Never'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -BeNullOrEmpty
+            Should -BeNullOrEmpty
         }
         It "'OnlyOnError' and no errors are found" {
             $testNewInputFile = Copy-ObjectHC $testInputFile
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -BeNullOrEmpty
+            Should -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are no errors and no actions" {
             Mock Invoke-Command {
@@ -484,12 +583,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -BeNullOrEmpty
+            Should -BeNullOrEmpty
         }
     }
     Context 'create an Excel file' {
@@ -509,12 +608,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -Not -BeNullOrEmpty
+            Should -Not -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are actions but no errors" {
             Mock Invoke-Command {
@@ -533,12 +632,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -Not -BeNullOrEmpty
+            Should -Not -BeNullOrEmpty
         }
         It "'OnlyOnErrorOrAction' and there are errors but no actions" {
             Mock Invoke-Command {
@@ -557,12 +656,12 @@ Describe 'ExportExcelFile.When' {
             $testNewInputFile.ExportExcelFile.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
             Get-ChildItem $testParams.LogFolder -File -Recurse -Filter '*.xlsx' |
-                Should -Not -BeNullOrEmpty
+            Should -Not -BeNullOrEmpty
         }
     }
 }
@@ -578,7 +677,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'Never'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -589,7 +688,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -605,7 +704,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -629,7 +728,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnError'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -651,7 +750,7 @@ Describe 'SendMail.When' {
             $testNewInputFile.SendMail.When = 'OnlyOnErrorOrAction'
 
             $testNewInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams
 
@@ -665,16 +764,16 @@ Describe 'ReportOnly' {
     Context 'when no previously exported Excel file is found' {
         BeforeAll {
             Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
-                Should -BeNullOrEmpty
+            Should -BeNullOrEmpty
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams -ReportOnly
         }
         It 'no not create an Excel file' {
             Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
-                Should -BeNullOrEmpty
+            Should -BeNullOrEmpty
         }
         It 'do not call the SFTP script' {
             Should -Not -Invoke New-PSSession
@@ -701,7 +800,7 @@ Describe 'ReportOnly' {
             $testExportedExcelRows | Export-Excel @testExportParams
 
             $testInputFile | ConvertTo-Json -Depth 7 |
-                Out-File @testOutParams
+            Out-File @testOutParams
 
             .$testScript @testParams -ReportOnly
         }
