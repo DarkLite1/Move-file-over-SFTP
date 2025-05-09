@@ -295,7 +295,7 @@ Describe 'create an error log file when' {
                     ($LiteralPath -like '* - Errors.json') -and
                     ($InputObject -like "*Property 'Tasks.$_' not found*")
                 }
-            } -Tag test
+            }
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
@@ -357,7 +357,7 @@ Describe 'create an error log file when' {
                 'ComputerName', 'Paths'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
-                $testNewInputFile.Tasks[0].Option.$_ = $null
+                $testNewInputFile.Tasks[0].Actions[0].$_ = $null
 
                 & $realCmdLet.OutFile @testOutParams -InputObject (
                     $testNewInputFile | ConvertTo-Json -Depth 7
@@ -369,9 +369,9 @@ Describe 'create an error log file when' {
 
                 Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
                     ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.Option.$_' not found*")
+                    ($InputObject -like "*Property 'Tasks.Actions.$_' not found*")
                 }
-            }
+            }  -Tag test
         }
     }
 }

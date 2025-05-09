@@ -243,11 +243,7 @@ Begin {
                 #endregion
 
                 foreach ($action in $task.Actions) {
-                    if ($action.PSObject.Properties.Name -notContains 'ComputerName') {
-                        throw "Property 'Tasks.Actions.ComputerName' not found"
-                    }
-
-                    @('Paths').Where(
+                    @('ComputerName', 'Paths').where(
                         { -not $action.$_ }
                     ).foreach(
                         { throw "Property 'Tasks.Actions.$_' not found" }
