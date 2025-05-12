@@ -15,10 +15,9 @@ This script facilitates automated file transfers between a local file system and
 
 1.  **Configuration:**
     * Create a configuration file based on the provided [Example.json](Example.json). This file defines SFTP connection details, source and destination paths, and logging settings.
-    * Refer to the inline help in the script ([Move file over SFTP.ps1](Move%20file%20over%20SFTP.ps1)) for detailed explanations of each configuration parameter.
+    * For detailed explanations of each configuration parameter refer to the help section `?` in the [Example.json](Example.json) file.
 2.  **Dependencies:**
     * Install the [Posh-SSH](https://github.com/darkoperator/Posh-SSH) module: `Install-Module -Name Posh-SSH`.
-    * Download any other required modules from the repository linked in the script's `#Requires` section.
 3.  **Execution:**
     * Run the script (`Move file over SFTP.ps1`) with the path to your configuration file as an argument.
     * Schedule the script using Scheduled Tasks for automated execution.
@@ -61,20 +60,19 @@ This script facilitates automated file transfers between a local file system and
 
 ## Logging and Reporting
 
-* **Excel Logging:** All file transfer actions, including timestamps, source and destination paths, and status, are recorded in an Excel log file.
+* **File Logging:** All file transfer actions, including timestamps, source, destination paths and status are recorded in the log file(s).
 * **Email Summary:** A summary email is sent, containing tables of source and destination paths, action counts, and error counts.
 * Logging configurations can be set in the input JSON file.
 
 ## Requirements
 
-* PowerShell
+* PowerShell 7 or newer.
 * [Posh-SSH](https://github.com/darkoperator/Posh-SSH) module (`Install-Module -Name Posh-SSH`)
-* Other modules as specified in the script's `#Requires` section (available in the linked repository).
+* Other modules as specified in the help section `?` of the [Example.json](Example.json) file.
 * A configured SFTP server.
 
 ## Best Practices
 
 * Thoroughly review and customize the [Example.json](Example.json) file to match your environment.
-* Consult the inline help in [Move file over SFTP.ps1](Move%20file%20over%20SFTP.ps1) for detailed parameter explanations.
 * Test the script in a non-production environment before scheduling it for automated execution.
 * Monitor the log files and email summaries to ensure successful file transfers.
