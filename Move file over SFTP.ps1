@@ -389,7 +389,18 @@ Begin {
                 #region Get SFTP password
                 $sftpPassword = if ($task.Sftp.Credential.PasswordKeyFile) {
                     try {
-                        $PasswordKeyFileStrings = Get-Content -LiteralPath $task.Sftp.Credential.PasswordKeyFile -ErrorAction Stop
+                        if (-not 
+                            ($sftpPasswordKeyFileValue = Get-StringValueHC -Name $task.Sftp.Credential.PasswordKeyFile)
+                        ) {
+                            throw 'The value cannot be blank.'
+                        }
+                    }
+                    catch {
+                        throw "Failed retrieving 'Sftp.Credential.PasswordKeyFile': $_"
+                    }   
+
+                    try {
+                        $PasswordKeyFileStrings = Get-Content -LiteralPath $sftpPasswordKeyFileValue
 
                         if (-not $PasswordKeyFileStrings) {
                             throw 'File empty'
