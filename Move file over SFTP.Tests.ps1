@@ -143,6 +143,25 @@ BeforeAll {
         }
     }
 
+    function Test-GetLogFileDataHC {
+        Param (
+            [String]$FileNameRegex = '* - Errors.json',
+            [String]$LogFolderPath = $testInputFile.Settings.SaveLogFiles.Where.Folder
+        )
+
+        $testLogFile = Get-ChildItem -Path $LogFolderPath -File -Filter $FileNameRegex
+
+        if ($testLogFile.count -eq 1) {
+            Get-Content $testLogFile | ConvertFrom-Json
+        }
+        elseif (-not $testLogFile) {
+            throw "No log file found in folder '$LogFolderPath' matching '$FileNameRegex'"
+        }
+        else {
+            throw "Found multiple log files in folder '$LogFolderPath' matching '$FileNameRegex'"
+        }
+    }
+
     Function Get-EnvironmentVariableValueHC {
         Param(
             [String]$Name
@@ -298,24 +317,6 @@ Describe 'create an error log file when' {
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
-                function Test-GetLogFileDataHC {
-                    Param (
-                        [String]$FileNameRegex = '* - Errors.json',
-                        [String]$LogFolderPath = $testInputFile.Settings.SaveLogFiles.Where.Folder
-                    )
-
-                    $testLogFile = Get-ChildItem -Path $LogFolderPath -File -Filter $FileNameRegex
-
-                    if ($testLogFile.count -eq 1) {
-                        Get-Content $testLogFile | ConvertFrom-Json
-                    }
-                    elseif (-not $testLogFile) {
-                        throw "No log file found in folder '$LogFolderPath' matching '$FileNameRegex'"
-                    } else {
-                        throw "Found multiple log files in folder '$LogFolderPath' matching '$FileNameRegex'"
-                    }
-                }
-
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.$_ = $null
 
@@ -325,11 +326,6 @@ Describe 'create an error log file when' {
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
-
-                # $testLogFile = Get-ChildItem -Path $testNewInputFile.Settings.SaveLogFiles.Where.Folder -File -Filter '* - Errors.json'
-
-                # $testLogFileContent = Get-Content $testLogFile | 
-                # ConvertFrom-Json
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
