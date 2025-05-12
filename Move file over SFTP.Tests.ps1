@@ -283,14 +283,14 @@ Describe 'the mandatory parameters are' {
     }
 }
 Describe 'create an error log file when' {
-    It 'the log folder cannot be created' {
+    It 'the log folder cannot be created' {           
         $testNewInputFile = Copy-ObjectHC $testInputFile
         $testNewInputFile.Settings.SaveLogFiles.Where.Folder = 'x:\notExistingLocation'
 
-        & $realCmdLet.OutFile @testOutParams -InputObject (
-            $testNewInputFile | ConvertTo-Json -Depth 7
-        )
+        Test-NewJsonFileHC
 
+        Mock Out-File
+        
         .$testScript @testParams
 
         $LASTEXITCODE | Should -Be 1
@@ -299,6 +299,8 @@ Describe 'create an error log file when' {
     }
     Context 'the ImportFile' {
         It 'is not found' {
+            Mock Out-File
+
             $testNewParams = $testParams.clone()
             $testNewParams.ConfigurationJsonFile = 'nonExisting.json'
 
@@ -349,18 +351,16 @@ Describe 'create an error log file when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.Credential.$_ = $null
 
-                & $realCmdLet.OutFile @testOutParams -InputObject (
-                    $testNewInputFile | ConvertTo-Json -Depth 7
-                )
+                Test-NewJsonFileHC
 
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
-                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
-                    ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.Sftp.Credential.$_' not found*")
-                }
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message | 
+                Should -BeLike "*Property 'Tasks.Sftp.Credential.$_' not found*"
             }
             It 'Tasks.Option.<_> not found' -ForEach @(
                 'MatchFileNameRegex'
@@ -368,18 +368,16 @@ Describe 'create an error log file when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Option.$_ = $null
 
-                & $realCmdLet.OutFile @testOutParams -InputObject (
-                    $testNewInputFile | ConvertTo-Json -Depth 7
-                )
-
+                Test-NewJsonFileHC
+                
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
-                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
-                    ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.Option.$_' not found*")
-                }
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message | 
+                Should -BeLike "*Property 'Tasks.Option.$_' not found*"
             }
             It 'Tasks.Actions.<_> not found' -ForEach @(
                 'ComputerName', 'Paths'
@@ -387,22 +385,20 @@ Describe 'create an error log file when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Actions[0].$_ = $null
 
-                & $realCmdLet.OutFile @testOutParams -InputObject (
-                    $testNewInputFile | ConvertTo-Json -Depth 7
-                )
+                Test-NewJsonFileHC
 
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
-                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
-                    ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.Actions.$_' not found*")
-                }
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message | 
+                Should -BeLike "*Property 'Tasks.Actions.$_' not found*"
             }
         }
     }
-}
+} -Tag test
 Describe 'correct the import file' {
     Context "add trailing slashes to Paths starting with 'sftp:/'" {
         It 'Source' {
