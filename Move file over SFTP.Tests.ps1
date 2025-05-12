@@ -98,7 +98,7 @@ BeforeAll {
         }
     )
 
-    $testExportedExcelRows = @(
+    $testExportedLogFileData = @(
         [PSCustomObject]@{
             TaskName            = $testInputFile.Tasks[0].TaskName
             SourceComputer      = $testInputFile.Tasks[0].Actions[0].ComputerName
@@ -526,10 +526,10 @@ Describe 'when the SFTP script runs successfully' {
             $actual | Should -Not -BeNullOrEmpty
         }
         It 'with the correct total rows' {
-            $actual | Should -HaveCount $testExportedExcelRows.Count
+            $actual | Should -HaveCount $testExportedLogFileData.Count
         }
         It 'with the correct data in the rows' {
-            foreach ($testRow in $testExportedExcelRows) {
+            foreach ($testRow in $testExportedLogFileData) {
                 $actualRow = $actual | Where-Object {
                     $_.SourcePath -eq $testRow.SourcePath
                 }
@@ -811,7 +811,7 @@ Describe 'ReportOnly' {
                 WorksheetName = 'Overview'
                 Path          = $testParams.LogFolder + '\' + (Get-Date).ToString('yyyy-MM-dd') + ' - ' + $testParams.ScriptName + ' - ' + (Split-Path $testParams.ConfigurationJsonFile -Leaf).TrimEnd('.json') + ' - Log.xlsx'
             }
-            $testExportedExcelRows | Export-Excel @testExportParams
+            $testExportedLogFileData | Export-Excel @testExportParams
 
             $testInputFile | ConvertTo-Json -Depth 7 |
             Out-File @testOutParams
