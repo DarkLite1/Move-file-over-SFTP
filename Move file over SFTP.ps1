@@ -76,12 +76,57 @@ Begin {
             $capitalizedSentence
         }
 
-        Function Get-EnvironmentVariableValueHC {
-            Param(
+        function Get-StringValueHC {
+            <#
+        .SYNOPSIS
+            Retrieve a string from the environment variables or a regular string.
+
+        .DESCRIPTION
+            This function checks the 'Name' property. If the value starts with
+            'ENV:', it attempts to retrieve the string value from the specified
+            environment variable. Otherwise, it returns the value directly.
+
+        .PARAMETER Name
+            Either a string starting with 'ENV:'; a plain text string or NULL.
+
+        .EXAMPLE
+            Get-StringValueHC -Name 'ENV:passwordVariable'
+
+            # Output: the environment variable value of $ENV:passwordVariable
+            # or an error when the variable does not exist
+
+        .EXAMPLE
+            Get-StringValueHC -Name 'mySecretPassword'
+
+            # Output: mySecretPassword
+
+        .EXAMPLE
+            Get-StringValueHC -Name ''
+
+            # Output: NULL
+        #>
+            param (
                 [String]$Name
             )
 
-            [Environment]::GetEnvironmentVariable($Name)
+            if (-not $Name) {
+                return $null
+            }
+            elseif (
+                $Name.StartsWith('ENV:', [System.StringComparison]::OrdinalIgnoreCase)
+            ) {
+                $envVariableName = $Name.Substring(4).Trim()
+                $envStringValue = Get-Item -Path "Env:\$envVariableName" -EA Ignore
+                if ($envStringValue) {
+                    return $envStringValue.Value
+                }
+                else {
+                    throw "Environment variable '$envVariableName' not found."
+                }
+            }
+            else {
+                return $Name
+            }
         }
       
         function Test-IsValidRegexHC {
@@ -326,11 +371,18 @@ Begin {
 
         try {
             foreach ($task in $Tasks) {
+                Write-Verbose "Task '$($task.TaskName)'"
+
                 #region Get SFTP UserName
-                if (-not (
-                        $SftpUserName = Get-EnvironmentVariableValueHC -Name $task.Sftp.Credential.UserName)
-                ) {
-                    throw "Environment variable '`$ENV:$($task.Sftp.Credential.UserName)' in 'Sftp.Credential.UserName' not found on computer $ENV:COMPUTERNAME"
+                try {
+                    if (-not (
+                            $SftpUserName = Get-StringValueHC -Name $task.Sftp.Credential.UserName)
+                    ) {
+                        throw 'The value cannot be blank.'
+                    }
+                }
+                catch {
+                    throw "Failed retrieving 'Sftp.Credential.UserName': $_"
                 }
                 #endregion
 
@@ -360,11 +412,16 @@ Begin {
                         Force       = $true
                         ErrorAction = 'Stop'
                     }
-
-                    if (-not (
-                            $params.String = Get-EnvironmentVariableValueHC -Name $task.Sftp.Credential.Password)
-                    ) {
-                        throw "Environment variable '`$ENV:$($task.Sftp.Credential.Password)' in 'Sftp.Credential.Password' not found on computer $ENV:COMPUTERNAME"
+                    
+                    try {
+                        if (-not (
+                                $params.String = Get-StringValueHC -Name $task.Sftp.Credential.Password)
+                        ) {
+                            throw 'The value cannot be blank.'
+                        }    
+                    }
+                    catch {
+                        throw "Failed retrieving 'Sftp.Credential.Password': $_"
                     }
 
                     ConvertTo-SecureString @params
@@ -387,7 +444,11 @@ Begin {
 
                 #region Set SFTP port
                 if (-not $task.Sftp.Port) {
-                    $task.Sftp.Port = 22
+                    Write-Verbose "No 'Tasks.Sftp.Port' found, set default value"
+
+                    $task.Sftp | Add-Member -NotePropertyMembers @{
+                        Port = 22
+                    } -Force
                 }
                 else {
                     #region Test integer value
@@ -406,6 +467,8 @@ Begin {
                     }
                     #endregion
                 }
+
+                Write-Verbose "Sftp port '$($task.Sftp.Port)'"
                 #endregion
 
                 foreach ($action in $task.Actions) {
@@ -421,6 +484,8 @@ Begin {
                     ) {
                         $action.ComputerName = $env:COMPUTERNAME
                     }
+
+                    Write-Verbose "Action ComputerName '$($action.ComputerName)'"
                     #endregion
 
                     #region Convert Paths
@@ -1511,59 +1576,6 @@ End {
         }
         catch {
             throw "Failed to write to event log '$LogName' source '$Source': $_"
-        }
-    }
-
-    function Get-StringValueHC {
-        <#
-        .SYNOPSIS
-            Retrieve a string from the environment variables or a regular string.
-
-        .DESCRIPTION
-            This function checks the 'Name' property. If the value starts with
-            'ENV:', it attempts to retrieve the string value from the specified
-            environment variable. Otherwise, it returns the value directly.
-
-        .PARAMETER Name
-            Either a string starting with 'ENV:'; a plain text string or NULL.
-
-        .EXAMPLE
-            Get-StringValueHC -Name 'ENV:passwordVariable'
-
-            # Output: the environment variable value of $ENV:passwordVariable
-            # or an error when the variable does not exist
-
-        .EXAMPLE
-            Get-StringValueHC -Name 'mySecretPassword'
-
-            # Output: mySecretPassword
-
-        .EXAMPLE
-            Get-StringValueHC -Name ''
-
-            # Output: NULL
-        #>
-        param (
-            [String]$Name
-        )
-
-        if (-not $Name) {
-            return $null
-        }
-        elseif (
-            $Name.StartsWith('ENV:', [System.StringComparison]::OrdinalIgnoreCase)
-        ) {
-            $envVariableName = $Name.Substring(4).Trim()
-            $envStringValue = Get-Item -Path "Env:\$envVariableName" -EA Ignore
-            if ($envStringValue) {
-                return $envStringValue.Value
-            }
-            else {
-                throw "Environment variable '$envVariableName' not found."
-            }
-        }
-        else {
-            return $Name
         }
     }
 

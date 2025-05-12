@@ -2,10 +2,6 @@
 #Requires -Version 7
 
 BeforeAll {
-    # $realCmdLet = @{
-    #     OutFile = Get-Command Out-File
-    # }
-
     $testInputFile = @{
         MaxConcurrentActions = 1
         Tasks                = @(
@@ -176,22 +172,24 @@ BeforeAll {
         }
     }
 
-    Function Get-EnvironmentVariableValueHC {
+    Function Get-StringValueHC {
         Param(
             [String]$Name
         )
+
+        $Name
     }
 
     $testPsSession = New-PSSession
 
     $testSecureStringPassword = ConvertTo-SecureString -String 'pw' -AsPlainText -Force
 
-    Mock Get-EnvironmentVariableValueHC {
+    Mock Get-StringValueHC {
         'bobUserName'
     } -ParameterFilter {
         $Name -eq $testInputFile.Tasks[0].Sftp.Credential.UserName
     }
-    Mock Get-EnvironmentVariableValueHC {
+    Mock Get-StringValueHC {
         'bobPassword'
     } -ParameterFilter {
         $Name -eq $testInputFile.Tasks[0].Sftp.Credential.Password
@@ -274,7 +272,6 @@ BeforeAll {
     Mock Send-MailKitMessageHC
     Mock New-EventLog
     Mock Write-EventLog
-    # Mock Out-File
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @('ConfigurationJsonFile') {
@@ -290,7 +287,7 @@ Describe 'create an error log file when' {
         Test-NewJsonFileHC
 
         Mock Out-File
-        
+
         .$testScript @testParams
 
         $LASTEXITCODE | Should -Be 1
@@ -327,7 +324,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent[0].Message | 
                 Should -BeLike "*Property 'Tasks.$_' not found*"
-            } -Tag test
+            }
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
@@ -398,7 +395,7 @@ Describe 'create an error log file when' {
             }
         }
     }
-} -Tag test
+}
 Describe 'correct the import file' {
     Context "add trailing slashes to Paths starting with 'sftp:/'" {
         It 'Source' {
@@ -406,8 +403,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = 'sftp:/a'
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'TestDrive:\b'
 
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+            Test-NewJsonFileHC
 
             .$testScript @testParams
 
@@ -419,8 +415,7 @@ Describe 'correct the import file' {
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Source = 'TestDrive:\b'
             $testNewInputFile.Tasks[0].Actions[0].Paths[0].Destination = 'sftp:/a'
 
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+            Test-NewJsonFileHC
 
             .$testScript @testParams
 
@@ -428,7 +423,7 @@ Describe 'correct the import file' {
             $Tasks[0].Actions[0].Paths[0].Destination | Should -Be 'sftp:/a/'
         }
     }
-}
+} -Tag test
 Describe 'execute the SFTP script when' {
     BeforeAll {
         $testJobArguments = @(

@@ -37,8 +37,8 @@
       "Sftp": {
         "ComputerName": "PROCESS-NETWORK-ComputerName_or_IP_or_URL",
         "Credential": {
-          "UserName": "PROCESS-NETWORK_SFTP_USERNAME",
-          "Password": "PROCESS-NETWORK_SFTP_PASSWORD",
+          "UserName": "ENV:PROCESS-NETWORK_SFTP_USERNAME",
+          "Password": "ENV:PROCESS-NETWORK_SFTP_PASSWORD",
           "PasswordKeyFile": null
         },
         "Port": 22
