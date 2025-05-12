@@ -162,6 +162,20 @@ BeforeAll {
         }
     }
 
+    function Test-NewJsonFileHC {
+        try {
+            if (-not $testNewInputFile) {
+                throw "Variable '$testNewInputFile' cannot be blank"
+            }
+
+            $testNewInputFile | ConvertTo-Json -Depth 7 | 
+            Out-File @testOutParams
+        }
+        catch {
+            throw "Failure in Test-NewJsonFileHC: $_"
+        }
+    }
+
     Function Get-EnvironmentVariableValueHC {
         Param(
             [String]$Name
@@ -301,27 +315,24 @@ Describe 'create an error log file when' {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].$_ = $null
 
-                & $realCmdLet.OutFile @testOutParams -InputObject (
-                    $testNewInputFile | ConvertTo-Json -Depth 7
-                )
+                Test-NewJsonFileHC
 
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
-                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
-                    ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.$_' not found*")
-                }
-            }
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message | 
+                Should -BeLike "*Property 'Tasks.$_' not found*"
+            } -Tag test
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.$_ = $null
 
-                $testNewInputFile | ConvertTo-Json -Depth 7 | 
-                Out-File @testOutParams
+                Test-NewJsonFileHC
 
                 .$testScript @testParams
 
@@ -331,7 +342,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent[0].Message | 
                 Should -BeLike "*Property 'Tasks.Sftp.$_' not found*"
-            } -Tag test
+            }
             It 'Tasks.Sftp.Credential.<_> not found' -ForEach @(
                 'UserName'
             ) {
