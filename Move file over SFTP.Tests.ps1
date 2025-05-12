@@ -2,9 +2,9 @@
 #Requires -Version 7
 
 BeforeAll {
-    $realCmdLet = @{
-        OutFile = Get-Command Out-File
-    }
+    # $realCmdLet = @{
+    #     OutFile = Get-Command Out-File
+    # }
 
     $testInputFile = @{
         MaxConcurrentActions = 1
@@ -68,7 +68,7 @@ BeforeAll {
                 }
                 Where               = @{
                     Folder         = (New-Item 'TestDrive:/log' -ItemType Directory).FullName
-                    FileExtensions = @('.json', '.csv')
+                    FileExtensions = @('.json')
                 }
                 deleteLogsAfterDays = 1
             }
@@ -133,7 +133,6 @@ BeforeAll {
 
     $testOutParams = @{
         FilePath = (New-Item 'TestDrive:/Test.json' -ItemType File).FullName
-        Encoding = 'utf8'
     }
 
     $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
@@ -242,7 +241,7 @@ BeforeAll {
     Mock Send-MailKitMessageHC
     Mock New-EventLog
     Mock Write-EventLog
-    Mock Out-File
+    # Mock Out-File
 }
 Describe 'the mandatory parameters are' {
     It '<_>' -ForEach @('ConfigurationJsonFile') {
@@ -299,22 +298,44 @@ Describe 'create an error log file when' {
             It 'Tasks.Sftp.<_> not found' -ForEach @(
                 'ComputerName', 'Credential'
             ) {
+                function Test-GetLogFileDataHC {
+                    Param (
+                        [String]$FileNameRegex = '* - Errors.json',
+                        [String]$LogFolderPath = $testInputFile.Settings.SaveLogFiles.Where.Folder
+                    )
+
+                    $testLogFile = Get-ChildItem -Path $LogFolderPath -File -Filter $FileNameRegex
+
+                    if ($testLogFile.count -eq 1) {
+                        Get-Content $testLogFile | ConvertFrom-Json
+                    }
+                    elseif (-not $testLogFile) {
+                        throw "No log file found in folder '$LogFolderPath' matching '$FileNameRegex'"
+                    } else {
+                        throw "Found multiple log files in folder '$LogFolderPath' matching '$FileNameRegex'"
+                    }
+                }
+
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Sftp.$_ = $null
 
-                & $realCmdLet.OutFile @testOutParams -InputObject (
-                    $testNewInputFile | ConvertTo-Json -Depth 7
-                )
+                $testNewInputFile | ConvertTo-Json -Depth 7 | 
+                Out-File @testOutParams
 
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
-                Should -Invoke Out-File -Times 1 -Exactly -ParameterFilter {
-                    ($LiteralPath -like '* - Errors.json') -and
-                    ($InputObject -like "*Property 'Tasks.Sftp.$_' not found*")
-                }
-            }
+                # $testLogFile = Get-ChildItem -Path $testNewInputFile.Settings.SaveLogFiles.Where.Folder -File -Filter '* - Errors.json'
+
+                # $testLogFileContent = Get-Content $testLogFile | 
+                # ConvertFrom-Json
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message | 
+                Should -BeLike "*Property 'Tasks.Sftp.$_' not found*"
+            } -Tag test
             It 'Tasks.Sftp.Credential.<_> not found' -ForEach @(
                 'UserName'
             ) {
@@ -371,7 +392,7 @@ Describe 'create an error log file when' {
                     ($LiteralPath -like '* - Errors.json') -and
                     ($InputObject -like "*Property 'Tasks.Actions.$_' not found*")
                 }
-            }  -Tag test
+            }
         }
     }
 }
