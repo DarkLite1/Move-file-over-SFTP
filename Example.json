@@ -2,12 +2,12 @@
   "MaxConcurrentActions": 5,
   "Tasks": [
     {
-      "TaskName": "Step 1: Simple example - Application x",
+      "TaskName": "Step 1",
       "Sftp": {
-        "ComputerName": "ftp.application-x.be",
+        "ComputerName": "sftp.xxx.be",
         "Credential": {
-          "UserName": "APP_X_SFTP_USERNAME",
-          "Password": "APP_X_SFTP_PASSWORD",
+          "UserName": "AppSftpUserName",
+          "Password": "AppSftpPassword",
           "PasswordKeyFile": null
         },
         "Port": 22
@@ -18,7 +18,7 @@
       },
       "Actions": [
         {
-          "ComputerName": null,
+          "ComputerName": "localhost",
           "Paths": [
             {
               "Source": "\\SERVER\\C$\\Date_From_App_2_SFTP",
@@ -33,12 +33,12 @@
       ]
     },
     {
-      "TaskName": "Step 2: From process network to DMZ",
+      "TaskName": "Step 2",
       "Sftp": {
-        "ComputerName": "PROCESS-NETWORK-ComputerName_or_IP_or_URL",
+        "ComputerName": "10.10.1.55",
         "Credential": {
-          "UserName": "ENV:PROCESS-NETWORK_SFTP_USERNAME",
-          "Password": "ENV:PROCESS-NETWORK_SFTP_PASSWORD",
+          "UserName": "ENV:SFTP_USERNAME_ENVIRONMENT_VARIABLE",
+          "Password": "ENV:SFTP_PASSWORD_ENVIRONMENT_VARIABLE",
           "PasswordKeyFile": null
         },
         "Port": 22
@@ -49,7 +49,7 @@
       },
       "Actions": [
         {
-          "ComputerName": "DMZ_ComputerName",
+          "ComputerName": "SERVER1",
           "Paths": [
             {
               "Source": "sftp:/device1_2_application/",

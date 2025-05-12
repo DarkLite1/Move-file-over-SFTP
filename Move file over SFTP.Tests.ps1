@@ -395,7 +395,7 @@ Describe 'create an error log file when' {
             }
         }
     }
-}
+} -Tag test
 Describe 'correct the import file' {
     Context "add trailing slashes to Paths starting with 'sftp:/'" {
         It 'Source' {
@@ -423,7 +423,7 @@ Describe 'correct the import file' {
             $Tasks[0].Actions[0].Paths[0].Destination | Should -Be 'sftp:/a/'
         }
     }
-} -Tag test
+}
 Describe 'execute the SFTP script when' {
     BeforeAll {
         $testJobArguments = @(
