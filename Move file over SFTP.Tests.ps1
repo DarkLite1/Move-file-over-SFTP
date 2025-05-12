@@ -510,7 +510,7 @@ Describe 'execute the SFTP script when' {
             }
         }
     }
-} -Tag test
+}
 Describe 'when the SFTP script runs successfully' {
     BeforeAll {
         $testInputFile | ConvertTo-Json -Depth 7 |
@@ -518,14 +518,12 @@ Describe 'when the SFTP script runs successfully' {
 
         .$testScript @testParams
     }
-    Context 'create an Excel file' {
+    Context 'create a log file' {
         BeforeAll {
-            $testExcelLogFile = Get-ChildItem $testParams.LogFolder -File -Recurse -Filter "* - $((Split-Path $testOutParams.FilePath -Leaf).TrimEnd('.json')) - Log.xlsx"
-
-            $actual = Import-Excel -Path $testExcelLogFile.FullName -WorksheetName 'Overview'
+            $actual = Test-GetLogFileDataHC -FileNameRegex '* - Actions.json'
         }
         It 'in the log folder' {
-            $testExcelLogFile | Should -Not -BeNullOrEmpty
+            $actual | Should -Not -BeNullOrEmpty
         }
         It 'with the correct total rows' {
             $actual | Should -HaveCount $testExportedExcelRows.Count
@@ -550,7 +548,7 @@ Describe 'when the SFTP script runs successfully' {
                 Should -Be ($testRow.Errors -join ', ')
             }
         }
-    }
+    } -Tag test
     Context 'send an e-mail' {
         It 'with attachment to the user' {
             Should -Invoke Send-MailHC -Exactly 1 -Scope Describe -ParameterFilter {
