@@ -395,7 +395,7 @@ Describe 'create an error log file when' {
             }
         }
     }
-} -Tag test
+}
 Describe 'correct the import file' {
     Context "add trailing slashes to Paths starting with 'sftp:/'" {
         It 'Source' {
@@ -448,8 +448,7 @@ Describe 'execute the SFTP script when' {
     }
     Context 'Tasks.Actions.ComputerName is not the localhost' {
         BeforeAll {
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+            Test-NewJsonFileHC
 
             .$testScript @testParams
         }
@@ -475,8 +474,7 @@ Describe 'execute the SFTP script when' {
         BeforeAll {
             $testNewInputFile.Tasks[0].Actions[0].ComputerName = 'localhost'
 
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+            Test-NewJsonFileHC
 
             .$testScript @testParams
         }
@@ -502,8 +500,7 @@ Describe 'execute the SFTP script when' {
             $testNewInputFile.Tasks[0].Sftp.Credential.Password = $null
             $testNewInputFile.Tasks[0].Sftp.Credential.PasswordKeyFile = 'TestDrive:\key.txt'
 
-            $testNewInputFile | ConvertTo-Json -Depth 7 |
-            Out-File @testOutParams
+            Test-NewJsonFileHC
 
             .$testScript @testParams
         }
@@ -513,7 +510,7 @@ Describe 'execute the SFTP script when' {
             }
         }
     }
-}
+} -Tag test
 Describe 'when the SFTP script runs successfully' {
     BeforeAll {
         $testInputFile | ConvertTo-Json -Depth 7 |
