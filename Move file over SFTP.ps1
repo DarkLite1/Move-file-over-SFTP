@@ -544,7 +544,10 @@ Process {
     if ($systemErrors) { return }
 
     Try {
-        if (-not $ReportOnly) {
+        if ($ReportOnly) {
+            Write-Verbose 'Only report results of the current day'  
+        }
+        else {
             $scriptBlock = {
                 try {
                     $action = $_
@@ -757,9 +760,6 @@ Process {
 
             Write-Verbose 'All tasks finished'
             #endregion
-        }
-        else {
-            Write-Verbose 'Only report results of the current day'
         }
     }
     Catch {
