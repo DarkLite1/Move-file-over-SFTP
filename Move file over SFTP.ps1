@@ -557,6 +557,7 @@ Process {
                         $scriptPathItem = $using:scriptPathItem
                         $PSSessionConfiguration = $using:PSSessionConfiguration
                         $EventVerboseParams = $using:EventVerboseParams
+                        $eventLogData = $using:eventLogData
                     }
                     #endregion
 
@@ -664,8 +665,16 @@ Process {
                         $action.Job.Results.Count,
                         $(if ($action.Job.Results.Count -ne 1) { 's' })
 
+                        $eventLogData.Add(
+                            [PSCustomObject]@{
+                                Message   = $M
+                                DateTime  = Get-Date
+                                EntryType = 'Information'
+                                EventID   = '2'
+                            }
+                        )
+                        
                         Write-Verbose $M
-                        Write-EventLog @EventVerboseParams -Message $M
                     }
                     #endregion
                 }
@@ -2019,8 +2028,8 @@ End {
                 #region Get temp moved files too
                 $jobResultPaths = $action.Job.Results.Where(
                     {
-                                ($actionPaths.Source -notcontains $_.Source) -or
-                                ($actionPaths.Destination -notcontains $_.Destination)
+                        ($actionPaths.Source -notcontains $_.Source) -or
+                        ($actionPaths.Destination -notcontains $_.Destination)
                     }
                 )
         
