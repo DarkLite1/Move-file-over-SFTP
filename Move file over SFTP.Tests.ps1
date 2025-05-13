@@ -589,8 +589,6 @@ Describe 'ReportOnly' {
             Should -Not -Invoke Invoke-Command
         }
         It 'send an e-mail' {
-            Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Context
-
             Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Context -ParameterFilter {
                 ($From -eq 'm@example.com') -and
                 ($To -eq '007@example.com') -and
@@ -605,14 +603,17 @@ Describe 'ReportOnly' {
                 ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
-    } -Tag test
+    }
     Context 'when a previously exported log file is found' {
         BeforeAll {
+            # C:\Users\bgijbels\AppData\Local\Temp\2\4b5a081d-4b3a-415c-b573-aa4f39b3ca2e\log\2025_05_13 - Test (Brecht) (Test) - Actions.json
+
             $testExportParams = @{
-                WorksheetName = 'Overview'
-                Path          = $testParams.LogFolder + '\' + (Get-Date).ToString('yyyy-MM-dd') + ' - ' + $testParams.ScriptName + ' - ' + (Split-Path $testParams.ConfigurationJsonFile -Leaf).TrimEnd('.json') + ' - Log.xlsx'
+                FilePath = $testInputFile.Settings.SaveLogFiles.Where.Folder + '\{0} - Test (Brecht) (Test) - Actions.json' -f (Get-Date).ToString('yyyy_MM_dd')
             }
-            $testExportedLogFileData | Export-Excel @testExportParams
+
+            $testExportedLogFileData | ConvertTo-Json -Depth 7 | 
+            Out-File @testExportParams
 
             $testInputFile | ConvertTo-Json -Depth 7 |
             Out-File @testOutParams
@@ -624,13 +625,19 @@ Describe 'ReportOnly' {
             Should -Not -Invoke Invoke-Command
         }
         It 'send an e-mail' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-            ($To -eq $testInputFile.SendMail.To) -and
-            ($Attachments -eq $testExportParams.Path) -and
-            ($Priority -eq 'Normal') -and
-            ($Subject -eq '2 moved') -and
-            ($Message -like "*Summary of all SFTP actions <b>executed today</b>*table*$($testInputFile.Tasks[0].TaskName)*$($testInputFile.Tasks[0].Sftp.ComputerName)*Source*Destination*Result*$($testInputFile.Tasks[0].Actions[0].Paths[0].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[0].Destination)*1 moved*$($testInputFile.Tasks[0].Actions[0].Paths[1].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[1].Destination)*1 moved*2 moved on $($testInputFile.Tasks[0].Actions[0].ComputerName)*")
+            Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Context -ParameterFilter {
+                ($From -eq 'm@example.com') -and
+                ($To -eq '007@example.com') -and
+                ($SmtpPort -eq 25) -and
+                ($SmtpServerName -eq 'SMTP_SERVER') -and
+                ($SmtpConnectionType -eq 'StartTls') -and
+                ($Subject -eq '2 moved, Email subject') -and
+                ($Credential) -and
+                (-not $Attachments) -and
+                ($Body -like "*Email body*<p>Summary of all SFTP actions <b>executed today</b>:</p>*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
+                ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
+                ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
-    }
+    } -Tag test
 }
