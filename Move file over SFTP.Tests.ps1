@@ -568,11 +568,10 @@ Describe 'when the SFTP script runs successfully' {
     }
 }
 Describe 'ReportOnly' {
-    BeforeAll {
-    }
-    Context 'when no previously exported Excel file is found' {
+    Context 'when no previously exported log file is found' {
         BeforeAll {
-            Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
+            $testInputFile.Settings.SaveLogFiles.Where.Folder | 
+            Get-ChildItem -Recurse -File -Filter '*.json' |
             Should -BeNullOrEmpty
 
             $testInputFile | ConvertTo-Json -Depth 7 |
@@ -580,8 +579,9 @@ Describe 'ReportOnly' {
 
             .$testScript @testParams -ReportOnly
         }
-        It 'no not create an Excel file' {
-            Get-ChildItem $testParams.LogFolder -Recurse -Filter '*.xlsx' |
+        It 'no not create a log file' {
+            $testInputFile.Settings.SaveLogFiles.Where.Folder | 
+            Get-ChildItem -Recurse -File -Filter '*.json' |
             Should -BeNullOrEmpty
         }
         It 'do not call the SFTP script' {
@@ -589,18 +589,24 @@ Describe 'ReportOnly' {
             Should -Not -Invoke Invoke-Command
         }
         It 'send an e-mail' {
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context
+            Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Context
 
-            Should -Invoke Send-MailHC -Exactly 1 -Scope Context -ParameterFilter {
-                ($To -eq $testInputFile.SendMail.To) -and
-                ($Priority -eq 'Normal') -and
-                ($Subject -eq '0 moved') -and
+            Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Context -ParameterFilter {
+                ($From -eq 'm@example.com') -and
+                ($To -eq '007@example.com') -and
+                ($SmtpPort -eq 25) -and
+                ($SmtpServerName -eq 'SMTP_SERVER') -and
+                ($SmtpConnectionType -eq 'StartTls') -and
+                ($Subject -eq '0 moved, Email subject') -and
+                ($Credential) -and
                 (-not $Attachments) -and
-                ($Message -like "*Summary of all SFTP actions <b>executed today</b>*table*$($testInputFile.Tasks[0].TaskName)*$($testInputFile.Tasks[0].Sftp.ComputerName)*Source*Destination*Result*$($testInputFile.Tasks[0].Actions[0].Paths[0].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[0].Destination)*0 moved*$($testInputFile.Tasks[0].Actions[0].Paths[1].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[1].Destination)*0 moved*0 moved on $($testInputFile.Tasks[0].Actions[0].ComputerName)*")
+                ($Body -like "*Email body*<p>Summary of all SFTP actions <b>executed today</b>:</p>*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*0 moved*sftp:/folder/b/*\b*0 moved*<th>0 moved on PC1</th>*") -and
+                ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
+                ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
-    }
-    Context 'when a previously exported Excel file is found' {
+    } -Tag test
+    Context 'when a previously exported log file is found' {
         BeforeAll {
             $testExportParams = @{
                 WorksheetName = 'Overview'
@@ -627,4 +633,4 @@ Describe 'ReportOnly' {
             }
         }
     }
-} -Tag test
+}
