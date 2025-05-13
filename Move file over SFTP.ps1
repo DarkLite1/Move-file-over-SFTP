@@ -587,6 +587,17 @@ Process {
                     $invokeParams.ArgumentList[4],
                     $invokeParams.ArgumentList[5],
                     $invokeParams.ArgumentList[7]
+
+                    Write-Verbose $M
+
+                    $eventLogData.Add(
+                        [PSCustomObject]@{
+                            Message   = $M
+                            DateTime  = Get-Date
+                            EntryType = 'Information'
+                            EventID   = '2'
+                        }
+                    )
                     #endregion
 
                     #region Start job
@@ -595,9 +606,6 @@ Process {
                     $action.Job.Results += if (
                         $computerName -eq $ENV:COMPUTERNAME
                     ) {
-                        Write-Verbose $M
-                        # Write-EventLog @EventVerboseParams -Message $M
-
                         $params = $invokeParams.ArgumentList
                         & $invokeParams.FilePath @params
                     }
@@ -627,9 +635,6 @@ Process {
                         $AttemptCount = $null
                         $WaitSecondsBetweenAttempts = $null
 
-                        Write-Verbose $M
-                        # Write-EventLog @EventVerboseParams -Message $M
-
                         $invokeParams += @{
                             Session     = $psSession
                             ErrorAction = 'Stop'
@@ -648,34 +653,32 @@ Process {
                     }
                     #endregion
 
-                    #region Get job results
-                    if ($action.Job.Results.Count -ne 0) {
-                        $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}': {7} object{8}" -f
-                        $task.TaskName,
-                        $action.ComputerName,
-                        $invokeParams.ArgumentList[0],
-                        $(
-                            $invokeParams.ArgumentList[2].foreach(
-                                { "Source '$($_.Source)' Destination '$($_.Destination)'" }
-                            ) -join ', '
-                        ),
-                        $invokeParams.ArgumentList[3],
-                        $invokeParams.ArgumentList[5],
-                        $invokeParams.ArgumentList[7],
-                        $action.Job.Results.Count,
-                        $(if ($action.Job.Results.Count -ne 1) { 's' })
+                    #region Verbose job results
+                    $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}': {7} object{8}" -f
+                    $task.TaskName,
+                    $action.ComputerName,
+                    $invokeParams.ArgumentList[0],
+                    $(
+                        $invokeParams.ArgumentList[2].foreach(
+                            { "Source '$($_.Source)' Destination '$($_.Destination)'" }
+                        ) -join ', '
+                    ),
+                    $invokeParams.ArgumentList[3],
+                    $invokeParams.ArgumentList[5],
+                    $invokeParams.ArgumentList[7],
+                    $action.Job.Results.Count,
+                    $(if ($action.Job.Results.Count -ne 1) { 's' })
 
-                        $eventLogData.Add(
-                            [PSCustomObject]@{
-                                Message   = $M
-                                DateTime  = Get-Date
-                                EntryType = 'Information'
-                                EventID   = '2'
-                            }
-                        )
-                        
-                        Write-Verbose $M
-                    }
+                    $eventLogData.Add(
+                        [PSCustomObject]@{
+                            Message   = $M
+                            DateTime  = Get-Date
+                            EntryType = 'Information'
+                            EventID   = '2'
+                        }
+                    )
+
+                    Write-Verbose $M
                     #endregion
                 }
                 catch {
