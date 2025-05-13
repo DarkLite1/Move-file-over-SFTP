@@ -1874,7 +1874,7 @@ End {
         #endregion
 
         #region Get previous log file data
-        if ($ReportOnly -or $logFileData) {
+        if ($ReportOnly) {
             $params = @{
                 PartialPath    = "$baseLogName - Actions"
                 FileExtensions = $logFileExtensions

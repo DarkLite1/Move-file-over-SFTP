@@ -552,11 +552,17 @@ Describe 'when the SFTP script runs successfully' {
     Context 'send an e-mail' {
         It 'with attachment to the user' {
             Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Describe -ParameterFilter {
+            ($From -eq 'm@example.com') -and
             ($To -eq '007@example.com') -and
-            ($Priority -eq 'Normal') -and
-            ($Subject -eq '2 moved') -and
-            ($Attachments -like '*- Log.xlsx') -and
-            ($Body -like "*Summary of SFTP actions*table*$($testInputFile.Tasks[0].TaskName)*$($testInputFile.Tasks[0].Sftp.ComputerName)*Source*Destination*Result*$($testInputFile.Tasks[0].Actions[0].Paths[0].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[0].Destination)*1 moved*$($testInputFile.Tasks[0].Actions[0].Paths[1].Source)*$($testInputFile.Tasks[0].Actions[0].Paths[1].Destination)*1 moved*2 moved on $($testInputFile.Tasks[0].Actions[0].ComputerName)*")
+            ($SmtpPort -eq 25) -and
+            ($SmtpServerName -eq 'SMTP_SERVER') -and
+            ($SmtpConnectionType -eq 'StartTls') -and
+            ($Subject -eq '2 moved, Email subject') -and
+            ($Credential) -and
+            ($Attachments -like '*- Actions.json') -and
+            ($Body -like "*Email body*Summary of SFTP actions*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
+            ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
+            ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
     }
