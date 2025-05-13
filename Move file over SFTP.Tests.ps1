@@ -606,8 +606,6 @@ Describe 'ReportOnly' {
     }
     Context 'when a previously exported log file is found' {
         BeforeAll {
-            # C:\Users\bgijbels\AppData\Local\Temp\2\4b5a081d-4b3a-415c-b573-aa4f39b3ca2e\log\2025_05_13 - Test (Brecht) (Test) - Actions.json
-
             $testExportParams = @{
                 FilePath = $testInputFile.Settings.SaveLogFiles.Where.Folder + '\{0} - Test (Brecht) (Test) - Actions.json' -f (Get-Date).ToString('yyyy_MM_dd')
             }
