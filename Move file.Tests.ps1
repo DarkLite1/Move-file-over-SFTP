@@ -22,6 +22,7 @@ BeforeAll {
             }
         )
         MaxConcurrentActions = 1
+        SftpPort             = 22
         MatchFileNameRegex   = '.*'
         OverwriteFile        = $false
     }

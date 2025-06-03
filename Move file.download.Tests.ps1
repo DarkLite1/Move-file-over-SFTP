@@ -16,6 +16,7 @@ BeforeAll {
             Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
         }
         MaxConcurrentActions       = 1
+        SftpPort                   = 22
         MatchFileNameRegex         = '.*'
         OverwriteFile              = $false
         AttemptCount               = 1

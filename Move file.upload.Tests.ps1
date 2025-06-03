@@ -16,6 +16,7 @@ BeforeAll {
             Destination = 'sftp:/report/'
         }
         MaxConcurrentActions       = 1
+        SftpPort                   = 22
         MatchFileNameRegex         = '.*'
         OverwriteFile              = $false
         AttemptCount               = 1
