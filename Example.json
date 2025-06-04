@@ -97,7 +97,7 @@
   ],
   "PSSessionConfiguration": "PowerShell.7",
   "Settings": {
-    "ScriptName": "Copy or move file",
+    "ScriptName": "Move file over SFTP",
     "SendMail": {
       "When": "OnError",
       "From": "ENV:SCRIPT_ADMIN_EMAIL_ADDRESS",
