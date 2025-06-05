@@ -185,7 +185,7 @@
           "Password": "(Optional) The password for authenticating with the SMTP server. If undefined or NULL, no authentication is attempted. Supports environment variables (e.g., 'ENV:SMTP_PASSWORD')."
         },
         "AssemblyPath": {
-          "?": "To use email functionality, install the following packages: 'Install-Package -Name 'MailKit' Source 'https://www.nuget.org/api/v2' Scope 'AllUsers' -SkipDependencies' - 'Install-Package -Name 'MimeKit' Source 'https://www.nuget.org/api/v2' Scope 'AllUsers' -SkipDependencies'",
+          "?": "To use email functionality, install the following packages: 'Install-Package -Name 'MailKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies' and 'Install-Package -Name 'MimeKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies'",
           "MailKit": "(Mandatory) Path to the MailKit.dll assembly. Supports environment variables (e.g., 'ENV:MAILKIT_ASSEMBLY').",
           "MimeKit": "(Mandatory) Path to the MimeKit.dll assembly. Supports environment variables (e.g., 'ENV:MIMEKIT_ASSEMBLY')."
         }
