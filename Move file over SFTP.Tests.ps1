@@ -377,7 +377,7 @@ Describe 'create an error log file when' {
                 Should -BeLike "*Property 'Tasks.Option.$_' not found*"
             }
             It 'Tasks.Actions.<_> not found' -ForEach @(
-                'ComputerName', 'Paths'
+                'Paths'
             ) {
                 $testNewInputFile = Copy-ObjectHC $testInputFile
                 $testNewInputFile.Tasks[0].Actions[0].$_ = $null

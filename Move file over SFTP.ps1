@@ -288,7 +288,7 @@ Begin {
                 #endregion
 
                 foreach ($action in $task.Actions) {
-                    @('ComputerName', 'Paths').where(
+                    @('Paths').where(
                         { -not $action.$_ }
                     ).foreach(
                         { throw "Property 'Tasks.Actions.$_' not found" }

@@ -18,7 +18,7 @@
       },
       "Actions": [
         {
-          "ComputerName": "localhost",
+          "ComputerName": null,
           "Paths": [
             {
               "Source": "\\SERVER\\C$\\Date_From_App_2_SFTP",
@@ -155,7 +155,7 @@
         },
         "Actions": [
           {
-            "ComputerName": "(Mandatory) The name of the computer where the SFTP commands will be run. Ensure the 'Posh-SSH' PowerShell module is installed on this machine. Possible values: 'SERVER1' - A remote server name; 'localhost' - The local system.",
+            "ComputerName": "(Optional) The name of the computer where the SFTP commands will be run. Ensure the 'Posh-SSH' PowerShell module is installed on this machine. Possible values: 'SERVER1' - A remote server name; 'localhost' or NULL - The local system.",
             "Paths": [
               {
                 "Source": "(Mandatory) The path to the source folder. Possible values: 'sftp:\\path' - A string that starts with 'sftp:\\' representing a folder on the SFTP server defined in 'Sftp.ComputerName'; 'c:\\path' - A string representing a folder on the file system in 'Actions.ComputerName'.",
