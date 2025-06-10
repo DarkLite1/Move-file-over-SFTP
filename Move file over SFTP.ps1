@@ -1998,8 +1998,17 @@ End {
                     ).foreach(
                         {
                             $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Errors -join ',')"
+                            
                             Write-Warning $M
-                            Write-EventLog @EventErrorParams -Message $M
+                            
+                            $eventLogData.Add(
+                                [PSCustomObject]@{
+                                    Message   = $M
+                                    DateTime  = Get-Date
+                                    EntryType = 'Error'
+                                    EventID   = '2'
+                                }
+                            )
                         }
                     )
                 }
@@ -2020,8 +2029,17 @@ End {
                             }
                         )
                     )
+
                     Write-Warning $M
-                    Write-EventLog @EventErrorParams -Message $M
+                    
+                    $eventLogData.Add(
+                        [PSCustomObject]@{
+                            Message   = $M
+                            DateTime  = Get-Date
+                            EntryType = 'Error'
+                            EventID   = '2'
+                        }
+                    )
                 }
                 #endregion
         
