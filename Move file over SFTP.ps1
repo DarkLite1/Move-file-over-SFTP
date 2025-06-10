@@ -559,7 +559,6 @@ Process {
                         $MaxConcurrentActions = $using:MaxConcurrentActions
                         $scriptPathItem = $using:scriptPathItem
                         $PSSessionConfiguration = $using:PSSessionConfiguration
-                        $EventVerboseParams = $using:EventVerboseParams
                         $eventLogData = $using:eventLogData
                     }
                     #endregion
