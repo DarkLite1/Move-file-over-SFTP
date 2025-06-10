@@ -1994,10 +1994,10 @@ End {
                 #region Log errors
                 if ($counter.Action.Errors) {
                     $action.Job.Results.Where(
-                        { $_.Error }
+                        { $_.Errors }
                     ).foreach(
                         {
-                            $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Error)"
+                            $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Errors -join ',')"
                             Write-Warning $M
                             Write-EventLog @EventErrorParams -Message $M
                         }
