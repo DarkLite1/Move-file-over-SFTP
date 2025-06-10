@@ -2367,7 +2367,7 @@ End {
                 }
                 #endregion
 
-                Write-Verbose "Send email to '$($mailParams.To)' subject '$($mailParams.Subject)'"
+                # Write-Verbose "Send email to '$($mailParams.To)' subject '$($mailParams.Subject)'"
 
                 Send-MailKitMessageHC @mailParams
             }
