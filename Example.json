@@ -126,7 +126,7 @@
       },
       "Where": {
         "Folder": "..\\Logs",
-        "MatchFileNameRegex": [".csv", ".json", ".txt", ".xlsx"]
+        "FileExtensions": [".csv", ".json", ".txt", ".xlsx"]
       },
       "DeleteLogsAfterDays": 30
     },
