@@ -972,7 +972,8 @@ End {
             }
         }
 
-        $fullPath
+        (Resolve-Path $fullPath).Path
+        # $fullPath
     }
 
     function Get-LogFileDataHC {
@@ -1204,9 +1205,6 @@ End {
 
                 $attachmentList = New-Object System.Collections.ArrayList($null)
 
-                $tempFolder = "$env:TEMP\Send-MailKitMessageHC {0}" -f (Get-Random)
-                $totalSizeAttachments = 0
-
                 foreach (
                     $attachmentPath in
                     $Attachments | Sort-Object -Unique
@@ -1228,28 +1226,8 @@ End {
                         #endregion
 
                         $totalSizeAttachments += $attachmentItem.Length
-
-                        if ($attachmentItem.Extension -eq '.xlsx') {
-                            #region Copy Excel file, open file cannot be sent
-                            if (-not(Test-Path $tempFolder)) {
-                                $null = New-Item $tempFolder -ItemType 'Directory'
-                            }
-
-                            $params = @{
-                                LiteralPath = $attachmentItem.FullName
-                                Destination = $tempFolder
-                                PassThru    = $true
-                                ErrorAction = 'Stop'
-                            }
-
-                            $copiedItem = Copy-Item @params
-
-                            $null = $attachmentList.Add($copiedItem)
-                            #endregion
-                        }
-                        else {
-                            $null = $attachmentList.Add($attachmentItem)
-                        }
+            
+                        $null = $attachmentList.Add($attachmentItem)
 
                         #region Check size of attachments
                         if ($totalSizeAttachments -ge $MaxAttachmentSize) {
@@ -1279,9 +1257,23 @@ End {
 
                         $attachment = New-Object MimeKit.MimePart
 
-                        $attachment.Content = New-Object MimeKit.MimeContent(
-                            [System.IO.File]::OpenRead($attachmentItem.FullName)
-                        )
+                        #region Create a MemoryStream to hold the file content
+                        $memoryStream = New-Object System.IO.MemoryStream
+
+                        try {
+                            $fileStream = [System.IO.File]::OpenRead($attachmentItem.FullName)
+                            $fileStream.CopyTo($memoryStream)
+                        }
+                        finally {
+                            if ($fileStream) {
+                                $fileStream.Dispose()
+                            }
+                        }
+
+                        $memoryStream.Position = 0
+                        #endregion
+
+                        $attachment.Content = New-Object MimeKit.MimeContent($memoryStream)
 
                         $attachment.ContentDisposition = New-Object MimeKit.ContentDisposition
 
@@ -1438,11 +1430,18 @@ End {
                 Write-Verbose "Send mail to '$To' with subject '$Subject'"
 
                 $null = $smtp.Send($message)
-                $smtp.Disconnect($true)
-                $smtp.Dispose()
             }
             catch {
                 throw "Failed to send email to '$To': $_"
+            }
+            finally {
+                if ($smtp) {
+                    $smtp.Disconnect($true)
+                    $smtp.Dispose()
+                }
+                if ($message) {
+                    $message.Dispose()
+                }
             }
         }
     }
