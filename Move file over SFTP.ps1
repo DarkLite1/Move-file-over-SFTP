@@ -76,6 +76,27 @@ Begin {
             $capitalizedSentence
         }
 
+        function Get-ComputerNameHC {
+            Param (
+                [String]$ComputerName
+            )
+
+            if ($ComputerName) {
+                $ComputerName = $ComputerName.Trim().ToUpper()
+            }
+
+            if (
+                (-not $ComputerName) -or
+                ($ComputerName -eq 'localhost') -or
+                ($ComputerName -eq "$ENV:COMPUTERNAME.$env:USERDNSDOMAIN")
+            ) {
+                $env:COMPUTERNAME
+            }
+            else {
+                $ComputerName
+            }
+        }
+
         function Get-StringValueHC {
             <#
         .SYNOPSIS
@@ -482,19 +503,15 @@ Begin {
                 Write-Verbose "Sftp port '$($task.Sftp.Port)'"
                 #endregion
 
+                #region Set SFTP ComputerName
+                $task.Sftp.ComputerName = Get-ComputerNameHC $task.Sftp.ComputerName
+
+                Write-Verbose "Action ComputerName '$($action.ComputerName)'"
+                #endregion
+
                 foreach ($action in $task.Actions) {
                     #region Set ComputerName
-                    if ($action.ComputerName) {
-                        $action.ComputerName = $action.ComputerName.Trim().ToUpper()
-                    }
-
-                    if (
-                        (-not $action.ComputerName) -or
-                        ($action.ComputerName -eq 'localhost') -or
-                        ($action.ComputerName -eq "$ENV:COMPUTERNAME.$env:USERDNSDOMAIN")
-                    ) {
-                        $action.ComputerName = $env:COMPUTERNAME
-                    }
+                    $action.ComputerName = Get-ComputerNameHC $action.ComputerName
 
                     Write-Verbose "Action ComputerName '$($action.ComputerName)'"
                     #endregion
