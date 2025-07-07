@@ -360,7 +360,7 @@ try {
                 }
             }
             catch {
-                $M = "Failed creating an SFTP session to '$SftpComputerName': $_"
+                $M = "Failed creating an SFTP session from '$ENV:COMPUTERNAME' to '$SftpComputerName' over port '$SftpPort': $_"
                 $Error.RemoveAt(0)
                 throw $M
             }

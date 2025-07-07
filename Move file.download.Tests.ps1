@@ -165,7 +165,7 @@ Describe 'Create an object with Error property when' {
             $testResult = .$testScript @testParams
         }
         It 'an error object is created' {
-            $testResult.Errors | Should -Be "Failed creating an SFTP session to 'PC1': Failed authenticating"
+            $testResult.Errors | Should -Be "Failed creating an SFTP session from '$ENV:COMPUTERNAME' to 'PC1' over port '22': Failed authenticating"
 
             $testResult.Actions | Should -BeNullOrEmpty
             $testResult.FileName | Should -BeNullOrEmpty
