@@ -66,10 +66,10 @@ This script facilitates automated file transfers between a local file system and
 
 ## Requirements
 
+* A configured SFTP server.
 * PowerShell 7 or newer.
 * [Posh-SSH](https://github.com/darkoperator/Posh-SSH) module (`Install-Module -Name Posh-SSH`)
 * Other modules as specified in the help section `?` of the [Example.json](Example.json) file.
-* A configured SFTP server.
 
 ## Best Practices
 
