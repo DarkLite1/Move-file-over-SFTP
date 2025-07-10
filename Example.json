@@ -2,13 +2,13 @@
   "MaxConcurrentActions": 5,
   "Tasks": [
     {
-      "TaskName": "Step 1",
+      "TaskName": "Upload files",
       "Sftp": {
         "ComputerName": "sftp.xxx.be",
         "Port": 22,
         "Credential": {
-          "UserName": "AppSftpUserName",
-          "Password": "AppSftpPassword",
+          "UserName": "SftpUserName",
+          "Password": "SftpPassword",
           "PasswordKeyFile": null
         }
       },
@@ -21,19 +21,19 @@
           "ComputerName": null,
           "Paths": [
             {
-              "Source": "\\SERVER\\C$\\Date_From_App_2_SFTP",
-              "Destination": "sftp:/AppData/"
+              "Source": "\\SERVER\\C$",
+              "Destination": "sftp:/"
             },
             {
-              "Source": "\\SERVER\\C$\\Data",
-              "Destination": "sftp:/data/"
+              "Source": "\\SERVER\\C$\\reports",
+              "Destination": "sftp:/reports/"
             }
           ]
         }
       ]
     },
     {
-      "TaskName": "Step 2",
+      "TaskName": "Download files",
       "Sftp": {
         "ComputerName": "10.10.1.55",
         "Port": 22,
@@ -52,43 +52,12 @@
           "ComputerName": "SERVER1",
           "Paths": [
             {
-              "Source": "sftp:/device1_2_application/",
-              "Destination": "C:\\Transfer\\device1_2_application"
+              "Source": "sftp:/",
+              "Destination": "C:\\Transfer"
             },
             {
-              "Source": "sftp:/device2_2_application/",
-              "Destination": "C:\\Transfer\\device2_2_application"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "TaskName": "Step 3: From DMZ to OFFICE network",
-      "Sftp": {
-        "ComputerName": "OFFICE-ComputerName_or_IP_or_URL",
-        "Port": 22,
-        "Credential": {
-          "UserName": "OFFICE_SFTP_USERNAME",
-          "Password": "OFFICE_SFTP_PASSWORD",
-          "PasswordKeyFile": null
-        }
-      },
-      "Option": {
-        "OverwriteFile": false,
-        "MatchFileNameRegex": []
-      },
-      "Actions": [
-        {
-          "ComputerName": "DMZ_ComputerName",
-          "Paths": [
-            {
-              "Source": "C:\\Transfer\\device1_2_application",
-              "Destination": "sftp:/device1_2_application/"
-            },
-            {
-              "Source": "C:\\Transfer\\device2_2_application",
-              "Destination": "sftp:/device2_2_application/"
+              "Source": "sftp:/reports/",
+              "Destination": "C:\\Transfer\\reports"
             }
           ]
         }
