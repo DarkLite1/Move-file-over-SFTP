@@ -489,6 +489,7 @@ try {
                 $VerbosePreference = $using:VerbosePreference
 
                 $SftpComputerName = $using:SftpComputerName
+                $SftpPort = $using:SftpPort
                 $SftpOpenSshKeyFile = $using:SftpOpenSshKeyFile
                 $sftpCredential = $using:sftpCredential
 
