@@ -29,7 +29,7 @@
 #>
 
 [CmdLetBinding()]
-Param (
+param (
     [Parameter(Mandatory)]
     [String]$ConfigurationJsonFile,
     [Switch]$ReportOnly,
@@ -38,14 +38,14 @@ Param (
     }
 )
 
-Begin {
+begin {
     $ErrorActionPreference = 'stop'
 
     $eventLogData = [System.Collections.Generic.List[PSObject]]::new()
     $systemErrors = [System.Collections.Generic.List[PSObject]]::new()
     $scriptStartTime = Get-Date
 
-    Try {
+    try {
         function ConvertTo-SentenceHC {
             <#
                 .SYNOPSIS
@@ -59,7 +59,7 @@ Begin {
             #>
 
             [OutputType([string])]
-            Param (
+            param (
                 [string[]]$text
             )
 
@@ -77,7 +77,7 @@ Begin {
         }
 
         function Get-ComputerNameHC {
-            Param (
+            param (
                 [String]$ComputerName
             )
 
@@ -555,10 +555,10 @@ Begin {
     }
 }
 
-Process {
+process {
     if ($systemErrors) { return }
 
-    Try {
+    try {
         if ($ReportOnly) {
             Write-Verbose 'Only report results of the current day'
         }
@@ -776,7 +776,7 @@ Process {
             #endregion
         }
     }
-    Catch {
+    catch {
         $systemErrors.Add(
             [PSCustomObject]@{
                 DateTime = Get-Date
@@ -786,7 +786,7 @@ Process {
 
         Write-Warning $systemErrors[-1].Message
     }
-    Finally {
+    finally {
         if ($psSessions.Values.Session) {
             # Only close PS Sessions and not the WinPSCompatSession
             # used by Write-EventLog
@@ -796,7 +796,7 @@ Process {
     }
 }
 
-End {
+end {
     function Out-LogFileHC {
         [CmdletBinding()]
         param (
@@ -1013,7 +1013,7 @@ End {
 
                 if (-not (Test-Path -LiteralPath $logFilePath -PathType Leaf)) {
                     Write-Verbose "Path '$logFilePath' not found"
-                    Continue
+                    continue
                 }
 
                 switch ($fileExtension) {
@@ -1737,12 +1737,13 @@ End {
                 if ($logFileData) {
                     $params = @{
                         FileExtensions = $logFileExtensions
+                        PartialPath    = "$baseLogName - Log"
                         Append         = $true
                         ExcelFile      = @{
                             SheetName = 'Overview'
                             TableName = 'Overview'
                             CellStyle = {
-                                Param (
+                                param (
                                     $WorkSheet,
                                     $TotalRows,
                                     $LastColumn
@@ -1757,12 +1758,10 @@ End {
 
                     if ($isLog.allActions) {
                         $params.DataToExport = $logFileData
-                        $params.PartialPath = "$baseLogName - Actions"
                         $allLogFilePaths += Out-LogFileHC @params
                     }
                     elseif ($isLog.onlyActionErrors -and $logFileDataErrors) {
                         $params.DataToExport = $logFileDataErrors
-                        $params.PartialPath = "$baseLogName - Action errors"
                         $allLogFilePaths += Out-LogFileHC @params
                     }
                 }
@@ -1770,7 +1769,7 @@ End {
                 if ($isLog.SystemErrors -and $systemErrors) {
                     $params = @{
                         DataToExport   = $systemErrors
-                        PartialPath    = "$baseLogName - Errors"
+                        PartialPath    = "$baseLogName - System errors log"
                         FileExtensions = $logFileExtensions
                         Append         = $true
                     }
@@ -1889,14 +1888,9 @@ End {
         #region Get previous log file data
         if ($ReportOnly) {
             $params = @{
-                PartialPath    = "$baseLogName - Actions"
+                PartialPath    = "$baseLogName - Log"
                 FileExtensions = $logFileExtensions
             }
-
-            if ($isLog.onlyActionErrors) {
-                $params.PartialPath = "$baseLogName - Action errors"
-            }
-
             $previousLogFileData = Get-LogFileDataHC @params
 
             if ($previousLogFileData) {
@@ -2082,16 +2076,16 @@ End {
 
                     $counter.Path.Errors += $action.Job.Results.Where(
                         {
-                                ($_.Errors) -and
-                                ($_.Source -eq $path.Source) -and
-                                ($_.Destination -eq $path.Destination)
+                            ($_.Errors) -and
+                            ($_.Source -eq $path.Source) -and
+                            ($_.Destination -eq $path.Destination)
                         }).Count
 
                     $counter.Path.MovedFiles += $action.Job.Results.Where(
                         {
-                                ($_.Source -eq $path.Source) -and
-                                ($_.Destination -eq $path.Destination) -and
-                                ($_.Moved)
+                            ($_.Source -eq $path.Source) -and
+                            ($_.Destination -eq $path.Destination) -and
+                            ($_.Moved)
                         }).Count
                     #endregion
 

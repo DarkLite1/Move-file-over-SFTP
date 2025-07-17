@@ -141,7 +141,7 @@ BeforeAll {
 
     function Test-GetLogFileDataHC {
         Param (
-            [String]$FileNameRegex = '* - Errors.json',
+            [String]$FileNameRegex = '* - System errors log.json',
             [String]$LogFolderPath = $testInputFile.Settings.SaveLogFiles.Where.Folder
         )
 
@@ -164,7 +164,7 @@ BeforeAll {
                 throw "Variable '$testNewInputFile' cannot be blank"
             }
 
-            $testNewInputFile | ConvertTo-Json -Depth 7 | 
+            $testNewInputFile | ConvertTo-Json -Depth 7 |
             Out-File @testOutParams
         }
         catch {
@@ -280,7 +280,7 @@ Describe 'the mandatory parameters are' {
     }
 }
 Describe 'create an error log file when' {
-    It 'the log folder cannot be created' {           
+    It 'the log folder cannot be created' {
         $testNewInputFile = Copy-ObjectHC $testInputFile
         $testNewInputFile.Settings.SaveLogFiles.Where.Folder = 'x:\notExistingLocation'
 
@@ -322,7 +322,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
-                $testLogFileContent[0].Message | 
+                $testLogFileContent[0].Message |
                 Should -BeLike "*Property 'Tasks.$_' not found*"
             }
             It 'Tasks.Sftp.<_> not found' -ForEach @(
@@ -339,7 +339,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
-                $testLogFileContent[0].Message | 
+                $testLogFileContent[0].Message |
                 Should -BeLike "*Property 'Tasks.Sftp.$_' not found*"
             }
             It 'Tasks.Sftp.Credential.<_> not found' -ForEach @(
@@ -356,7 +356,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
-                $testLogFileContent[0].Message | 
+                $testLogFileContent[0].Message |
                 Should -BeLike "*Property 'Tasks.Sftp.Credential.$_' not found*"
             }
             It 'Tasks.Option.<_> not found' -ForEach @(
@@ -366,14 +366,14 @@ Describe 'create an error log file when' {
                 $testNewInputFile.Tasks[0].Option.$_ = $null
 
                 Test-NewJsonFileHC
-                
+
                 .$testScript @testParams
 
                 $LASTEXITCODE | Should -Be 1
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
-                $testLogFileContent[0].Message | 
+                $testLogFileContent[0].Message |
                 Should -BeLike "*Property 'Tasks.Option.$_' not found*"
             }
             It 'Tasks.Actions.<_> not found' -ForEach @(
@@ -390,7 +390,7 @@ Describe 'create an error log file when' {
 
                 $testLogFileContent = Test-GetLogFileDataHC
 
-                $testLogFileContent[0].Message | 
+                $testLogFileContent[0].Message |
                 Should -BeLike "*Property 'Tasks.Actions.$_' not found*"
             }
         }
@@ -520,7 +520,7 @@ Describe 'when the SFTP script runs successfully' {
     }
     Context 'create a log file' {
         BeforeAll {
-            $actual = Test-GetLogFileDataHC -FileNameRegex '* - Actions.json'
+            $actual = Test-GetLogFileDataHC -FileNameRegex '* - Log.json'
         }
         It 'in the log folder' {
             $actual | Should -Not -BeNullOrEmpty
@@ -540,11 +540,11 @@ Describe 'when the SFTP script runs successfully' {
                 $actualRow.Moved | Should -Be $testRow.Moved
                 $actualRow.DateTime.ToString('yyyyMMdd') |
                 Should -Be $testRow.DateTime.ToString('yyyyMMdd')
-                $actualRow.Actions -join ', ' | 
+                $actualRow.Actions -join ', ' |
                 Should -Be ($testRow.Actions -join ', ')
                 $actualRow.FileName | Should -Be $testRow.FileName
                 $actualRow.FileSize | Should -Be $testRow.FileSize
-                $actualRow.Errors -join ', ' | 
+                $actualRow.Errors -join ', ' |
                 Should -Be ($testRow.Errors -join ', ')
             }
         }
@@ -559,7 +559,7 @@ Describe 'when the SFTP script runs successfully' {
             ($SmtpConnectionType -eq 'StartTls') -and
             ($Subject -eq '2 moved, Email subject') -and
             ($Credential) -and
-            ($Attachments -like '*- Actions.json') -and
+            ($Attachments -like '*- Log.json') -and
             ($Body -like "*Email body*Summary of SFTP actions*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
             ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
             ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
@@ -570,7 +570,7 @@ Describe 'when the SFTP script runs successfully' {
 Describe 'ReportOnly' {
     Context 'when no previously exported log file is found' {
         BeforeAll {
-            $testInputFile.Settings.SaveLogFiles.Where.Folder | 
+            $testInputFile.Settings.SaveLogFiles.Where.Folder |
             Get-ChildItem -Recurse -File -Filter '*.json' |
             Should -BeNullOrEmpty
 
@@ -580,7 +580,7 @@ Describe 'ReportOnly' {
             .$testScript @testParams -ReportOnly
         }
         It 'no not create a log file' {
-            $testInputFile.Settings.SaveLogFiles.Where.Folder | 
+            $testInputFile.Settings.SaveLogFiles.Where.Folder |
             Get-ChildItem -Recurse -File -Filter '*.json' |
             Should -BeNullOrEmpty
         }
@@ -607,10 +607,10 @@ Describe 'ReportOnly' {
     Context 'when a previously exported log file is found' {
         BeforeAll {
             $testExportParams = @{
-                FilePath = $testInputFile.Settings.SaveLogFiles.Where.Folder + '\{0} - Test (Brecht) (Test) - Actions.json' -f (Get-Date).ToString('yyyy_MM_dd')
+                FilePath = $testInputFile.Settings.SaveLogFiles.Where.Folder + '\{0} - Test (Brecht) (Test) - Log.json' -f (Get-Date).ToString('yyyy_MM_dd')
             }
 
-            $testExportedLogFileData | ConvertTo-Json -Depth 7 | 
+            $testExportedLogFileData | ConvertTo-Json -Depth 7 |
             Out-File @testExportParams
 
             $testInputFile | ConvertTo-Json -Depth 7 |
