@@ -149,7 +149,7 @@ Begin {
                 return $Name
             }
         }
-      
+
         function Test-IsValidRegexHC {
             param(
                 [Parameter(Mandatory)]
@@ -259,7 +259,7 @@ Begin {
                     { throw "Property 'Tasks.Option.$_' not found" }
                 )
 
-                if (-not 
+                if (-not
                     (Test-IsValidRegexHC $task.Option.MatchFileNameRegex)
                 ) {
                     throw "Property 'Tasks.Option.MatchFileNameRegex' with value '$($task.Option.MatchFileNameRegex)' is not a valid regex pattern."
@@ -410,7 +410,7 @@ Begin {
                 #region Get SFTP password
                 $sftpPassword = if ($task.Sftp.Credential.PasswordKeyFile) {
                     try {
-                        if (-not 
+                        if (-not
                             ($sftpPasswordKeyFileValue = Get-StringValueHC -Name $task.Sftp.Credential.PasswordKeyFile)
                         ) {
                             throw 'The value cannot be blank.'
@@ -418,7 +418,7 @@ Begin {
                     }
                     catch {
                         throw "Failed retrieving 'Sftp.Credential.PasswordKeyFile': $_"
-                    }   
+                    }
 
                     try {
                         $PasswordKeyFileStrings = Get-Content -LiteralPath $sftpPasswordKeyFileValue
@@ -444,13 +444,13 @@ Begin {
                         Force       = $true
                         ErrorAction = 'Stop'
                     }
-                    
+
                     try {
                         if (-not (
                                 $params.String = Get-StringValueHC -Name $task.Sftp.Credential.Password)
                         ) {
                             throw 'The value cannot be blank.'
-                        }    
+                        }
                     }
                     catch {
                         throw "Failed retrieving 'Sftp.Credential.Password': $_"
@@ -488,7 +488,7 @@ Begin {
                         [int]$task.Sftp.Port = $task.Sftp.Port
 
                         if (
-                            $task.Sftp.Port -lt 0 -or 
+                            $task.Sftp.Port -lt 0 -or
                             $task.Sftp.Port -gt 65535
                         ) {
                             throw 'a negative number is not supported'
@@ -505,8 +505,6 @@ Begin {
 
                 #region Set SFTP ComputerName
                 $task.Sftp.ComputerName = Get-ComputerNameHC $task.Sftp.ComputerName
-
-                Write-Verbose "Action ComputerName '$($action.ComputerName)'"
                 #endregion
 
                 foreach ($action in $task.Actions) {
@@ -562,7 +560,7 @@ Process {
 
     Try {
         if ($ReportOnly) {
-            Write-Verbose 'Only report results of the current day'  
+            Write-Verbose 'Only report results of the current day'
         }
         else {
             $scriptBlock = {
@@ -815,21 +813,21 @@ End {
             },
             [Switch]$Append
         )
-    
+
         $allLogFilePaths = @()
-    
+
         foreach (
             $fileExtension in
             $FileExtensions | Sort-Object -Unique
         ) {
             try {
                 $logFilePath = "$PartialPath{0}" -f $fileExtension
-    
+
                 $M = "Export {0} object{1} to '$logFilePath'" -f
                 $DataToExport.Count,
                 $(if ($DataToExport.Count -ne 1) { 's' })
                 Write-Verbose $M
-    
+
                 switch ($fileExtension) {
                     '.csv' {
                         $params = @{
@@ -839,7 +837,7 @@ End {
                             NoTypeInformation = $true
                         }
                         $DataToExport | Export-Csv @params
-    
+
                         break
                     }
                     '.json' {
@@ -867,46 +865,46 @@ End {
                             $exportObject
                         }
                         #endregion
-    
+
                         if (
-                            $Append -and 
+                            $Append -and
                             (Test-Path -LiteralPath $logFilePath -PathType Leaf)
                         ) {
                             $params = @{
-                                LiteralPath = $logFilePath 
+                                LiteralPath = $logFilePath
                                 Raw         = $true
                                 Encoding    = 'UTF8'
                             }
                             $jsonFileContent = Get-Content @params | ConvertFrom-Json
-    
+
                             $convertedDataToExport = [array]$convertedDataToExport + [array]$jsonFileContent
                         }
-    
+
                         $convertedDataToExport |
                         ConvertTo-Json -Depth 7 |
                         Out-File -LiteralPath $logFilePath
-    
+
                         break
                     }
                     '.txt' {
                         $params = @{
-                            LiteralPath = $logFilePath 
+                            LiteralPath = $logFilePath
                             Append      = $Append
                         }
-    
+
                         $DataToExport | Format-List -Property * -Force |
                         Out-File @params
-    
+
                         break
                     }
                     '.xlsx' {
                         if (
-                            (-not $Append) -and 
+                            (-not $Append) -and
                             (Test-Path -LiteralPath $logFilePath -PathType Leaf)
                         ) {
                             $logFilePath | Remove-Item
                         }
-    
+
                         $excelParams = @{
                             Path          = $logFilePath
                             Append        = $true
@@ -921,21 +919,21 @@ End {
                             $excelParams.CellStyleSB = $ExcelFile.CellStyle
                         }
                         $DataToExport | Export-Excel @excelParams
-    
+
                         break
                     }
                     default {
                         throw "Log file extension '$_' not supported. Supported values are '.csv', '.json', '.txt' or '.xlsx'."
                     }
                 }
-    
+
                 $allLogFilePaths += $logFilePath
             }
             catch {
                 Write-Warning "Failed creating log file '$logFilePath': $_"
             }
         }
-    
+
         $allLogFilePaths
     }
 
@@ -1002,22 +1000,22 @@ End {
             [String[]]$FileExtensions,
             [String]$ExcelFileSheetName = 'Overview'
         )
-    
+
         foreach (
             $fileExtension in
             $FileExtensions | Sort-Object -Unique
         ) {
             try {
                 $logFilePath = "$PartialPath{0}" -f $fileExtension
-    
+
                 $M = "Log file path '$logFilePath'"
                 Write-Verbose $M
-    
+
                 if (-not (Test-Path -LiteralPath $logFilePath -PathType Leaf)) {
                     Write-Verbose "Path '$logFilePath' not found"
                     Continue
                 }
-    
+
                 switch ($fileExtension) {
                     '.csv' {
                         $params = @{
@@ -1028,7 +1026,7 @@ End {
                     }
                     '.json' {
                         $params = @{
-                            LiteralPath = $logFilePath 
+                            LiteralPath = $logFilePath
                             Raw         = $true
                             Encoding    = 'UTF8'
                         }
@@ -1036,7 +1034,7 @@ End {
                     }
                     '.xlsx' {
                         $params = @{
-                            Path          = $logFilePath 
+                            Path          = $logFilePath
                             WorksheetName = $ExcelFileSheetName
                         }
                         return Import-Excel @params
@@ -1243,7 +1241,7 @@ End {
                         #endregion
 
                         $totalSizeAttachments += $attachmentItem.Length
-            
+
                         $null = $attachmentList.Add($attachmentItem)
 
                         #region Check size of attachments
@@ -1704,7 +1702,7 @@ End {
 
         $logFileDataErrors = $logFileData | Where-Object { $_.Error }
         #endregion
-    
+
         #region Create log files
         try {
             $logFolder = Get-StringValueHC $saveLogFiles.Where.Folder
@@ -1749,7 +1747,7 @@ End {
                                     $TotalRows,
                                     $LastColumn
                                 )
-                
+
                                 @($WorkSheet.Names['FileSize'].Style).ForEach(
                                     { $_.NumberFormat.Format = '0.00\ \K\B' }
                                 )
@@ -1894,7 +1892,7 @@ End {
                 PartialPath    = "$baseLogName - Actions"
                 FileExtensions = $logFileExtensions
             }
-            
+
             if ($isLog.onlyActionErrors) {
                 $params.PartialPath = "$baseLogName - Action errors"
             }
@@ -1913,7 +1911,7 @@ End {
                         foreach ($path in $action.Paths) {
                             Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
 
-                            $filteredPreviousLogFileData = 
+                            $filteredPreviousLogFileData =
                             $previousLogFileData | Where-Object {
                                 ($path.Source -eq $_.SourcePath) -and
                                 ($path.Destination -eq $_.DestinationPath) -and (
@@ -1926,8 +1924,8 @@ End {
                                 continue
                             }
 
-                            $action.Job.Results += 
-                            $filteredPreviousLogFileData | 
+                            $action.Job.Results +=
+                            $filteredPreviousLogFileData |
                             Select-Object -Property *, @{
                                 Name       = 'Source'
                                 Expression = { $_.SourcePath }
@@ -1969,10 +1967,10 @@ End {
         Write-Verbose 'Create HTML table'
 
         $htmlTable = @('<table>')
-        
+
         foreach ($task in $Tasks) {
             Write-Verbose "Task '$($task.TaskName)'"
-        
+
             #region Create HTML table header
             $htmlTable += "
                         <tr style=`"background-color: lightgrey;`">
@@ -1985,28 +1983,28 @@ End {
                             <th>Result</th>
                         </tr>"
             #endregion
-        
+
             foreach ($action in $task.Actions) {
                 #region Counter
                 $counter.Action = @{
                     MovedFiles = 0
                     Errors     = 0
                 }
-        
+
                 $counter.Action.MovedFiles = $action.Job.Results.Where(
                     { $_.Moved }
                 ).Count
-        
+
                 $counter.Action.Errors = $action.Job.Results.Where(
                     { $_.Errors }
                 ).Count
-        
+
                 $counter.Total.Errors += $counter.Action.Errors
                 $counter.Total.Errors += $action.Job.Error.Count
-        
+
                 $counter.Total.MovedFiles += $counter.Action.MovedFiles
                 #endregion
-        
+
                 #region Log errors
                 if ($counter.Action.Errors) {
                     $action.Job.Results.Where(
@@ -2014,9 +2012,9 @@ End {
                     ).foreach(
                         {
                             $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' Source '$($_.Source)' Destination '$($_.Destination)' FileName '$($_.FileName)': $($_.Errors -join ',')"
-                            
+
                             Write-Warning $M
-                            
+
                             $eventLogData.Add(
                                 [PSCustomObject]@{
                                     Message   = $M
@@ -2029,14 +2027,14 @@ End {
                     )
                 }
                 #endregion
-        
+
                 #region Create HTML Error row
                 if ($action.Job.Error) {
                     $htmlTable += "
                             <tr style=`"background-color: #f78474;`">
                                 <td colspan=`"3`">ERROR: $($action.Job.Error)</td>
                             </tr>"
-        
+
                     $M = "Error for TaskName '$($task.TaskName)' Sftp.ComputerName '$($task.Sftp.ComputerName)' ComputerName '$($action.ComputerName)' {0}: $($action.Job.Error)" -f
                     $(
                         $action.Paths.ForEach(
@@ -2047,7 +2045,7 @@ End {
                     )
 
                     Write-Warning $M
-                    
+
                     $eventLogData.Add(
                         [PSCustomObject]@{
                             Message   = $M
@@ -2058,9 +2056,9 @@ End {
                     )
                 }
                 #endregion
-        
+
                 $actionPaths = $action.Paths
-        
+
                 #region Get temp moved files too
                 $jobResultPaths = $action.Job.Results.Where(
                     {
@@ -2068,27 +2066,27 @@ End {
                         ($actionPaths.Destination -notcontains $_.Destination)
                     }
                 )
-        
+
                 $allPaths = $jobResultPaths + $actionPaths |
                 Sort-Object -Property {
                     '{0}-{1}' -f $_.Source, $_.Destination
                 } -Unique
                 #endregion
-        
+
                 foreach ($path in $allPaths) {
                     #region Counter
                     $counter.Path = @{
                         MovedFiles = 0
                         Errors     = 0
                     }
-        
+
                     $counter.Path.Errors += $action.Job.Results.Where(
                         {
                                 ($_.Errors) -and
                                 ($_.Source -eq $path.Source) -and
                                 ($_.Destination -eq $path.Destination)
                         }).Count
-        
+
                     $counter.Path.MovedFiles += $action.Job.Results.Where(
                         {
                                 ($_.Source -eq $path.Source) -and
@@ -2096,7 +2094,7 @@ End {
                                 ($_.Moved)
                         }).Count
                     #endregion
-        
+
                     #region Create HTML table row
                     $htmlTable += "
                                 $(
@@ -2119,7 +2117,7 @@ End {
                                 <td>
                                     $(
                                         $result = "$($counter.Path.MovedFiles) moved"
-        
+
                                         if ($counter.Path.Errors) {
                                             $result += ', {0} error{1}' -f
                                             $(
@@ -2129,14 +2127,14 @@ End {
                                                 if($counter.Path.Errors -ne 1) {'s'}
                                             )
                                         }
-        
+
                                         $result
                                     )
                                 </td>
                             </tr>"
                     #endregion
                 }
-        
+
                 #region Create HTML Action summary row
                 $htmlTable += "
                         <tr>
@@ -2146,7 +2144,7 @@ End {
                 #endregion
             }
         }
-        
+
         $htmlTable += '</table>'
         #endregion
 
@@ -2157,7 +2155,7 @@ End {
             if ($ReportOnly) {
                 $isSendMail = $true
             }
-            else {                
+            else {
                 switch ($sendMail.When) {
                     'Never' {
                         break
