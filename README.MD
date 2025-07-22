@@ -64,6 +64,17 @@ For automated, recurring executions (e.g., via Windows Task Scheduler), you'll t
 -Command  "& 'C:\Move-file-over-SFTP\Move file over SFTP.ps1' -ConfigurationJsonFile 'C:\Reports.json' -ReportOnly; exit $LASTEXITCODE"
 ```
 
+## 🙏 Acknowledgements
+This script relies on the excellent work of others in the PowerShell and .NET communities. We extend our sincere gratitude to the developers and maintainers of the following projects:
+
+Posh-SSH: For providing robust SSH and SFTP capabilities in PowerShell.
+
+MailKit & MimeKit: For powerful and flexible email sending functionality.
+
+ImportExcel: For seamless importing and exporting of data to Excel files in PowerShell.
+
+Their contributions make this script possible!
+
 ## 🤝 Contributing
 Feel free to open issues or submit pull requests if you have suggestions for improvements or bug fixes.
 
