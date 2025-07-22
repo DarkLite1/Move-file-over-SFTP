@@ -55,7 +55,7 @@ Execute the script from PowerShell, providing the path to your configuration JSO
 ### Scheduled Task Example ⏱️
 For automated, recurring executions (e.g., via Windows Task Scheduler), you'll typically invoke the script using `pwsh.exe -Command`. This allows you to pass parameters directly.
 
-The `-ReportOnly` switch is particularly useful in scheduled contexts. If your script runs frequently (e.g., every 5 minutes) and SendMail.When is set to 'OnError', using -ReportOnly in a separate, less frequent scheduled task (e.g., once a day) can generate a comprehensive summary email of all actions from the exported Excel log file, even if no errors occurred during the frequent runs.
+**The `-ReportOnly` switch is especially useful for scheduled tasks.** If your script runs frequently (e.g., every 5 minutes) with email notifications set to 'OnError', you can use `-ReportOnly` in a separate, less frequent task (e.g., once a day). This allows you to generate a comprehensive summary email of all actions from the exported Excel log file, even if no errors occurred during the frequent runs.
 
 - Program: `pwsh.exe`
 - Arguments:
