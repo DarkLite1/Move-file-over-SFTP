@@ -67,11 +67,11 @@ For automated, recurring executions (e.g., via Windows Task Scheduler), you'll t
 ## 🙏 Acknowledgements
 This script relies on the excellent work of others in the PowerShell and .NET communities. We extend our sincere gratitude to the developers and maintainers of the following projects:
 
-Posh-SSH: For providing robust SSH and SFTP capabilities in PowerShell.
+[Posh-SSH](https://github.com/darkoperator/Posh-SSH): For providing robust SSH and SFTP capabilities in PowerShell.
 
-MailKit & MimeKit: For powerful and flexible email sending functionality.
+[MailKit](https://github.com/jstedfast/MailKit) & [MimeKit](https://mimekit.net/): For powerful and flexible email sending functionality.
 
-ImportExcel: For seamless importing and exporting of data to Excel files in PowerShell.
+[ImportExcel](https://github.com/dfinke/ImportExcel): For seamless importing and exporting of data to Excel files in PowerShell.
 
 Their contributions make this script possible!
 
