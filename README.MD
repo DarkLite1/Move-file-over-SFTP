@@ -38,7 +38,7 @@ A robust PowerShell script for automating SFTP file transfers (downloading and u
 
 1.  Clone this repository to your local machine:
     ```bash
-    git clone [https://github.com/DarkLite1/Move-file-over-SFTP.git](https://github.com/DarkLite1/Move-file-over-SFTP.git)
+    git clone https://github.com/DarkLite1/Move-file-over-SFTP.git
     cd Move-file-over-SFTP
     ```
 2.  Review `Example.json` to understand the configuration options.
