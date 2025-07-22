@@ -91,6 +91,7 @@ Param (
     [String]$MatchFileNameRegex,
     [String[]]$SftpOpenSshKeyFile,
     [Boolean]$OverwriteFile,
+    [Boolean]$ExcludeZeroSizeFile,
     [Int]$AttemptCount = 5,
     [Int]$WaitSecondsBetweenAttempts = 3
 )
@@ -672,6 +673,21 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
+                        $isTempFile = $fileToDownload.FullName -eq $tempFile.sftp
+
+                        #region Zero size file
+                        if (-not $isTempFile) {
+                            if (
+                                $ExcludeZeroSizeFile -and 
+                                ($fileToDownload.Length -eq 0)
+                            ) {
+                                Save-ActionMessageHC "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
+
+                                continue
+                            }
+                        }
+                        #endregion
+
                         #region Test duplicate file in destination folder
                         $isDuplicateFileInDestinationFolder = $localFolderContent.rootFiles.where(
                             {
@@ -690,8 +706,6 @@ try {
                         #endregion
 
                         #region Move file from SFTP source folder to SFTP temp folder
-                        $isTempFile = $fileToDownload.FullName -eq $tempFile.sftp
-
                         if (-not $isTempFile) {
                             $isDuplicateInSftpTempFolder = $sftpServerContent.tempFiles.where(
                                 {
@@ -976,6 +990,21 @@ try {
                             $tempFolder.local, $result.FileName
                         }
 
+                        $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
+                        
+                        #region Zero size file
+                        if (-not $isLocalTempFile) {
+                            if (
+                                $ExcludeZeroSizeFile -and 
+                                ($fileToUpload.Length -eq 0)
+                            ) {
+                                Save-ActionMessageHC "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
+
+                                continue
+                            }
+                        }
+                        #endregion
+
                         #region Test duplicate file in destination folder
                         if (-not $OverwriteFile) {
                             $isDuplicateFileInDestinationFolder = $sftpServerContent.rootFiles.where(
@@ -993,8 +1022,6 @@ try {
                         #endregion
 
                         #region Move file from local source folder to local temp folder
-                        $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
-
                         if (-not $isLocalTempFile) {
                             try {
                                 $params = @{

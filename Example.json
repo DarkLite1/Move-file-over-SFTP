@@ -2,7 +2,7 @@
   "MaxConcurrentActions": 5,
   "Tasks": [
     {
-      "TaskName": "Upload files",
+      "TaskName": "Step 1: Upload files",
       "Sftp": {
         "ComputerName": "sftp.xxx.be",
         "Port": 22,
@@ -14,6 +14,7 @@
       },
       "Option": {
         "OverwriteFile": true,
+        "ExcludeZeroSizeFile": false,
         "MatchFileNameRegex": ".*"
       },
       "Actions": [
@@ -33,7 +34,7 @@
       ]
     },
     {
-      "TaskName": "Download files",
+      "TaskName": "Step 2: Download files",
       "Sftp": {
         "ComputerName": "10.10.1.55",
         "Port": 22,
@@ -45,6 +46,7 @@
       },
       "Option": {
         "OverwriteFile": false,
+        "ExcludeZeroSizeFile": true,
         "MatchFileNameRegex": "\\.csv$"
       },
       "Actions": [
@@ -120,6 +122,7 @@
         },
         "Option": {
           "OverwriteFile": "(Mandatory) Specifies whether to overwrite duplicate files in the destination folder. Possible values: true - Overwrite duplicate files; false - Do not overwrite duplicate files and log an error.",
+          "ExcludeZeroSizeFile": "(Mandatory) Whether to move files with a size of 0 bytes. Possible values: true or false.",
           "MatchFileNameRegex": "(Mandatory) A regular expression to match file names. Possible values: '.*' - Process all files; '\\.xlsx$' - Process only Excel files; 'Report_[0-9]{8}\\.xlsx$' - Process only files with names starting with 'Report_' and ending with '.xlsx' followed by 8 digits; ..."
         },
         "Actions": [

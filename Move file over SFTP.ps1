@@ -283,7 +283,7 @@ begin {
                 foreach (
                     $boolean in
                     @(
-                        'OverwriteFile'
+                        'OverwriteFile', 'ExcludeZeroSizeFile'
                     )
                 ) {
                     try {
@@ -588,10 +588,11 @@ process {
                         $task.Sftp.Port,
                         $task.Option.MatchFileNameRegex,
                         $task.Sftp.Credential.PasswordKeyFile,
-                        $task.Option.OverwriteFile
+                        $task.Option.OverwriteFile,
+                        $task.Option.ExcludeZeroSizeFile
                     }
 
-                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' Sftp.Port '{5}' MatchFileNameRegex '{6}'  OverwriteFile '{7}'" -f
+                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' Sftp.Port '{5}' MatchFileNameRegex '{6}' OverwriteFile '{7}' ExcludeZeroSizeFile '{8}'" -f
                     $task.TaskName,
                     $action.ComputerName,
                     $invokeParams.ArgumentList[0],
@@ -603,7 +604,8 @@ process {
                     $invokeParams.ArgumentList[3],
                     $invokeParams.ArgumentList[4],
                     $invokeParams.ArgumentList[5],
-                    $invokeParams.ArgumentList[7]
+                    $invokeParams.ArgumentList[7],
+                    $invokeParams.ArgumentList[8]
 
                     Write-Verbose $M
 
@@ -649,6 +651,7 @@ process {
                         $MatchFileNameRegex = $null
                         $SftpOpenSshKeyFile = $null
                         $OverwriteFile = $null
+                        $ExcludeZeroSizeFile = $null
                         $AttemptCount = $null
                         $WaitSecondsBetweenAttempts = $null
 
@@ -671,7 +674,7 @@ process {
                     #endregion
 
                     #region Verbose job results
-                    $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}': {7} object{8}" -f
+                    $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}' ExcludeZeroSizeFile '{7}': {8} object{9}" -f
                     $task.TaskName,
                     $action.ComputerName,
                     $invokeParams.ArgumentList[0],
@@ -683,6 +686,7 @@ process {
                     $invokeParams.ArgumentList[3],
                     $invokeParams.ArgumentList[5],
                     $invokeParams.ArgumentList[7],
+                    $invokeParams.ArgumentList[8],
                     $action.Job.Results.Count,
                     $(if ($action.Job.Results.Count -ne 1) { 's' })
 

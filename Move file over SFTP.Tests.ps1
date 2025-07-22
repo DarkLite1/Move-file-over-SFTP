@@ -16,8 +16,9 @@ BeforeAll {
                     }
                 }
                 Option   = @{
-                    OverwriteFile      = $false
-                    MatchFileNameRegex = '\.txt$'
+                    OverwriteFile       = $false
+                    ExcludeZeroSizeFile = $false
+                    MatchFileNameRegex  = '\.txt$'
                 }
                 Actions  = @(
                     @{
@@ -437,7 +438,8 @@ Describe 'execute the SFTP script when' {
                 ($ArgumentList[4] -eq 22) -and
                 ($ArgumentList[5] -eq $testInputFile.Tasks[0].Option.MatchFileNameRegex) -and
                 (-not $ArgumentList[6])
-                ($ArgumentList[7] -eq $testInputFile.Tasks[0].Option.OverwriteFile)
+                ($ArgumentList[7] -eq $testInputFile.Tasks[0].Option.OverwriteFile),
+                ($ArgumentList[8] -eq $testInputFile.Tasks[0].Option.ExcludeZeroSizeFile)
             }
         )
 
@@ -552,17 +554,17 @@ Describe 'when the SFTP script runs successfully' {
     Context 'send an e-mail' {
         It 'with attachment to the user' {
             Should -Invoke Send-MailKitMessageHC -Exactly 1 -Scope Describe -ParameterFilter {
-            ($From -eq 'm@example.com') -and
-            ($To -eq '007@example.com') -and
-            ($SmtpPort -eq 25) -and
-            ($SmtpServerName -eq 'SMTP_SERVER') -and
-            ($SmtpConnectionType -eq 'StartTls') -and
-            ($Subject -eq '2 moved, Email subject') -and
-            ($Credential) -and
-            ($Attachments -like '*- Log.json') -and
-            ($Body -like "*Email body*Summary of SFTP actions*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
-            ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
-            ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
+                ($From -eq 'm@example.com') -and
+                ($To -eq '007@example.com') -and
+                ($SmtpPort -eq 25) -and
+                ($SmtpServerName -eq 'SMTP_SERVER') -and
+                ($SmtpConnectionType -eq 'StartTls') -and
+                ($Subject -eq '2 moved, Email subject') -and
+                ($Credential) -and
+                ($Attachments -like '*- Log.json') -and
+                ($Body -like "*Email body*Summary of SFTP actions*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
+                ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
+                ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
     }
@@ -637,5 +639,5 @@ Describe 'ReportOnly' {
                 ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
-    } -Tag test
+    }
 }

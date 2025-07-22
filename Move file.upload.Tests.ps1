@@ -19,6 +19,7 @@ BeforeAll {
         SftpPort                   = 22
         MatchFileNameRegex         = '.*'
         OverwriteFile              = $false
+        ExcludeZeroSizeFile        = $false
         AttemptCount               = 1
         WaitSecondsBetweenAttempts = 1
     }
@@ -241,6 +242,57 @@ Describe 'when a file is' {
                     $testResult.Errors.Count | Should -Be 0
                 }
             }
+        }
+    }
+}
+Describe 'When ExcludeZeroSizeFile is TRUE' {
+    BeforeAll {
+        $testParams.ExcludeZeroSizeFile = $true
+
+        $testNewItemParams = @{
+            Path     = $testParams.Paths.Source
+            Name     = 'b.txt'
+            ItemType = 'File'
+        }
+        $testFile = New-Item @testNewItemParams
+
+        $testResult = .$testScript @testParams
+    }
+    It 'the file is not moved to the local temp folder' {
+        $testFile | Should -Exist
+    }
+    It 'the upload is not started' {
+        Should -Not -Invoke Set-SFTPItem -Scope Describe
+        Should -Not -Invoke Move-SFTPItem -Scope Describe
+    }
+    Context 'a success object is created with property' {
+        It 'DateTime' {
+            $testResult.DateTime | Should -Not -BeNullOrEmpty
+        }
+        It 'Source' {
+            $testResult.Source | Should -Be $testParams.Paths.Source
+        }
+        It 'Destination' {
+            $testResult.Destination | Should -Be $testParams.Paths.Destination
+        }
+        It 'FileName' {
+            $testResult.FileName | Should -Be 'b.txt'
+        }
+        Context 'Actions' {
+            It 'returns 1 string:' {
+                $testResult.Actions.Count | Should -Be 1
+            }
+            It '<_>' -ForEach @(
+                "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
+            ) {
+                $testResult.Actions | Should -Contain $_
+            }
+        }
+        It 'Moved' {
+            $testResult.Moved | Should -BeFalse
+        }
+        It 'Errors' {
+            $testResult.Errors | Should -BeNullOrEmpty
         }
     }
 }

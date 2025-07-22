@@ -19,6 +19,7 @@ BeforeAll {
         SftpPort                   = 22
         MatchFileNameRegex         = '.*'
         OverwriteFile              = $false
+        ExcludeZeroSizeFile        = $false
         AttemptCount               = 1
         WaitSecondsBetweenAttempts = 1
     }
@@ -793,9 +794,9 @@ Describe 'When a download fails' {
     Context 'the moved file is still present in the SFTP temp folder because' {
         It 'the file was moved from the SFTP source folder to the SFTP temp folder' {
             Should -Invoke Move-SFTPItem -Times 1 -Exactly -Scope Describe -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/b.txt') -and
-            ($Destination -eq '/report/sftpTransfer/download/b.txt')
+                ($SessionId -eq 1) -and
+                ($Path -eq '/report/b.txt') -and
+                ($Destination -eq '/report/sftpTransfer/download/b.txt')
             }
         }
         It 'and the file was not deleted on the SFTP server' {
@@ -865,9 +866,9 @@ Describe 'Previously failed download' {
         }
         It 'the file is downloaded again' {
             Should -Invoke Get-SFTPItem -Times 1 -Exactly -Scope Context -ParameterFilter {
-            ($SessionId -eq 1) -and
-            ($Path -eq '/report/sftpTransfer/download/b.txt') -and
-            ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
+                ($SessionId -eq 1) -and
+                ($Path -eq '/report/sftpTransfer/download/b.txt') -and
+                ($Destination -eq "$($testParams.Paths.Destination)\sftpTransfer\download" )
             }
         }
         Context 'a success object is created with property' {
@@ -1154,6 +1155,58 @@ Describe 'When a file is locked' {
                     $testResult.Errors | Should -BeLike "Failed to move temp file to destination folder: The process cannot access the file '*\f2\b.txt' because it is being used by another process."
                 }
             }
+        }
+    }
+}
+Describe 'When ExcludeZeroSizeFile is TRUE' {
+    BeforeAll {
+        $testParams.ExcludeZeroSizeFile = $true
+
+        Mock Get-SFTPChildItem {
+            [PSCustomObject]@{
+                Name        = 'b.txt'
+                FullName    = '/report/b.txt'
+                isDirectory = $false
+                Length      = 0
+            }
+        }
+
+        $testResult = .$testScript @testParams
+    }
+    It 'the file is not moved to the SFTP temp folder' {
+        Should -Not -Invoke Move-SFTPItem -Scope Describe
+    }
+    It 'the download is not started' {
+        Should -Not -Invoke Get-SFTPItem -Scope Describe
+    }
+    Context 'a success object is created with property' {
+        It 'DateTime' {
+            $testResult.DateTime | Should -Not -BeNullOrEmpty
+        }
+        It 'Source' {
+            $testResult.Source | Should -Be $testParams.Paths.Source
+        }
+        It 'Destination' {
+            $testResult.Destination | Should -Be $testParams.Paths.Destination
+        }
+        It 'FileName' {
+            $testResult.FileName | Should -Be 'b.txt'
+        }
+        Context 'Actions' {
+            It 'returns 1 string:' {
+                $testResult.Actions.Count | Should -Be 1
+            }
+            It '<_>' -ForEach @(
+                "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
+            ) {
+                $testResult.Actions | Should -Contain $_
+            }
+        }
+        It 'Moved' {
+            $testResult.Moved | Should -BeFalse
+        }
+        It 'Errors' {
+            $testResult.Errors | Should -BeNullOrEmpty
         }
     }
 }
