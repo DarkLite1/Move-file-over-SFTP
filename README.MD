@@ -22,7 +22,7 @@ A robust PowerShell script for automating SFTP file transfers (downloading and u
 * **PowerShell 7.x or later**: This script is built for modern PowerShell.
 * **Posh-SSH Module**: Install this module on the computer where the SFTP commands will be executed (local or remote).
     ```powershell
-    Install-Module -Name Posh-SSH -Scope 'AllUsers'
+    Install-Module -Name 'Posh-SSH' -Scope 'AllUsers'
     ```
 * **Emailing Prerequisites (Optional)**: If you plan to use email notifications, install the `MailKit` and `MimeKit` NuGet packages.
     ```powershell
