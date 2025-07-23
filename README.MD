@@ -4,35 +4,35 @@ A robust PowerShell script for automating SFTP file transfers (downloading and u
 
 ## 🌟 Features
 
-* **Configurable Transfers**: Define multiple SFTP tasks and actions in a single JSON configuration file.
-* **Parallel Processing**: Execute multiple SFTP actions concurrently within a task for improved performance.
-* **Secure Authentication**: Supports username/password or SSH private key file authentication for SFTP connections.
-* **File Overwrite Control**: Option to prevent or allow overwriting of existing files at the destination.
-* **Zero-Size File Exclusion**: Prevent the transfer of empty (0-byte) files.
-* **Regex-Based File Filtering**: Precisely control which files are transferred using regular expressions.
-* **Comprehensive Logging**: Configurable logging to file (CSV, JSON, TXT, XLSX) and Windows Event Log.
-* **Email Notifications**: Send detailed email summaries or error alerts after script execution.
-* **Remote Execution**: Ability to run SFTP commands on remote machines using PowerShell remoting.
-* **Retry Mechanism**: Built-in retries for transient issues, including file locks, ensuring robust transfers.
+- **Configurable Transfers**: Define multiple SFTP tasks and actions in a single JSON configuration file.
+- **Parallel Processing**: Execute multiple SFTP actions concurrently within a task for improved performance.
+- **Secure Authentication**: Supports username/password or SSH private key file authentication for SFTP connections.
+- **File Overwrite Control**: Option to prevent or allow overwriting of existing files at the destination.
+- **Zero-Size File Exclusion**: Prevent the transfer of empty (0-byte) files.
+- **Regex-Based File Filtering**: Precisely control which files are transferred using regular expressions.
+- **Comprehensive Logging**: Configurable logging to file (CSV, JSON, TXT, XLSX) and Windows Event Log.
+- **Email Notifications**: Send detailed email summaries or error alerts after script execution.
+- **Remote Execution**: Ability to run SFTP commands on remote machines using PowerShell remoting.
+- **Retry Mechanism**: Built-in retries for transient issues, including file locks, ensuring robust transfers.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-* **PowerShell 7.x or later**: This script is built for modern PowerShell.
-* **Posh-SSH Module**: Install this module on the computer where the SFTP commands will be executed (local or remote).
-    ```powershell
-    Install-Module -Name 'Posh-SSH' -Scope 'AllUsers'
-    ```
-* **Emailing Prerequisites (Optional)**: If you plan to use email notifications, install the `MailKit` and `MimeKit` NuGet packages.
-    ```powershell
-    Install-Package -Name 'MailKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies
-    Install-Package -Name 'MimeKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies
-    ```
-* **Excel Logging Prerequisites (Optional)**: If you plan to log to `.xlsx` files, install the `ImportExcel` PowerShell module.
-    ```powershell
-    Install-Module -Name 'ImportExcel' -Scope 'AllUsers'
-    ```
+- **PowerShell 7.x or later**: This script is built for modern PowerShell.
+- **Posh-SSH Module**: Install this module on the computer where the SFTP commands will be executed (local or remote).
+  ```powershell
+  Install-Module -Name 'Posh-SSH' -Scope 'AllUsers'
+  ```
+- **Emailing Prerequisites (Optional)**: If you plan to use email notifications, install the `MailKit` and `MimeKit` NuGet packages.
+  ```powershell
+  Install-Package -Name 'MailKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies
+  Install-Package -Name 'MimeKit' -Source 'https://www.nuget.org/api/v2' -Scope 'AllUsers' -SkipDependencies
+  ```
+- **Excel Logging Prerequisites (Optional)**: If you plan to log to `.xlsx` files, install the `ImportExcel` PowerShell module.
+  ```powershell
+  Install-Module -Name 'ImportExcel' -Scope 'AllUsers'
+  ```
 
 ### Installation
 
@@ -53,6 +53,7 @@ Execute the script from PowerShell, providing the path to your configuration JSO
 ```
 
 ### Scheduled Task Example ⏱️
+
 For automated, recurring executions (e.g., via Windows Task Scheduler), you'll typically invoke the script using `pwsh.exe -Command`. This allows you to pass parameters directly.
 
 **The `-ReportOnly` switch is especially useful for scheduled tasks.** If your script runs frequently (e.g., every 5 minutes) with email notifications set to 'OnError', you can use `-ReportOnly` in a separate, less frequent task (e.g., once a day). This allows you to generate a comprehensive summary email of all actions from the exported Excel log file, even if no errors occurred during the frequent runs.
@@ -65,6 +66,7 @@ For automated, recurring executions (e.g., via Windows Task Scheduler), you'll t
 ```
 
 ## 🙏 Acknowledgements
+
 This script relies on the excellent work of others in the PowerShell and .NET communities. We extend our sincere gratitude to the developers and maintainers of the following projects:
 
 - [Posh-SSH](https://github.com/darkoperator/Posh-SSH): For providing robust SSH and SFTP capabilities in PowerShell.
@@ -74,9 +76,11 @@ This script relies on the excellent work of others in the PowerShell and .NET co
 Their contributions make this script possible!
 
 ## 🤝 Contributing
+
 Feel free to open issues or submit pull requests if you have suggestions for improvements or bug fixes.
 
 ## 📞 Support
+
 If you encounter any issues or have questions, please open an issue on the GitHub repository.
 
 ## 📜 License
