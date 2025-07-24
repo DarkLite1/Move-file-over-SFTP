@@ -991,7 +991,7 @@ end {
             }
         }
 
-        (Resolve-Path $fullPath).Path
+        (Resolve-Path $fullPath).ProviderPath
         # $fullPath
     }
 
