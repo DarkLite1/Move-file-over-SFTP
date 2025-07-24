@@ -1005,6 +1005,8 @@ end {
             [String]$ExcelFileSheetName = 'Overview'
         )
 
+        Write-Verbose 'Get log file data'
+
         foreach (
             $fileExtension in
             $FileExtensions | Sort-Object -Unique
@@ -1012,21 +1014,22 @@ end {
             try {
                 $logFilePath = "$PartialPath{0}" -f $fileExtension
 
-                $M = "Log file path '$logFilePath'"
+                $M = "Log file '$logFilePath'"
                 Write-Verbose $M
 
                 if (-not (Test-Path -LiteralPath $logFilePath -PathType Leaf)) {
-                    Write-Verbose "Path '$logFilePath' not found"
+                    Write-Verbose 'Path not found'
                     continue
                 }
 
-                switch ($fileExtension) {
+                $logFileData = switch ($fileExtension) {
                     '.csv' {
                         $params = @{
                             LiteralPath = $logFilePath
                             Delimiter   = ';'
                         }
-                        return Import-Csv @params
+                        Import-Csv @params
+                        break
                     }
                     '.json' {
                         $params = @{
@@ -1034,17 +1037,34 @@ end {
                             Raw         = $true
                             Encoding    = 'UTF8'
                         }
-                        return Get-Content @params | ConvertFrom-Json
+                        Get-Content @params | ConvertFrom-Json
+                        break
                     }
                     '.xlsx' {
                         $params = @{
                             Path          = $logFilePath
                             WorksheetName = $ExcelFileSheetName
                         }
-                        return Import-Excel @params
+                        Import-Excel @params
+                        break
                     }
                     default {
                         Write-Warning "Log file extension '$_' not supported for reading log data. Supported values are '.csv', '.json' or '.xlsx'."
+                    }
+                }
+
+                if ($logFileData) {
+                    Write-Verbose "Retrieved $($logFileData.Count) object(s) from log file"
+
+                    [PSCustomObject]@{
+                        logFilePath = $logFilePath
+                        logFileData = $logFileData
+                    }
+                }
+                elseif ($fileExtension -eq '.txt') {
+                    [PSCustomObject]@{
+                        logFilePath = $logFilePath
+                        logFileData = $null
                     }
                 }
             }
@@ -1895,9 +1915,15 @@ end {
                 PartialPath    = "$baseLogName - Log"
                 FileExtensions = $logFileExtensions
             }
-            $previousLogFileData = Get-LogFileDataHC @params
+            $previousLogs = @(Get-LogFileDataHC @params)
 
-            if ($previousLogFileData) {
+            $previousLogFileData = $previousLogs | Where-Object {
+                $_.logFileData
+            } | Select-Object -ExpandProperty logFileData -First 1
+
+            if ($previousLogs) {
+                $allLogFilePaths += $previousLogs.logFilePath
+
                 Write-Verbose 'Add results from previous runs'
 
                 foreach ($task in $Tasks) {
