@@ -141,7 +141,7 @@ BeforeAll {
     }
 
     function Test-GetLogFileDataHC {
-        Param (
+        param (
             [String]$FileNameRegex = '* - System errors log.json',
             [String]$LogFolderPath = $testInputFile.Settings.SaveLogFiles.Where.Folder
         )
@@ -173,8 +173,8 @@ BeforeAll {
         }
     }
 
-    Function Get-StringValueHC {
-        Param(
+    function Get-StringValueHC {
+        param(
             [String]$Name
         )
 
@@ -633,7 +633,7 @@ Describe 'ReportOnly' {
                 ($SmtpConnectionType -eq 'StartTls') -and
                 ($Subject -eq '2 moved, Email subject') -and
                 ($Credential) -and
-                (-not $Attachments) -and
+                ($Attachments) -and
                 ($Body -like "*Email body*<p>Summary of all SFTP actions <b>executed today</b>:</p>*table*App x*<th>sftp:/sftp.server.com</th>*Source*Destination*Result*\a*sftp:/folder/a/*1 moved*sftp:/folder/b/*\b*1 moved*<th>2 moved on PC1</th>*") -and
                 ($MailKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MailKit.4.11.0\lib\net8.0\MailKit.dll') -and
                 ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
