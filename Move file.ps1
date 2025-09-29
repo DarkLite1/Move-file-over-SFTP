@@ -496,6 +496,7 @@ try {
 
                 $MatchFileNameRegex = $using:MatchFileNameRegex
                 $OverwriteFile = $using:OverwriteFile
+                $ExcludeZeroSizeFile = $using:ExcludeZeroSizeFile
                 $AttemptCount = $using:AttemptCount
                 $WaitSecondsBetweenAttempts = $using:WaitSecondsBetweenAttempts
             }
