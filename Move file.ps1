@@ -76,7 +76,7 @@
     to execute the CmdLet again.
 #>
 
-Param (
+param (
     [Parameter(Mandatory)]
     [String]$SftpComputerName,
     [Parameter(Mandatory)]
@@ -135,7 +135,7 @@ try {
             }
         }
         function Get-FolderContentLocalFileSystemHC {
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [string]$Path
             )
@@ -183,7 +183,7 @@ try {
             #>
 
             [CmdletBinding()]
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [String]$Path,
                 [parameter(Mandatory)]
@@ -224,7 +224,7 @@ try {
             #>
 
             [CmdletBinding()]
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [String]$Path
             )
@@ -251,7 +251,7 @@ try {
             }
         }
         function Move-SFTPItemHC {
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [string]$Source,
                 [parameter(Mandatory)]
@@ -367,7 +367,7 @@ try {
             }
         }
         function Remove-LocalFileHC {
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [string]$Path
             )
@@ -400,7 +400,7 @@ try {
                     This is useful for cases where a file is locked.
             #>
             [CmdletBinding()]
-            Param (
+            param (
                 [Parameter(Mandatory)]
                 [scriptblock]$ScriptBlock,
                 [ValidateRange(1, 25)]
@@ -449,7 +449,7 @@ try {
                     Add an error message to the result object and log
                     a warning message.
             #>
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [string]$ErrorMessage
             )
@@ -464,7 +464,7 @@ try {
                     Add an action message to the result object and log
                     a verbose message.
             #>
-            Param (
+            param (
                 [parameter(Mandatory)]
                 [string]$ActionMessage
             )
@@ -558,7 +558,7 @@ try {
                         ) {
                             Save-ErrorMessageHC "Duplicate file name '$($result.FileName)' in the destination folder, use OverwriteFile if needed"
 
-                            Continue
+                            continue
                         }
 
                         $params = @{
@@ -634,7 +634,7 @@ try {
                 if (-not $filesToDownload) {
                     Write-Verbose 'No files to download'
                     Write-Verbose 'Exit script'
-                    Return
+                    return
                 }
                 #endregion
 
@@ -702,7 +702,7 @@ try {
                         ) {
                             Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'
 
-                            Continue
+                            continue
                         }
                         #endregion
 
@@ -1017,7 +1017,7 @@ try {
                             if ($isDuplicateFileInDestinationFolder) {
                                 Save-ErrorMessageHC 'Duplicate file in destination folder, use OverwriteFile if needed'
 
-                                Continue
+                                continue
                             }
                         }
                         #endregion
@@ -1180,8 +1180,9 @@ try {
     }
     else {
         @{
-            Parallel      = $scriptBlock
-            ThrottleLimit = $MaxConcurrentActions
+            Parallel       = $scriptBlock
+            UseNewRunspace = $true
+            ThrottleLimit  = $MaxConcurrentActions
         }
     }
 
