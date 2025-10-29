@@ -1270,7 +1270,7 @@ end {
 
                         #region Check size of attachments
                         if ($totalSizeAttachments -ge $MaxAttachmentSize) {
-                            $M = "The maximum allowed attachment size of {0} MB has been exceeded ({1} MB). No attachments were added to the email. Check the log folder for details." -f
+                            $M = 'The maximum allowed attachment size of {0} MB has been exceeded ({1} MB). No attachments were added to the email. Check the log folder for details.' -f
                             ([math]::Round(($MaxAttachmentSize / 1MB))),
                             ([math]::Round(($totalSizeAttachments / 1MB), 2))
 
@@ -1851,64 +1851,6 @@ end {
         }
         #endregion
 
-        #region Write events to event log
-        try {
-            $saveInEventLog.LogName = Get-StringValueHC $saveInEventLog.LogName
-
-            if ($saveInEventLog.Save -and $saveInEventLog.LogName) {
-                $systemErrors | ForEach-Object {
-                    $eventLogData.Add(
-                        [PSCustomObject]@{
-                            Message   = $_.Message
-                            DateTime  = $_.DateTime
-                            EntryType = 'Error'
-                            EventID   = '2'
-                        }
-                    )
-                }
-
-                $eventLogData.Add(
-                    [PSCustomObject]@{
-                        Message   = 'Script ended'
-                        DateTime  = Get-Date
-                        EntryType = 'Information'
-                        EventID   = '199'
-                    }
-                )
-
-                $params = @{
-                    Source  = $scriptName
-                    LogName = $saveInEventLog.LogName
-                    Events  = $eventLogData
-                }
-                Write-EventsToEventLogHC @params
-
-            }
-            elseif ($saveInEventLog.Save -and (-not $saveInEventLog.LogName)) {
-                throw "Both 'Settings.SaveInEventLog.Save' and 'Settings.SaveInEventLog.LogName' are required to save events in the event log."
-            }
-        }
-        catch {
-            $systemErrors.Add(
-                [PSCustomObject]@{
-                    DateTime = Get-Date
-                    Message  = "Failed writing events to event log: $_"
-                }
-            )
-
-            Write-Warning $systemErrors[-1].Message
-
-            if ($baseLogName -and $isLog.systemErrors) {
-                $params = @{
-                    DataToExport   = $systemErrors[-1]
-                    PartialPath    = "$baseLogName - Errors"
-                    FileExtensions = $logFileExtensions
-                }
-                $allLogFilePaths += Out-LogFileHC @params -EA Ignore
-            }
-        }
-        #endregion
-
         #region Get previous log file data
         if ($ReportOnly) {
             $params = @{
@@ -2170,6 +2112,64 @@ end {
         }
 
         $htmlTable += '</table>'
+        #endregion
+
+        #region Write events to event log
+        try {
+            $saveInEventLog.LogName = Get-StringValueHC $saveInEventLog.LogName
+
+            if ($saveInEventLog.Save -and $saveInEventLog.LogName) {
+                $systemErrors | ForEach-Object {
+                    $eventLogData.Add(
+                        [PSCustomObject]@{
+                            Message   = $_.Message
+                            DateTime  = $_.DateTime
+                            EntryType = 'Error'
+                            EventID   = '2'
+                        }
+                    )
+                }
+
+                $eventLogData.Add(
+                    [PSCustomObject]@{
+                        Message   = 'Script ended'
+                        DateTime  = Get-Date
+                        EntryType = 'Information'
+                        EventID   = '199'
+                    }
+                )
+
+                $params = @{
+                    Source  = $scriptName
+                    LogName = $saveInEventLog.LogName
+                    Events  = $eventLogData
+                }
+                Write-EventsToEventLogHC @params
+
+            }
+            elseif ($saveInEventLog.Save -and (-not $saveInEventLog.LogName)) {
+                throw "Both 'Settings.SaveInEventLog.Save' and 'Settings.SaveInEventLog.LogName' are required to save events in the event log."
+            }
+        }
+        catch {
+            $systemErrors.Add(
+                [PSCustomObject]@{
+                    DateTime = Get-Date
+                    Message  = "Failed writing events to event log: $_"
+                }
+            )
+
+            Write-Warning $systemErrors[-1].Message
+
+            if ($baseLogName -and $isLog.systemErrors) {
+                $params = @{
+                    DataToExport   = $systemErrors[-1]
+                    PartialPath    = "$baseLogName - Errors"
+                    FileExtensions = $logFileExtensions
+                }
+                $allLogFilePaths += Out-LogFileHC @params -EA Ignore
+            }
+        }
         #endregion
 
         #region Send email
