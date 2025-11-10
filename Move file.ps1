@@ -961,6 +961,56 @@ try {
 
                         $returnResultObject = $true
 
+                        #region WORKAROUND rename file: remove '[' and ']'
+                        # https://github.com/darkoperator/Posh-SSH/issues/381
+                        $fileRenamed = $false
+
+                        if ($fileToUpload.Name -match '\[|\]') {
+                            try {
+                                $newFileName = $fileToUpload.Name.replace('[', '(').replace(']', ')')
+
+                                Write-Verbose "rename file to '$newFileName'"
+
+                                $newPath = Join-Path -Path $fileToUpload.DirectoryName -ChildPath $newFileName
+
+                                if (Test-Path -Path $newPath -PathType Leaf) {
+                                    throw "A file with the same name already exists at path '$($fileToUpload.DirectoryName)'"
+                                }
+
+                                $params = @{
+                                    Path    = $fileToUpload.FullName 
+                                    NewName = $newFileName
+                                    Force   = $true
+                                }
+                                Rename-Item @params
+
+                                $fileToUpload = Get-Item -Path $newPath
+
+                                $fileRenamed = $true
+                            }
+                            catch {
+                                $errorMessage = "Failed to rename file '$($fileToUpload.FullName)' to '$newFileName': $_"
+
+                                $Error.RemoveAt(0)
+
+                                $result = [PSCustomObject]@{
+                                    DateTime    = Get-Date
+                                    Source      = $path.Source
+                                    Destination = $path.Destination
+                                    FileName    = $fileToUpload.Name
+                                    FileLength  = $fileToUpload.Length
+                                    Actions     = @()
+                                    Moved       = $false
+                                    Errors      = @($errorMessage)
+                                }
+
+                                Write-Warning $errorMessage
+
+                                continue
+                            }
+                        }
+                        #endregion
+
                         #region Only process unique file names
                         if ($processedFiles[$fileToUpload.Name]) {
                             Write-Verbose "File name '$($fileToUpload.Name)' already processed"
@@ -982,6 +1032,10 @@ try {
                             Actions     = @()
                             Moved       = $false
                             Errors      = @()
+                        }
+
+                        if ($fileRenamed) {
+                            $result.Actions += 'renamed file by removing square brackets in file name'
                         }
 
                         $tempFile = @{
