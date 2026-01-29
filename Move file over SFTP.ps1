@@ -1843,6 +1843,7 @@ end {
                             DataToExport   = $systemErrors[-1]
                             PartialPath    = "$baseLogName - Errors"
                             FileExtensions = $logFileExtensions
+                            Append         = $true
                         }
                         $allLogFilePaths += Out-LogFileHC @params -EA Ignore
                     }
@@ -2166,6 +2167,7 @@ end {
                     DataToExport   = $systemErrors[-1]
                     PartialPath    = "$baseLogName - Errors"
                     FileExtensions = $logFileExtensions
+                    Append         = $true
                 }
                 $allLogFilePaths += Out-LogFileHC @params -EA Ignore
             }
@@ -2441,6 +2443,7 @@ end {
                     DataToExport   = $systemErrors[-1]
                     PartialPath    = "$baseLogName - Errors"
                     FileExtensions = $logFileExtensions
+                    Append         = $true
                 }
                 $null = Out-LogFileHC @params -EA Ignore
             }
