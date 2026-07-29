@@ -136,7 +136,7 @@ BeforeAll {
         FilePath = (New-Item 'TestDrive:/Test.json' -ItemType File).FullName
     }
 
-    $testScript = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
+    $testScript = Join-Path $PSScriptRoot '../Move file over SFTP.ps1'
     $testParams = @{
         ConfigurationJsonFile = $testOutParams.FilePath
         ScriptPath            = @{

@@ -17,8 +17,8 @@ BeforeAll {
     $testFunctionName = 'Invoke-WithOptionalParallelismHC'
 
     $testScriptFile = @(
-        Join-Path $PSScriptRoot 'Move file over SFTP.ps1'
-        Join-Path $PSScriptRoot 'Move file.ps1'
+        Join-Path $PSScriptRoot '../Move file over SFTP.ps1'
+        Join-Path $PSScriptRoot '../Move file.ps1'
     )
 
     function Get-FunctionTextHC {

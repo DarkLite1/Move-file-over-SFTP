@@ -25,7 +25,7 @@ BeforeDiscovery {
     $testThrottleLimit = @(1, 3)
 }
 BeforeAll {
-    $testScriptFile = Join-Path $PSScriptRoot 'Move file over SFTP.ps1'
+    $testScriptFile = Join-Path $PSScriptRoot '../Move file over SFTP.ps1'
 
     $testAst = [System.Management.Automation.Language.Parser]::ParseFile(
         $testScriptFile, [ref]$null, [ref]$null

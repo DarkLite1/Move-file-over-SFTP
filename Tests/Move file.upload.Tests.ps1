@@ -8,7 +8,7 @@ BeforeAll {
         ArgumentList = 'bob', ('pass' | ConvertTo-SecureString -AsPlainText -Force)
     }
 
-    $testScript = $PSCommandPath.Replace('.upload.Tests.ps1', '.ps1')
+    $testScript = Join-Path $PSScriptRoot '../Move file.ps1'
     $testParams = @{
         SftpComputerName           = 'PC1'
         SftpCredential             = New-Object @params
