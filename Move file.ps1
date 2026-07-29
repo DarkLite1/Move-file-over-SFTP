@@ -48,6 +48,13 @@
 .PARAMETER Paths
     Lost of source and destination folders.
 
+.PARAMETER SftpConnectionTimeout
+    Seconds to wait for the SFTP server to accept the connection.
+
+.PARAMETER SftpOperationTimeout
+    Seconds to wait for a single SFTP operation to finish. Posh-SSH uses 0 by
+    default, which waits forever and lets a stalled transfer block the script.
+
 .PARAMETER MaxConcurrentPaths
     How many paths are handled at the same time. Each path opens its own SFTP
     session, so this is also the maximum number of SFTP sessions opened by
@@ -100,7 +107,9 @@ param (
     [Boolean]$OverwriteFile,
     [Boolean]$ExcludeZeroSizeFile,
     [Int]$AttemptCount = 5,
-    [Int]$WaitSecondsBetweenAttempts = 3
+    [Int]$WaitSecondsBetweenAttempts = 3,
+    [Int]$SftpConnectionTimeout = 60,
+    [Int]$SftpOperationTimeout = 300
 )
 
 try {
@@ -449,11 +458,14 @@ try {
             try {
                 Write-Verbose 'Open SFTP session'
 
+                # 'OperationTimeout' is 0 by default, which means an SFTP
+                # operation that stalls blocks the script forever
                 $params = @{
                     ComputerName      = $SftpComputerName
                     Credential        = $sftpCredential
                     Port              = $SftpPort
-                    ConnectionTimeout = 60
+                    ConnectionTimeout = $SftpConnectionTimeout
+                    OperationTimeout  = $SftpOperationTimeout
                     AcceptKey         = $true
                     Force             = $true
                     Verbose           = $false
@@ -679,6 +691,8 @@ try {
             $ExcludeZeroSizeFile = $job.ExcludeZeroSizeFile
             $AttemptCount = $job.AttemptCount
             $WaitSecondsBetweenAttempts = $job.WaitSecondsBetweenAttempts
+            $SftpConnectionTimeout = $job.SftpConnectionTimeout
+            $SftpOperationTimeout = $job.SftpOperationTimeout
             #endregion
 
             #region Set defaults
@@ -1437,6 +1451,8 @@ try {
             ExcludeZeroSizeFile        = $ExcludeZeroSizeFile
             AttemptCount               = $AttemptCount
             WaitSecondsBetweenAttempts = $WaitSecondsBetweenAttempts
+            SftpConnectionTimeout      = $SftpConnectionTimeout
+            SftpOperationTimeout       = $SftpOperationTimeout
             VerbosePreference          = $VerbosePreference
         }
     }

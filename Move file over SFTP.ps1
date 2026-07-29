@@ -36,6 +36,17 @@
     Such errors are transient and disappear on the next attempt. An action is
     only retried when the error message matches 'TransientErrorRegex', all
     other errors are reported immediately.
+
+    Only errors that happen before 'Move file' starts working belong in
+    'TransientErrorRegex', so that a retry never re-runs an action that
+    already moved files.
+
+.PARAMETER PSSessionOption
+    Options used for the PowerShell session to a remote computer. Without a
+    timeout a remote computer that stops responding blocks the script forever.
+
+    'OperationTimeout' is deliberately not set, because it also applies to a
+    transfer that is simply slow.
 #>
 
 [CmdLetBinding()]
@@ -50,11 +61,25 @@ param (
         AttemptCount               = 3
         WaitSecondsBetweenAttempts = 5
         TransientErrorRegex        = @(
+            # only errors that happen before 'Move file' starts working, so
+            # that a retry never re-runs an action that already moved files
             'An item with the same key has already been added'
-            'Collection was modified'
             'The pipeline is not in the Running state'
             'is not in the Opened state'
         )
+    },
+    [HashTable]$PSSessionOption = @{
+        # time to wait for the remote computer to accept the connection
+        OpenTimeout   = 60000
+        # time to wait for a cancel request to finish
+        CancelTimeout = 30000
+        # time an unused session stays alive on the remote computer. A client
+        # side error does not always stop the remote pipeline, this makes sure
+        # an orphaned session cleans itself up.
+        #
+        # 'OperationTimeout' is deliberately not set: it would also apply to a
+        # transfer that is simply slow and would kill it.
+        IdleTimeout   = 240000
     }
 )
 
@@ -799,17 +824,23 @@ process {
                         max   = $job.Retry.AttemptCount
                     }
 
+                    # Collect the results while they are streamed in. When
+                    # the code below fails halfway, the files that were
+                    # already moved are still reported. Assigning the complete
+                    # pipeline at once throws away everything on an error.
+                    $jobResults = [System.Collections.Generic.List[Object]]::new()
+
                     while ($true) {
                         $attempt.count++
 
                         $psSession = $null
 
                         try {
-                            $action.Job.Results += if (
-                                $job.RunOnLocalComputer
-                            ) {
+                            if ($job.RunOnLocalComputer) {
                                 $params = $invokeParams.ArgumentList
-                                & $invokeParams.FilePath @params
+
+                                & $invokeParams.FilePath @params |
+                                ForEach-Object { $jobResults.Add($_) }
                             }
                             else {
                                 #region Code with workaround
@@ -831,6 +862,7 @@ process {
                                 $newPsSessionParams = @{
                                     ComputerName      = $job.ComputerName
                                     ConfigurationName = $job.PSSessionConfiguration
+                                    SessionOption     = $job.PSSessionOption
                                     ErrorAction       = 'Stop'
                                 }
                                 $psSession = New-PSSession @newPsSessionParams
@@ -840,7 +872,8 @@ process {
                                 $invokeParams['Session'] = $psSession
                                 $invokeParams['ErrorAction'] = 'Stop'
 
-                                Invoke-Command @invokeParams
+                                Invoke-Command @invokeParams |
+                                ForEach-Object { $jobResults.Add($_) }
                                 #endregion
                             }
 
@@ -908,6 +941,13 @@ process {
                                 $psSession | Remove-PSSession -EA Ignore
                             }
                             #endregion
+
+                            #region Keep the results that came in
+                            # also when this attempt failed halfway
+                            if ($jobResults.Count) {
+                                $action.Job.Results = $jobResults.ToArray()
+                            }
+                            #endregion
                         }
                     }
                     #endregion
@@ -946,6 +986,10 @@ process {
                     $Error.RemoveAt(0)
                 }
             }
+
+            #region Create the PowerShell session options
+            $psSessionOptionObject = New-PSSessionOption @PSSessionOption
+            #endregion
 
             #region Calculate the number of actions to run at the same time
             # All actions within a task connect to the same SFTP server and
@@ -1010,6 +1054,7 @@ process {
                             $action.ComputerName -eq $ENV:COMPUTERNAME
                         )
                         PSSessionConfiguration = $PSSessionConfiguration
+                        PSSessionOption        = $psSessionOptionObject
                         ScriptPathMoveFile     = $scriptPathItem.MoveFile
                         SftpComputerName       = $task.Sftp.ComputerName
                         SftpCredential         = $task.Sftp.Credential.Object
