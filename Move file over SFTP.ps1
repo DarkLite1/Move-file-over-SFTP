@@ -41,12 +41,18 @@
     'TransientErrorRegex', so that a retry never re-runs an action that
     already moved files.
 
-.PARAMETER PSSessionOption
+.PARAMETER RemoteSessionOption
     Options used for the PowerShell session to a remote computer. Without a
     timeout a remote computer that stops responding blocks the script forever.
 
     'OperationTimeout' is deliberately not set, because it also applies to a
     transfer that is simply slow.
+
+    This parameter is deliberately not called 'PSSessionOption': that name is
+    a PowerShell preference variable that sets the default options for every
+    session created in this script. Overwriting it with a hashtable breaks
+    unrelated commands, like 'Write-EventLog', that load a module through the
+    Windows PowerShell compatibility layer.
 #>
 
 [CmdLetBinding()]
@@ -68,7 +74,7 @@ param (
             'is not in the Opened state'
         )
     },
-    [HashTable]$PSSessionOption = @{
+    [HashTable]$RemoteSessionOption = @{
         # time to wait for the remote computer to accept the connection
         OpenTimeout   = 60000
         # time to wait for a cancel request to finish
@@ -883,7 +889,7 @@ process {
                                 $newPsSessionParams = @{
                                     ComputerName      = $job.ComputerName
                                     ConfigurationName = $job.PSSessionConfiguration
-                                    SessionOption     = $job.PSSessionOption
+                                    SessionOption     = $job.RemoteSessionOption
                                     ErrorAction       = 'Stop'
                                 }
                                 $psSession = New-PSSession @newPsSessionParams
@@ -1009,7 +1015,7 @@ process {
             }
 
             #region Create the PowerShell session options
-            $psSessionOptionObject = New-PSSessionOption @PSSessionOption
+            $remoteSessionOptionObject = New-PSSessionOption @RemoteSessionOption
             #endregion
 
             #region Calculate the number of actions to run at the same time
@@ -1075,7 +1081,7 @@ process {
                             $action.ComputerName -eq $ENV:COMPUTERNAME
                         )
                         PSSessionConfiguration = $PSSessionConfiguration
-                        PSSessionOption        = $psSessionOptionObject
+                        RemoteSessionOption    = $remoteSessionOptionObject
                         ScriptPathMoveFile     = $scriptPathItem.MoveFile
                         SftpComputerName       = $task.Sftp.ComputerName
                         SftpCredential         = $task.Sftp.Credential.Object
