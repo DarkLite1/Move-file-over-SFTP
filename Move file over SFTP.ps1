@@ -158,6 +158,10 @@ begin {
                 natively inside the scriptblock. You must pass all external variables
                 explicitly via the -ArgumentList parameter or store them in the input
                 object.
+
+                The input item is only available as the first positional parameter,
+                not as `$_`. In parallel `$_` is the internal object that carries
+                the code and the arguments into the runspace.
             #>
 
             [CmdletBinding()]
@@ -188,10 +192,27 @@ begin {
 
                 $scriptBlockString = $ScriptBlock.ToString()
 
-                $InputObject | ForEach-Object -Parallel {
-                    $rehydratedBlock = [scriptblock]::Create($using:scriptBlockString)
-                    $splatArgs = $using:ArgumentList
-                    & $rehydratedBlock $_ @splatArgs
+                # The '$using:' scope modifier is deliberately not used here.
+                # Using variables are resolved in the session that sends the
+                # code, so a script that contains one cannot be sent to another
+                # computer with 'Invoke-Command -FilePath'. That fails with
+                # "The value of the using variable cannot be retrieved because
+                #  it has not been set in the local session."
+                #
+                # Everything a runspace needs travels with the pipeline object.
+                $parallelInput = foreach ($item in $InputObject) {
+                    [PSCustomObject]@{
+                        Item            = $item
+                        ScriptBlockText = $scriptBlockString
+                        ArgumentList    = $ArgumentList
+                    }
+                }
+
+                $parallelInput | ForEach-Object -Parallel {
+                    $rehydratedBlock = [scriptblock]::Create($_.ScriptBlockText)
+                    $splatArgs = $_.ArgumentList
+
+                    & $rehydratedBlock $_.Item @splatArgs
                 } -ThrottleLimit $ThrottleLimit
             }
         }
@@ -1891,14 +1912,14 @@ end {
         try {
             if ([System.Diagnostics.EventLog]::SourceExists($Source)) {
                 $existingLogName = [System.Diagnostics.EventLog]::LogNameFromSourceName($Source, '.')
-    
+
                 if ($existingLogName -ne $LogName) {
                     throw "The event log source '$Source' is already registered with event log name '$existingLogName', it cannot be used with log name '$LogName'."
                 }
             }
             else {
                 Write-Verbose "Create event log source '$Source' with log name '$LogName'"
-                    
+
                 New-EventLog -LogName $LogName -Source $Source -EA Stop
             }
 

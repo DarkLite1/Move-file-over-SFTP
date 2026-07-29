@@ -180,6 +180,10 @@ try {
             natively inside the scriptblock. You must pass all external variables
             explicitly via the -ArgumentList parameter or store them in the input
             object.
+
+            The input item is only available as the first positional parameter,
+            not as `$_`. In parallel `$_` is the internal object that carries
+            the code and the arguments into the runspace.
         #>
 
         [CmdletBinding()]
@@ -210,10 +214,27 @@ try {
 
             $scriptBlockString = $ScriptBlock.ToString()
 
-            $InputObject | ForEach-Object -Parallel {
-                $rehydratedBlock = [scriptblock]::Create($using:scriptBlockString)
-                $splatArgs = $using:ArgumentList
-                & $rehydratedBlock $_ @splatArgs
+            # The '$using:' scope modifier is deliberately not used here.
+            # Using variables are resolved in the session that sends the
+            # code, so a script that contains one cannot be sent to another
+            # computer with 'Invoke-Command -FilePath'. That fails with
+            # "The value of the using variable cannot be retrieved because
+            #  it has not been set in the local session."
+            #
+            # Everything a runspace needs travels with the pipeline object.
+            $parallelInput = foreach ($item in $InputObject) {
+                [PSCustomObject]@{
+                    Item            = $item
+                    ScriptBlockText = $scriptBlockString
+                    ArgumentList    = $ArgumentList
+                }
+            }
+
+            $parallelInput | ForEach-Object -Parallel {
+                $rehydratedBlock = [scriptblock]::Create($_.ScriptBlockText)
+                $splatArgs = $_.ArgumentList
+
+                & $rehydratedBlock $_.Item @splatArgs
             } -ThrottleLimit $ThrottleLimit
         }
     }
@@ -886,7 +907,7 @@ try {
                         #region Zero size file
                         if (-not $isTempFile) {
                             if (
-                                $ExcludeZeroSizeFile -and 
+                                $ExcludeZeroSizeFile -and
                                 ($fileToDownload.Length -eq 0)
                             ) {
                                 Save-ActionMessageHC "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
@@ -1185,7 +1206,7 @@ try {
                                 }
 
                                 $params = @{
-                                    Path    = $fileToUpload.FullName 
+                                    Path    = $fileToUpload.FullName
                                     NewName = $newFileName
                                     Force   = $true
                                 }
@@ -1253,11 +1274,11 @@ try {
                         }
 
                         $isLocalTempFile = $fileToUpload.FullName -eq $tempFile.local
-                        
+
                         #region Zero size file
                         if (-not $isLocalTempFile) {
                             if (
-                                $ExcludeZeroSizeFile -and 
+                                $ExcludeZeroSizeFile -and
                                 ($fileToUpload.Length -eq 0)
                             ) {
                                 Save-ActionMessageHC "file size 0 bytes, file not moved, option 'ExcludeZeroSizeFile' enabled"
