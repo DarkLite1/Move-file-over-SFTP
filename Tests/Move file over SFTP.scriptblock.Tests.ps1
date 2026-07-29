@@ -25,7 +25,8 @@ BeforeDiscovery {
     $testThrottleLimit = @(1, 3)
 }
 BeforeAll {
-    $testScriptFile = Join-Path $PSScriptRoot '../Move file over SFTP.ps1'
+    # the script lives in the parent folder of this Tests folder
+    $testScriptFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'Move file over SFTP.ps1'
 
     $testAst = [System.Management.Automation.Language.Parser]::ParseFile(
         $testScriptFile, [ref]$null, [ref]$null
@@ -143,7 +144,7 @@ throw 'Failed to connect to the SFTP server'
             Action                 = $testAction
             RunOnLocalComputer     = $true
             PSSessionConfiguration = 'PowerShell.7'
-            PSSessionOption        = $null
+            RemoteSessionOption    = $null
             ScriptPathMoveFile     = $ScriptPath
             SftpComputerName       = 'sftp.server.com'
             SftpCredential         = $null

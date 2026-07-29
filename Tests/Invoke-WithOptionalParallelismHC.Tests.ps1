@@ -13,12 +13,22 @@
         function.
 #>
 
+BeforeDiscovery {
+    # the scripts live in the parent folder of this Tests folder
+    $testScriptPath = @(
+        Join-Path (Split-Path $PSScriptRoot -Parent) 'Move file over SFTP.ps1'
+        Join-Path (Split-Path $PSScriptRoot -Parent) 'Move file.ps1'
+    )
+}
 BeforeAll {
     $testFunctionName = 'Invoke-WithOptionalParallelismHC'
 
+    # the scripts live in the parent folder of this Tests folder
+    $testScriptFolder = Split-Path $PSScriptRoot -Parent
+
     $testScriptFile = @(
-        Join-Path $PSScriptRoot '../Move file over SFTP.ps1'
-        Join-Path $PSScriptRoot '../Move file.ps1'
+        Join-Path $testScriptFolder 'Move file over SFTP.ps1'
+        Join-Path $testScriptFolder 'Move file.ps1'
     )
 
     function Get-FunctionTextHC {
@@ -53,6 +63,67 @@ BeforeAll {
     }
 
     . ([scriptblock]::Create($testFunctionText[0]))
+}
+Describe 'no using variable is used' {
+    It "in '<_>'" -ForEach $testScriptPath {
+        <#
+            'Move file.ps1' is sent to a remote computer with
+            'Invoke-Command -FilePath'. A using variable is resolved in the
+            session that sends the code, so any '$using:' in these files
+            breaks remote execution with:
+
+            The value of the using variable '$using:x' cannot be retrieved
+            because it has not been set in the local session.
+        #>
+
+        $testFileAst = [System.Management.Automation.Language.Parser]::ParseFile(
+            $_, [ref]$null, [ref]$null
+        )
+
+        $testUsingVariable = $testFileAst.FindAll(
+            {
+                $args[0] -is [System.Management.Automation.Language.UsingExpressionAst]
+            },
+            $true
+        )
+
+        $testUsingVariable.Extent.Text | Should -BeNullOrEmpty
+    }
+}
+Describe 'no script parameter shadows a preference variable' {
+    It "in '<_>'" -ForEach $testScriptPath {
+        <#
+            A parameter with the same name as a preference variable replaces
+            that variable for the whole script. '$PSSessionOption' for example
+            is used by every command that creates a PowerShell session,
+            including the ones that load a module through the Windows
+            PowerShell compatibility layer. Overwriting it with a hashtable
+            broke 'Write-EventLog' with:
+
+            The specified IdleTimeout session option 0 (seconds) is not a
+            valid period.
+        #>
+
+        $testPreferenceVariable = @(
+            'ConfirmPreference', 'DebugPreference', 'ErrorActionPreference'
+            'ErrorView', 'FormatEnumerationLimit', 'InformationPreference'
+            'MaximumHistoryCount', 'OFS', 'OutputEncoding'
+            'ProgressPreference', 'PSDefaultParameterValues', 'PSEmailServer'
+            'PSModuleAutoLoadingPreference', 'PSSessionApplicationName'
+            'PSSessionConfigurationName', 'PSSessionOption', 'Transcript'
+            'VerbosePreference', 'WarningPreference', 'WhatIfPreference'
+        )
+
+        $testFileAst = [System.Management.Automation.Language.Parser]::ParseFile(
+            $_, [ref]$null, [ref]$null
+        )
+
+        $testParameterName = $testFileAst.ParamBlock.Parameters.Name.VariablePath.UserPath
+
+        $testParameterName.Where(
+            { $testPreferenceVariable -contains $_ }
+        ) | Should -BeNullOrEmpty
+    }
 }
 Describe 'the function is defined' {
     It 'in every script that runs code in parallel' {
