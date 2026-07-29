@@ -1,4 +1,5 @@
 #Requires -Modules Pester
+#Requires -Modules Posh-SSH
 #Requires -Version 7
 
 BeforeAll {
@@ -15,7 +16,7 @@ BeforeAll {
             Source      = 'SFTP:/report/'
             Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
         }
-        MaxConcurrentActions       = 1
+        MaxConcurrentPaths         = 1
         SftpPort                   = 22
         MatchFileNameRegex         = '.*'
         OverwriteFile              = $false

@@ -5,7 +5,7 @@ A robust PowerShell script for automating SFTP file transfers (downloading and u
 ## 🌟 Features
 
 - **Configurable Transfers**: Define multiple SFTP tasks and actions in a single JSON configuration file.
-- **Parallel Processing**: Execute multiple SFTP actions concurrently within a task for improved performance.
+- **Parallel Processing**: Execute multiple SFTP actions concurrently within a task for improved performance. The `MaxConcurrent` settings control the total number of concurrent actions, the number of paths per action, and the number of SFTP sessions opened to a single SFTP server.
 - **Secure Authentication**: Supports username/password or SSH private key file authentication for SFTP connections.
 - **File Overwrite Control**: Option to prevent or allow overwriting of existing files at the destination.
 - **Zero-Size File Exclusion**: Prevent the transfer of empty (0-byte) files.

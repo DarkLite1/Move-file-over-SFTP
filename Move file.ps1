@@ -1,5 +1,7 @@
 ﻿#Requires -Version 7
-#Requires -Modules Posh-SSH
+# the module Posh-SSH is imported by Import-ModuleWithLockHC and not
+# with '#Requires -Modules Posh-SSH', because that import cannot be
+# synchronized between runspaces
 
 <#
 .SYNOPSIS
@@ -46,6 +48,11 @@
 .PARAMETER Paths
     Lost of source and destination folders.
 
+.PARAMETER MaxConcurrentPaths
+    How many paths are handled at the same time. Each path opens its own SFTP
+    session, so this is also the maximum number of SFTP sessions opened by
+    this script.
+
 .PARAMETER SftpComputerName
     The URL where the SFTP server can be reached.
 
@@ -84,7 +91,7 @@ param (
     [Parameter(Mandatory)]
     [PSCustomObject[]]$Paths,
     [Parameter(Mandatory)]
-    [Int]$MaxConcurrentActions,
+    [Int]$MaxConcurrentPaths,
     [Parameter(Mandatory)]
     [Int]$SftpPort,
     [Parameter(Mandatory)]
@@ -99,7 +106,112 @@ param (
 try {
     # $VerbosePreference = 'Continue'
 
+    function Invoke-WithOptionalParallelismHC {
+        <#
+        .SYNOPSIS
+            Executes a scriptblock against an array of input objects, seamlessly
+            switching between sequential and parallel execution.
+
+        .DESCRIPTION
+            A dynamic execution wrapper that allows the pipeline to scale
+            concurrency based on the provided configuration.
+
+            If the `ThrottleLimit` is greater than 1, the function utilizes
+            PowerShell 7's `ForEach-Object -Parallel` to spin up concurrent
+            runspaces. If the limit is 1 or less, it gracefully falls back to a
+            standard sequential `foreach` loop running on the main thread, making
+            it highly versatile for debugging or resource-constrained environments.
+
+        .PARAMETER InputObject
+            An array of items to process. Inside the scriptblock, the current item
+            is passed as the first positional parameter.
+
+        .PARAMETER ScriptBlock
+            The code to execute against each item. Must define a `param()` block to
+            receive the input item and any additional arguments.
+
+        .PARAMETER ThrottleLimit
+            The maximum number of concurrent threads/runspaces. A value of 1 or 0
+            forces standard sequential execution.
+
+        .PARAMETER ArgumentList
+            An optional array of extra arguments to pass positionally to the
+            scriptblock after the main input item.
+
+        .EXAMPLE
+            $items = @('ServerA', 'ServerB')
+            $myList = [System.Collections.Generic.List[string]]::new()
+
+            Invoke-WithOptionalParallelismHC `
+                -InputObject $items `
+                -ThrottleLimit 5 `
+                -ArgumentList (,$myList), $true `
+                -ScriptBlock {
+                    param($ComputerName, $ListRef, $LogEnabled)
+
+                    if ($LogEnabled) {
+                        $ListRef.Add("Processed $ComputerName")
+                    }
+                }
+
+        .NOTES
+            ArgumentList follows the standard PowerShell convention (cf. Start-Job,
+            Invoke-Command): supplied values are passed as positional arguments
+            after the input item.
+
+            CRITICAL: When passing an enumerable object (e.g., a ConcurrentBag,
+            Generic List, hashtable), wrap it with the unary comma to prevent the
+            binder from unrolling/enumerating it:
+                -ArgumentList (,$bag) # CORRECT: passes the bag as a single argument
+                -ArgumentList @($bag) # WRONG: bag gets enumerated and split
+
+            SCOPE LIMITATION: The scriptblock is dynamically rehydrated via
+            [scriptblock]::Create() inside each parallel runspace. Because of this,
+            the `$using:` scope modifier from the caller's scope does NOT work
+            natively inside the scriptblock. You must pass all external variables
+            explicitly via the -ArgumentList parameter or store them in the input
+            object.
+        #>
+
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [AllowEmptyCollection()]
+            [array]$InputObject,
+
+            [Parameter(Mandatory)]
+            [scriptblock]$ScriptBlock,
+
+            [Parameter(Mandatory)]
+            [int]$ThrottleLimit,
+
+            [Parameter()]
+            [object[]]$ArgumentList = @()
+        )
+
+        if ($ThrottleLimit -le 1) {
+            Write-Verbose 'Running sequentially (ThrottleLimit <= 1)'
+
+            foreach ($item in $InputObject) {
+                & $ScriptBlock $item @ArgumentList
+            }
+        }
+        else {
+            Write-Verbose "Running in parallel (ThrottleLimit = $ThrottleLimit)"
+
+            $scriptBlockString = $ScriptBlock.ToString()
+
+            $InputObject | ForEach-Object -Parallel {
+                $rehydratedBlock = [scriptblock]::Create($using:scriptBlockString)
+                $splatArgs = $using:ArgumentList
+                & $rehydratedBlock $_ @splatArgs
+            } -ThrottleLimit $ThrottleLimit
+        }
+    }
+
     $scriptBlock = {
+        param($job)
+
         function Get-FolderContentSftpServerHC {
             try {
                 Write-Verbose "Get folder content 'SFTP:$sftpPath'"
@@ -474,32 +586,113 @@ try {
             $result.Actions += $ActionMessage
         }
 
-        try {
-            $path = $_
+        function Import-ModuleWithLockHC {
+            <#
+                .SYNOPSIS
+                    Import a PowerShell module while holding a lock.
 
-            Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
+                .DESCRIPTION
+                    Importing the same module at the same time in multiple
+                    runspaces is not thread safe. It fails intermittently with
+                    errors like "An item with the same key has already been
+                    added. Key: Alias", because a module registers its
+                    aliases, formats and nested modules in tables that are
+                    shared within the process.
+
+                    A named mutex guarantees that only one runspace at a time
+                    is importing the module. When the module is already loaded
+                    in the runspace nothing is done.
+
+                .PARAMETER Name
+                    Name of the module to import.
+
+                .PARAMETER TimeoutSeconds
+                    Maximum time to wait for another runspace to finish
+                    importing the module.
+            #>
+            param (
+                [Parameter(Mandatory)]
+                [String]$Name,
+                [Int]$TimeoutSeconds = 120
+            )
+
+            if (Get-Module -Name $Name) {
+                Write-Verbose "Module '$Name' is already loaded"
+                return
+            }
+
+            $mutex = [System.Threading.Mutex]::new(
+                $false, "Local\ImportModule-$Name"
+            )
+
+            $isMutexOwner = $false
+
+            try {
+                try {
+                    $isMutexOwner = $mutex.WaitOne(
+                        [TimeSpan]::FromSeconds($TimeoutSeconds)
+                    )
+                }
+                catch [System.Threading.AbandonedMutexException] {
+                    # a runspace was terminated before releasing the mutex,
+                    # we are the owner now
+                    $isMutexOwner = $true
+                }
+
+                if (-not $isMutexOwner) {
+                    throw "waited more than $TimeoutSeconds seconds for another runspace to finish the import"
+                }
+
+                Import-Module -Name $Name -ErrorAction 'Stop'
+
+                Write-Verbose "Imported module '$Name'"
+            }
+            catch {
+                $M = "Failed importing module '$Name': $_"
+                $Error.RemoveAt(0)
+                throw $M
+            }
+            finally {
+                if ($isMutexOwner) {
+                    $mutex.ReleaseMutex()
+                }
+
+                $mutex.Dispose()
+            }
+        }
+
+        try {
+            #region Read the job object
+            # A job object contains all data required to handle one path.
+            # This avoids the use of '$using:', which does not work in a
+            # scriptblock that is rehydrated by
+            # Invoke-WithOptionalParallelismHC.
+            $path = $job.Path
+
+            $SftpComputerName = $job.SftpComputerName
+            $SftpCredential = $job.SftpCredential
+            $SftpPort = $job.SftpPort
+            $SftpOpenSshKeyFile = $job.SftpOpenSshKeyFile
+
+            $MatchFileNameRegex = $job.MatchFileNameRegex
+            $OverwriteFile = $job.OverwriteFile
+            $ExcludeZeroSizeFile = $job.ExcludeZeroSizeFile
+            $AttemptCount = $job.AttemptCount
+            $WaitSecondsBetweenAttempts = $job.WaitSecondsBetweenAttempts
+            #endregion
 
             #region Set defaults
             # workaround for https://github.com/PowerShell/PowerShell/issues/16894
             $ProgressPreference = 'SilentlyContinue'
             $ErrorActionPreference = 'Stop'
+            $VerbosePreference = $job.VerbosePreference
             #endregion
 
-            #region Declare variables for code running in parallel
-            if (-not $MaxConcurrentActions) {
-                $VerbosePreference = $using:VerbosePreference
+            Write-Verbose "Path source '$($path.Source)' destination '$($path.Destination)'"
 
-                $SftpComputerName = $using:SftpComputerName
-                $SftpPort = $using:SftpPort
-                $SftpOpenSshKeyFile = $using:SftpOpenSshKeyFile
-                $sftpCredential = $using:sftpCredential
-
-                $MatchFileNameRegex = $using:MatchFileNameRegex
-                $OverwriteFile = $using:OverwriteFile
-                $ExcludeZeroSizeFile = $using:ExcludeZeroSizeFile
-                $AttemptCount = $using:AttemptCount
-                $WaitSecondsBetweenAttempts = $using:WaitSecondsBetweenAttempts
-            }
+            #region Import the SFTP module
+            # a new runspace does not inherit the modules loaded by its parent
+            Import-ModuleWithLockHC -Name 'Posh-SSH'
             #endregion
 
             $tempFolderName = @{
@@ -1227,20 +1420,39 @@ try {
     }
 
     #region Run code serial or parallel
-    $foreachParams = if ($MaxConcurrentActions -eq 1) {
-        @{
-            Process = $scriptBlock
+    #region Create job objects
+    # A job object contains all data required to handle one path. This avoids
+    # the use of '$using:', which is only available when the code runs in
+    # parallel, and makes the code in $scriptBlock identical for serial and
+    # parallel execution.
+    $jobs = foreach ($pathItem in $Paths) {
+        [PSCustomObject]@{
+            Path                       = $pathItem
+            SftpComputerName           = $SftpComputerName
+            SftpCredential             = $SftpCredential
+            SftpPort                   = $SftpPort
+            SftpOpenSshKeyFile         = $SftpOpenSshKeyFile
+            MatchFileNameRegex         = $MatchFileNameRegex
+            OverwriteFile              = $OverwriteFile
+            ExcludeZeroSizeFile        = $ExcludeZeroSizeFile
+            AttemptCount               = $AttemptCount
+            WaitSecondsBetweenAttempts = $WaitSecondsBetweenAttempts
+            VerbosePreference          = $VerbosePreference
         }
     }
-    else {
-        @{
-            Parallel       = $scriptBlock
-            UseNewRunspace = $true
-            ThrottleLimit  = $MaxConcurrentActions
-        }
-    }
+    #endregion
 
-    $Paths | ForEach-Object @foreachParams
+    # 'UseNewRunspace' is no longer needed: a new runspace per path was a
+    # workaround for the module 'Posh-SSH' that failed to load correctly in a
+    # reused runspace. Import-ModuleWithLockHC now makes the import thread
+    # safe, so runspaces can be reused, which is faster and results in fewer
+    # concurrent module imports.
+    $parallelParams = @{
+        InputObject   = @($jobs)
+        ScriptBlock   = $scriptBlock
+        ThrottleLimit = $MaxConcurrentPaths
+    }
+    Invoke-WithOptionalParallelismHC @parallelParams
 
     Write-Verbose 'All jobs finished'
     #endregion

@@ -3,7 +3,11 @@
 
 BeforeAll {
     $testInputFile = @{
-        MaxConcurrentActions = 1
+        MaxConcurrent        = @{
+            ActionsTotal          = 1
+            PathsPerAction        = 1
+            SftpSessionsPerServer = 1
+        }
         Tasks                = @(
             @{
                 TaskName = 'App x'
@@ -309,6 +313,141 @@ Describe 'create an error log file when' {
             Should -Not -Invoke Out-File
         }
         Context 'property' {
+            It 'Tasks.Actions.ComputerName is not unique' {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.Tasks[0].Actions = @(
+                    $testNewInputFile.Tasks[0].Actions[0]
+                    (Copy-ObjectHC $testNewInputFile.Tasks[0].Actions[0])
+                )
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Duplicate 'Tasks.Actions.ComputerName' found*"
+            }
+            It "Tasks.Actions.ComputerName '<First>' and '<Second>' are the same computer" -ForEach @(
+                @{ First = $null; Second = 'localhost' }
+                @{ First = 'localhost'; Second = $null }
+                @{ First = 'pc1'; Second = 'PC1' }
+                @{ First = 'PC1'; Second = 'PC1 ' }
+                @{
+                    First  = $env:COMPUTERNAME
+                    Second = "$env:COMPUTERNAME.$env:USERDNSDOMAIN"
+                }
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+
+                $testSecondAction = Copy-ObjectHC $testNewInputFile.Tasks[0].Actions[0]
+
+                $testNewInputFile.Tasks[0].Actions[0].ComputerName = $First
+                $testSecondAction.ComputerName = $Second
+
+                $testNewInputFile.Tasks[0].Actions = @(
+                    $testNewInputFile.Tasks[0].Actions[0]
+                    $testSecondAction
+                )
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Duplicate 'Tasks.Actions.ComputerName' found*"
+            }
+            It 'MaxConcurrent.<_> not found' -ForEach @(
+                'ActionsTotal', 'PathsPerAction', 'SftpSessionsPerServer'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.MaxConcurrent.$_ = $null
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Property 'MaxConcurrent.$_' not found*"
+            }
+            It 'MaxConcurrent.<_> is not a number' -ForEach @(
+                'ActionsTotal', 'PathsPerAction', 'SftpSessionsPerServer'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.MaxConcurrent.$_ = 'a'
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Property 'MaxConcurrent.$_' needs to be a number*"
+            }
+            It 'MaxConcurrent.<_> is less than 1' -ForEach @(
+                'ActionsTotal', 'PathsPerAction', 'SftpSessionsPerServer'
+            ) {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.MaxConcurrent.$_ = 0
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Property 'MaxConcurrent.$_' needs to be at least 1*"
+            }
+            It 'MaxConcurrent.PathsPerAction is more than MaxConcurrent.SftpSessionsPerServer' {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.MaxConcurrent.PathsPerAction = 4
+                $testNewInputFile.MaxConcurrent.SftpSessionsPerServer = 2
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Property 'MaxConcurrent.PathsPerAction' (4) cannot be greater than 'MaxConcurrent.SftpSessionsPerServer' (2)*"
+            }
+            It 'the obsolete property MaxConcurrentActions is used' {
+                $testNewInputFile = Copy-ObjectHC $testInputFile
+                $testNewInputFile.PSObject.Properties.Remove('MaxConcurrent')
+                $testNewInputFile |
+                Add-Member -NotePropertyName 'MaxConcurrentActions' -NotePropertyValue 5
+
+                Test-NewJsonFileHC
+
+                .$testScript @testParams
+
+                $LASTEXITCODE | Should -Be 1
+
+                $testLogFileContent = Test-GetLogFileDataHC
+
+                $testLogFileContent[0].Message |
+                Should -BeLike "*Property 'MaxConcurrentActions' is replaced by 'MaxConcurrent'*"
+            }
             It 'Tasks.<_> not found' -ForEach @(
                 'TaskName', 'Sftp', 'Option', 'Actions'
             ) {
@@ -434,7 +573,7 @@ Describe 'execute the SFTP script when' {
                 ($ArgumentList[0] -eq $testInputFile.Tasks[0].Sftp.ComputerName) -and
                 ($ArgumentList[1].GetType().Name -eq 'PSCredential') -and
                 ($ArgumentList[2].GetType().BaseType.Name -eq 'Array') -and
-                ($ArgumentList[3] -eq $testInputFile.MaxConcurrentActions) -and
+                ($ArgumentList[3] -eq $testInputFile.MaxConcurrent.PathsPerAction) -and
                 ($ArgumentList[4] -eq 22) -and
                 ($ArgumentList[5] -eq $testInputFile.Tasks[0].Option.MatchFileNameRegex) -and
                 (-not $ArgumentList[6])
@@ -456,7 +595,7 @@ Describe 'execute the SFTP script when' {
         }
         It 'call New-PSSession' {
             Should -Invoke New-PSSession -Times 1 -Exactly -Scope Context -ParameterFilter {
-                ($ErrorAction -eq 'SilentlyContinue') -and
+                ($ErrorAction -eq 'Stop') -and
                 ($ConfigurationName -eq $PSSessionConfiguration) -and
                 ($ComputerName -eq $testNewInputFile.Tasks[0].Actions[0].ComputerName)
             }
@@ -639,5 +778,113 @@ Describe 'ReportOnly' {
                 ($MimeKitAssemblyPath -eq 'C:\Program Files\PackageManagement\NuGet\Packages\MimeKit.4.11.0\lib\net8.0\MimeKit.dll')
             }
         }
+    }
+}
+Describe 'when starting an action fails' {
+    BeforeAll {
+        $testNewInputFile = Copy-ObjectHC $testInputFile
+        $testNewInputFile.Tasks[0].Actions = @(
+            $testNewInputFile.Tasks[0].Actions[0]
+        )
+
+        $testRetryParams = $testParams.Clone()
+        $testRetryParams.JobRetry = @{
+            AttemptCount               = 3
+            WaitSecondsBetweenAttempts = 1
+            TransientErrorRegex        = @(
+                'An item with the same key has already been added'
+            )
+        }
+    }
+    Context 'with a transient error that disappears' {
+        BeforeAll {
+            Test-NewJsonFileHC
+
+            # a hashtable is used because it is passed by reference
+            $testAttempt = @{
+                count = 0
+            }
+
+            Mock Invoke-Command {
+                $testAttempt.count++
+
+                if ($testAttempt.count -lt 3) {
+                    throw 'An item with the same key has already been added. Key: Alias'
+                }
+
+                $testData
+            }
+
+            .$testScript @testRetryParams
+        }
+        It 'the action is retried until it succeeds' {
+            Should -Invoke Invoke-Command -Times 3 -Exactly -Scope Context
+        }
+        It 'no error is reported in the e-mail' {
+            Should -Invoke Send-MailKitMessageHC -Times 1 -Exactly -Scope Context -ParameterFilter {
+                $Body -notLike '*ERROR*'
+            }
+        }
+    }
+    Context 'with a transient error that keeps coming back' {
+        BeforeAll {
+            Test-NewJsonFileHC
+
+            Mock Invoke-Command {
+                throw 'An item with the same key has already been added. Key: Alias'
+            }
+
+            .$testScript @testRetryParams
+        }
+        It 'the action is retried the maximum number of times' {
+            Should -Invoke Invoke-Command -Times 3 -Exactly -Scope Context
+        }
+        It 'the error is reported in the e-mail' {
+            Should -Invoke Send-MailKitMessageHC -Times 1 -Exactly -Scope Context -ParameterFilter {
+                $Body -like '*ERROR: An item with the same key has already been added*'
+            }
+        }
+    }
+    Context 'with an error that is not transient' {
+        BeforeAll {
+            Test-NewJsonFileHC
+
+            Mock Invoke-Command {
+                throw 'Failed to connect to the SFTP server'
+            }
+
+            .$testScript @testRetryParams
+        }
+        It 'the action is not retried' {
+            Should -Invoke Invoke-Command -Times 1 -Exactly -Scope Context
+        }
+        It 'the error is reported in the e-mail' {
+            Should -Invoke Send-MailKitMessageHC -Times 1 -Exactly -Scope Context -ParameterFilter {
+                $Body -like '*ERROR: Failed to connect to the SFTP server*'
+            }
+        }
+    }
+}
+Describe 'the actions of different computers' {
+    BeforeAll {
+        $testNewInputFile = Copy-ObjectHC $testInputFile
+
+        $testSecondAction = Copy-ObjectHC $testNewInputFile.Tasks[0].Actions[0]
+        $testSecondAction.ComputerName = 'PC2'
+
+        $testNewInputFile.Tasks[0].Actions = @(
+            $testNewInputFile.Tasks[0].Actions[0]
+            $testSecondAction
+        )
+
+        Test-NewJsonFileHC
+
+        .$testScript @testParams
+    }
+    It 'are all executed' {
+        Should -Invoke Invoke-Command -Times 2 -Exactly -Scope Describe
+    }
+    It 'each use their own PowerShell session' {
+        Should -Invoke New-PSSession -Times 2 -Exactly -Scope Describe
     }
 }

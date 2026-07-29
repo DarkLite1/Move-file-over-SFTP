@@ -10,8 +10,8 @@
     The computer that is running the SFTP code should have the module 'Posh-SSH'
     installed.
 
-    Tasks will always run in sequential order, one after the other. Actions run
-    in parallel when MaxConcurrentActions is more than 1.
+    Tasks will always run in sequential order, one after the other. Actions
+    run in parallel, see 'MaxConcurrent' in the input file.
 
 .PARAMETER ConfigurationJsonFile
     Contains all the parameters used by the script.
@@ -26,6 +26,16 @@
 
     This can be useful when the script ran every 5 minutes with a Task
     Scheduler and 'SendMail.When' was 'OnlyOnError'.
+
+.PARAMETER JobRetry
+    Starting an action can fail with an error that has nothing to do with the
+    SFTP transfer itself. Importing a module in multiple runspaces at the same
+    time for example is not thread safe and fails intermittently with
+    'An item with the same key has already been added. Key: Alias'.
+
+    Such errors are transient and disappear on the next attempt. An action is
+    only retried when the error message matches 'TransientErrorRegex', all
+    other errors are reported immediately.
 #>
 
 [CmdLetBinding()]
@@ -35,17 +45,131 @@ param (
     [Switch]$ReportOnly,
     [HashTable]$ScriptPath = @{
         MoveFile = "$PSScriptRoot\Move file.ps1"
+    },
+    [HashTable]$JobRetry = @{
+        AttemptCount               = 3
+        WaitSecondsBetweenAttempts = 5
+        TransientErrorRegex        = @(
+            'An item with the same key has already been added'
+            'Collection was modified'
+            'The pipeline is not in the Running state'
+            'is not in the Opened state'
+        )
     }
 )
 
 begin {
     $ErrorActionPreference = 'stop'
 
-    $eventLogData = [System.Collections.Generic.List[PSObject]]::new()
+    # a thread safe collection, it is filled by code running in
+    # parallel runspaces
+    $eventLogData = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
     $systemErrors = [System.Collections.Generic.List[PSObject]]::new()
     $scriptStartTime = Get-Date
 
     try {
+        function Invoke-WithOptionalParallelismHC {
+            <#
+            .SYNOPSIS
+                Executes a scriptblock against an array of input objects, seamlessly
+                switching between sequential and parallel execution.
+
+            .DESCRIPTION
+                A dynamic execution wrapper that allows the pipeline to scale
+                concurrency based on the provided configuration.
+
+                If the `ThrottleLimit` is greater than 1, the function utilizes
+                PowerShell 7's `ForEach-Object -Parallel` to spin up concurrent
+                runspaces. If the limit is 1 or less, it gracefully falls back to a
+                standard sequential `foreach` loop running on the main thread, making
+                it highly versatile for debugging or resource-constrained environments.
+
+            .PARAMETER InputObject
+                An array of items to process. Inside the scriptblock, the current item
+                is passed as the first positional parameter.
+
+            .PARAMETER ScriptBlock
+                The code to execute against each item. Must define a `param()` block to
+                receive the input item and any additional arguments.
+
+            .PARAMETER ThrottleLimit
+                The maximum number of concurrent threads/runspaces. A value of 1 or 0
+                forces standard sequential execution.
+
+            .PARAMETER ArgumentList
+                An optional array of extra arguments to pass positionally to the
+                scriptblock after the main input item.
+
+            .EXAMPLE
+                $items = @('ServerA', 'ServerB')
+                $myList = [System.Collections.Generic.List[string]]::new()
+
+                Invoke-WithOptionalParallelismHC `
+                    -InputObject $items `
+                    -ThrottleLimit 5 `
+                    -ArgumentList (,$myList), $true `
+                    -ScriptBlock {
+                        param($ComputerName, $ListRef, $LogEnabled)
+
+                        if ($LogEnabled) {
+                            $ListRef.Add("Processed $ComputerName")
+                        }
+                    }
+
+            .NOTES
+                ArgumentList follows the standard PowerShell convention (cf. Start-Job,
+                Invoke-Command): supplied values are passed as positional arguments
+                after the input item.
+
+                CRITICAL: When passing an enumerable object (e.g., a ConcurrentBag,
+                Generic List, hashtable), wrap it with the unary comma to prevent the
+                binder from unrolling/enumerating it:
+                    -ArgumentList (,$bag) # CORRECT: passes the bag as a single argument
+                    -ArgumentList @($bag) # WRONG: bag gets enumerated and split
+
+                SCOPE LIMITATION: The scriptblock is dynamically rehydrated via
+                [scriptblock]::Create() inside each parallel runspace. Because of this,
+                the `$using:` scope modifier from the caller's scope does NOT work
+                natively inside the scriptblock. You must pass all external variables
+                explicitly via the -ArgumentList parameter or store them in the input
+                object.
+            #>
+
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [AllowEmptyCollection()]
+                [array]$InputObject,
+
+                [Parameter(Mandatory)]
+                [scriptblock]$ScriptBlock,
+
+                [Parameter(Mandatory)]
+                [int]$ThrottleLimit,
+
+                [Parameter()]
+                [object[]]$ArgumentList = @()
+            )
+
+            if ($ThrottleLimit -le 1) {
+                Write-Verbose 'Running sequentially (ThrottleLimit <= 1)'
+
+                foreach ($item in $InputObject) {
+                    & $ScriptBlock $item @ArgumentList
+                }
+            }
+            else {
+                Write-Verbose "Running in parallel (ThrottleLimit = $ThrottleLimit)"
+
+                $scriptBlockString = $ScriptBlock.ToString()
+
+                $InputObject | ForEach-Object -Parallel {
+                    $rehydratedBlock = [scriptblock]::Create($using:scriptBlockString)
+                    $splatArgs = $using:ArgumentList
+                    & $rehydratedBlock $_ @splatArgs
+                } -ThrottleLimit $ThrottleLimit
+            }
+        }
         function ConvertTo-SentenceHC {
             <#
                 .SYNOPSIS
@@ -209,20 +333,60 @@ begin {
         Write-Verbose 'Test .json file properties'
 
         try {
+            #region Test obsolete properties
+            if (
+                $jsonFileContent.PSObject.Properties.Name -contains
+                'MaxConcurrentActions'
+            ) {
+                throw "Property 'MaxConcurrentActions' is replaced by 'MaxConcurrent'. Use 'MaxConcurrent.ActionsTotal', 'MaxConcurrent.PathsPerAction' and 'MaxConcurrent.SftpSessionsPerServer' instead."
+            }
+            #endregion
+
             @(
-                'MaxConcurrentActions', 'Tasks'
+                'MaxConcurrent', 'Tasks'
             ).where(
                 { -not $jsonFileContent.$_ }
             ).foreach(
                 { throw "Property '$_' not found" }
             )
 
-            #region Test integer value
-            try {
-                [int]$MaxConcurrentActions = $jsonFileContent.MaxConcurrentActions
-            }
-            catch {
-                throw "Property 'MaxConcurrentActions' needs to be a number, the value '$($jsonFileContent.MaxConcurrentActions)' is not supported."
+            #region Test MaxConcurrent
+            $MaxConcurrent = @{}
+
+            @(
+                'ActionsTotal', 'PathsPerAction', 'SftpSessionsPerServer'
+            ).foreach(
+                {
+                    # $_ is the error record within a catch block, so the
+                    # property name needs to be stored first
+                    $key = $_
+
+                    $value = $jsonFileContent.MaxConcurrent.$key
+
+                    if ($null -eq $value) {
+                        throw "Property 'MaxConcurrent.$key' not found"
+                    }
+
+                    try {
+                        $MaxConcurrent[$key] = [int]$value
+                    }
+                    catch {
+                        throw "Property 'MaxConcurrent.$key' needs to be a number, the value '$value' is not supported."
+                    }
+
+                    if ($MaxConcurrent[$key] -lt 1) {
+                        throw "Property 'MaxConcurrent.$key' needs to be at least 1, the value '$value' is not supported."
+                    }
+                }
+            )
+
+            # A single action would already open more SFTP sessions than the
+            # SFTP server is allowed to get.
+            if (
+                $MaxConcurrent.PathsPerAction -gt
+                $MaxConcurrent.SftpSessionsPerServer
+            ) {
+                throw "Property 'MaxConcurrent.PathsPerAction' ($($MaxConcurrent.PathsPerAction)) cannot be greater than 'MaxConcurrent.SftpSessionsPerServer' ($($MaxConcurrent.SftpSessionsPerServer))."
             }
             #endregion
 
@@ -300,11 +464,17 @@ begin {
                 }
 
                 #region Test unique ComputerName
+                # Group on the corrected name and not on the string in the
+                # input file: 'null', 'localhost', a different case or a
+                # trailing space all point to the same computer. Without the
+                # correction two actions could run at the same time on one
+                # computer, which doubles the quantity of SFTP sessions and
+                # the quantity of PowerShell sessions on that computer.
                 $task.Actions | Group-Object -Property {
-                    $_.ComputerName
+                    Get-ComputerNameHC $_.ComputerName
                 } |
                 Where-Object { $_.Count -ge 2 } | ForEach-Object {
-                    throw "Duplicate 'Tasks.Actions.ComputerName' found: $($_.Name)"
+                    throw "Duplicate 'Tasks.Actions.ComputerName' found: '$($_.Name)'. Move all paths to a single action, or use separate Tasks to run them sequentially instead of in Actions, which is ran in parallel"
                 }
                 #endregion
 
@@ -564,52 +734,56 @@ process {
         }
         else {
             $scriptBlock = {
-                try {
-                    $action = $_
+                param($job)
 
-                    #region Declare variables for code running in parallel
-                    if (-not $MaxConcurrentActions) {
-                        $task = $using:task
-                        $psSessions = $using:psSessions
-                        $MaxConcurrentActions = $using:MaxConcurrentActions
-                        $scriptPathItem = $using:scriptPathItem
-                        $PSSessionConfiguration = $using:PSSessionConfiguration
-                        $eventLogData = $using:eventLogData
-                    }
+                #region Read the job object
+                # A job object contains all data required to execute one
+                # action. This avoids the use of '$using:', which does not
+                # work in a scriptblock that is rehydrated by
+                # Invoke-WithOptionalParallelismHC.
+                $action = $job.Action
+                #endregion
+
+                try {
+                    #region Set defaults
+                    # a parallel runspace does not inherit the preference
+                    # variables of the parent scope
+                    $ErrorActionPreference = 'Stop'
+                    $VerbosePreference = $job.VerbosePreference
                     #endregion
 
                     #region Create job parameters
                     $invokeParams = @{
-                        FilePath     = $scriptPathItem.MoveFile
-                        ArgumentList = $task.Sftp.ComputerName,
-                        $task.Sftp.Credential.Object,
-                        $action.Paths,
-                        $MaxConcurrentActions,
-                        $task.Sftp.Port,
-                        $task.Option.MatchFileNameRegex,
-                        $task.Sftp.Credential.PasswordKeyFile,
-                        $task.Option.OverwriteFile,
-                        $task.Option.ExcludeZeroSizeFile
+                        FilePath     = $job.ScriptPathMoveFile
+                        ArgumentList = $job.SftpComputerName,
+                        $job.SftpCredential,
+                        $job.Paths,
+                        $job.MaxConcurrentPaths,
+                        $job.SftpPort,
+                        $job.MatchFileNameRegex,
+                        $job.SftpOpenSshKeyFile,
+                        $job.OverwriteFile,
+                        $job.ExcludeZeroSizeFile
                     }
 
-                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' Sftp.Port '{5}' MatchFileNameRegex '{6}' OverwriteFile '{7}' ExcludeZeroSizeFile '{8}'" -f
-                    $task.TaskName,
-                    $action.ComputerName,
-                    $invokeParams.ArgumentList[0],
+                    $M = "Start task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentPaths '{4}' Sftp.Port '{5}' MatchFileNameRegex '{6}' OverwriteFile '{7}' ExcludeZeroSizeFile '{8}'" -f
+                    $job.TaskName,
+                    $job.ComputerName,
+                    $job.SftpComputerName,
                     $(
-                        $invokeParams.ArgumentList[2].foreach(
+                        $job.Paths.foreach(
                             { "Source '$($_.Source)' Destination '$($_.Destination)'" }
                         ) -join ', '
                     ),
-                    $invokeParams.ArgumentList[3],
-                    $invokeParams.ArgumentList[4],
-                    $invokeParams.ArgumentList[5],
-                    $invokeParams.ArgumentList[7],
-                    $invokeParams.ArgumentList[8]
+                    $job.MaxConcurrentPaths,
+                    $job.SftpPort,
+                    $job.MatchFileNameRegex,
+                    $job.OverwriteFile,
+                    $job.ExcludeZeroSizeFile
 
                     Write-Verbose $M
 
-                    $eventLogData.Add(
+                    $job.EventLogData.Add(
                         [PSCustomObject]@{
                             Message   = $M
                             DateTime  = Get-Date
@@ -620,77 +794,142 @@ process {
                     #endregion
 
                     #region Start job
-                    $computerName = $action.ComputerName
-
-                    $action.Job.Results += if (
-                        $computerName -eq $ENV:COMPUTERNAME
-                    ) {
-                        $params = $invokeParams.ArgumentList
-                        & $invokeParams.FilePath @params
+                    $attempt = @{
+                        count = 0
+                        max   = $job.Retry.AttemptCount
                     }
-                    else {
-                        #region Code with workaround
-                        # create 'Move file' script parameters in script scope
-                        # bug: https://github.com/PowerShell/PowerShell/issues/21332
 
-                        if (
-                            -not ($psSession = $psSessions[$computerName].Session)
-                        ) {
-                            # For Pester mocking with a local session object
-                            if (-not (
-                                    $psSession = $psSessions['localhost'].Session)
+                    while ($true) {
+                        $attempt.count++
+
+                        $psSession = $null
+
+                        try {
+                            $action.Job.Results += if (
+                                $job.RunOnLocalComputer
                             ) {
-                                throw $psSessions[$computerName].Error
+                                $params = $invokeParams.ArgumentList
+                                & $invokeParams.FilePath @params
                             }
-                        }
+                            else {
+                                #region Code with workaround
+                                # create 'Move file' script parameters in script scope
+                                # bug: https://github.com/PowerShell/PowerShell/issues/21332
 
-                        $SftpComputerName = $null
-                        $Paths = $null
-                        $SftpCredential = $null
-                        $SftpPort = $null
-                        $MatchFileNameRegex = $null
-                        $SftpOpenSshKeyFile = $null
-                        $OverwriteFile = $null
-                        $ExcludeZeroSizeFile = $null
-                        $AttemptCount = $null
-                        $WaitSecondsBetweenAttempts = $null
+                                $SftpComputerName = $null
+                                $Paths = $null
+                                $SftpCredential = $null
+                                $MaxConcurrentPaths = $null
+                                $SftpPort = $null
+                                $MatchFileNameRegex = $null
+                                $SftpOpenSshKeyFile = $null
+                                $OverwriteFile = $null
+                                $ExcludeZeroSizeFile = $null
+                                $AttemptCount = $null
+                                $WaitSecondsBetweenAttempts = $null
 
-                        $invokeParams += @{
-                            Session     = $psSession
-                            ErrorAction = 'Stop'
-                        }
-                        Invoke-Command @invokeParams
-                        #endregion
+                                $newPsSessionParams = @{
+                                    ComputerName      = $job.ComputerName
+                                    ConfigurationName = $job.PSSessionConfiguration
+                                    ErrorAction       = 'Stop'
+                                }
+                                $psSession = New-PSSession @newPsSessionParams
 
-                        <#region Code without workaround
-                            $invokeParams += @{
-                                ConfigurationName = $PSSessionConfiguration
-                                ComputerName      = $computerName
-                                ErrorAction       = 'Stop'
+                                # use the indexer and not '+=' so that a
+                                # retry does not add the same key twice
+                                $invokeParams['Session'] = $psSession
+                                $invokeParams['ErrorAction'] = 'Stop'
+
+                                Invoke-Command @invokeParams
+                                #endregion
                             }
-                            Invoke-Command @invokeParams
-                        #>
+
+                            break
+                        }
+                        catch {
+                            $errorMessage = "$_"
+
+                            #region Test transient error
+                            $isTransientError = $false
+
+                            foreach (
+                                $regex in $job.Retry.TransientErrorRegex
+                            ) {
+                                if ($errorMessage -match $regex) {
+                                    $isTransientError = $true
+                                    break
+                                }
+                            }
+                            #endregion
+
+                            if (
+                                (-not $isTransientError) -or
+                                ($attempt.count -ge $attempt.max)
+                            ) {
+                                throw
+                            }
+
+                            $M = "Transient error on attempt {0}/{1} for task '{2}' on '{3}', retry in {4} seconds: {5}" -f
+                            $attempt.count,
+                            $attempt.max,
+                            $job.TaskName,
+                            $job.ComputerName,
+                            $job.Retry.WaitSecondsBetweenAttempts,
+                            $errorMessage
+
+                            Write-Warning $M
+
+                            $job.EventLogData.Add(
+                                [PSCustomObject]@{
+                                    Message   = $M
+                                    DateTime  = Get-Date
+                                    EntryType = 'Warning'
+                                    EventID   = '3'
+                                }
+                            )
+
+                            $Error.RemoveAt(0)
+
+                            Start-Sleep -Seconds $job.Retry.WaitSecondsBetweenAttempts
+                        }
+                        finally {
+                            #region Close the PowerShell session
+                            # The session is owned by this attempt and is
+                            # never shared:
+                            # - a session runs one pipeline at a time, so
+                            #   two actions cannot use the same session
+                            # - a client side error does not stop the
+                            #   remote pipeline. Only Remove-PSSession
+                            #   sends the WSMan terminate. Without it a
+                            #   retry can start a second 'Move file' run
+                            #   while the first one is still running on
+                            #   the remote computer.
+                            if ($psSession) {
+                                $psSession | Remove-PSSession -EA Ignore
+                            }
+                            #endregion
+                        }
                     }
                     #endregion
 
                     #region Verbose job results
-                    $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentActions '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}' ExcludeZeroSizeFile '{7}': {8} object{9}" -f
-                    $task.TaskName,
-                    $action.ComputerName,
-                    $invokeParams.ArgumentList[0],
+                    $M = "Result task '{0}' on '{1}' with: Sftp.ComputerName '{2}' Paths {3} MaxConcurrentPaths '{4}' MatchFileNameRegex '{5}' OverwriteFile '{6}' ExcludeZeroSizeFile '{7}': {8} object{9}" -f
+                    $job.TaskName,
+                    $job.ComputerName,
+                    $job.SftpComputerName,
                     $(
-                        $invokeParams.ArgumentList[2].foreach(
+                        $job.Paths.foreach(
                             { "Source '$($_.Source)' Destination '$($_.Destination)'" }
                         ) -join ', '
                     ),
-                    $invokeParams.ArgumentList[3],
-                    $invokeParams.ArgumentList[5],
-                    $invokeParams.ArgumentList[7],
-                    $invokeParams.ArgumentList[8],
+                    $job.MaxConcurrentPaths,
+                    $job.MatchFileNameRegex,
+                    $job.OverwriteFile,
+                    $job.ExcludeZeroSizeFile,
                     $action.Job.Results.Count,
                     $(if ($action.Job.Results.Count -ne 1) { 's' })
 
-                    $eventLogData.Add(
+                    $job.EventLogData.Add(
                         [PSCustomObject]@{
                             Message   = $M
                             DateTime  = Get-Date
@@ -701,79 +940,99 @@ process {
 
                     Write-Verbose $M
                     #endregion
-                }
+                    }
                 catch {
                     $action.Job.Error = $_
                     $Error.RemoveAt(0)
                 }
             }
 
-            #region Create PS sessions
-            $psSessions = @{}
-
-            $psSessionParams = @{
-                ComputerName      = $null
-                ConfigurationName = $PSSessionConfiguration
-                ErrorAction       = 'SilentlyContinue'
-            }
-
-            if (
-                $psSessionParams.ComputerName = $Tasks.Actions.ComputerName |
-                Sort-Object -Unique |
-                Where-Object { $_ -ne $env:COMPUTERNAME }
-            ) {
-                #region Open PS remoting sessions
-                Write-Verbose "Connect to $($psSessionParams.ComputerName.Count) remote computers"
-
-                foreach ($session in New-PSSession @psSessionParams) {
-                    $psSessions[$session.ComputerName] = @{
-                        Session = $session
-                        Error   = $null
-                    }
-                }
-
-                Write-Verbose "Created $($session.Count) sessions"
-                #endregion
-
-                #region Get connection errors
-                $Error.where(
-                    { $_.InvocationInfo.InvocationName -eq 'New-PSSession' }
-                ).foreach(
-                    {
-                        $computerName = $_.TargetObject.OriginalConnectionInfo.ComputerName
-                        $errorMessage = $_.Exception.Message
-
-                        Write-Warning "Failed connecting to '$computerName': $errorMessage"
-
-                        $psSessions[$computerName] = @{
-                            Session = $null
-                            Error   = $errorMessage
-                        }
-
-                        $Error.Remove($_)
-                    }
+            #region Calculate the number of actions to run at the same time
+            # All actions within a task connect to the same SFTP server and
+            # tasks are executed one after the other. Each action opens at most
+            # 'PathsPerAction' SFTP sessions, so the number of actions running
+            # at the same time is what decides how many SFTP sessions the SFTP
+            # server gets.
+            #
+            # Actions run in another process, on another computer, so a counter
+            # or a lock in this script cannot see the SFTP sessions they open.
+            # The limit can only be guaranteed by not starting more actions
+            # than the SFTP server is allowed to handle.
+            $maxActionsForSftpServer = [Math]::Max(
+                1,
+                [Math]::Floor(
+                    $MaxConcurrent.SftpSessionsPerServer /
+                    $MaxConcurrent.PathsPerAction
                 )
-                #endregion
-            }
+            )
+
+            [int]$actionThrottle = [Math]::Min(
+                $MaxConcurrent.ActionsTotal, $maxActionsForSftpServer
+            )
+
+            $M = 'Run maximum {0} actions at the same time, each with maximum {1} paths, resulting in maximum {2} SFTP sessions to one SFTP server' -f
+            $actionThrottle,
+            $MaxConcurrent.PathsPerAction,
+            ($actionThrottle * $MaxConcurrent.PathsPerAction)
+
+            Write-Verbose $M
+
+            $eventLogData.Add(
+                [PSCustomObject]@{
+                    Message   = $M
+                    DateTime  = Get-Date
+                    EntryType = 'Information'
+                    EventID   = '4'
+                }
+            )
             #endregion
 
             #region Run code serial or parallel
-            $foreachParams = if ($MaxConcurrentActions -eq 1) {
-                @{
-                    Process = $scriptBlock
-                }
-            }
-            else {
-                @{
-                    Parallel      = $scriptBlock
-                    ThrottleLimit = $MaxConcurrentActions
-                }
-            }
-
             foreach ($task in $Tasks) {
                 Write-Verbose "Execute task '$($task.TaskName)' with $($task.Actions.Count) actions"
 
-                $task.Actions | ForEach-Object @foreachParams
+                #region Create job objects
+                # A job object contains all data required to execute one
+                # action. This avoids the use of '$using:', which does not work
+                # in a scriptblock that is rehydrated by
+                # Invoke-WithOptionalParallelismHC.
+                #
+                # 'Tasks.Actions.ComputerName' is unique within a task and
+                # tasks run one after the other, so a computer never handles
+                # more than one action at a time and never has more than one
+                # PowerShell session open.
+                $jobs = foreach ($action in $task.Actions) {
+                    [PSCustomObject]@{
+                        TaskName               = $task.TaskName
+                        ComputerName           = $action.ComputerName
+                        Action                 = $action
+                        RunOnLocalComputer     = (
+                            $action.ComputerName -eq $ENV:COMPUTERNAME
+                        )
+                        PSSessionConfiguration = $PSSessionConfiguration
+                        ScriptPathMoveFile     = $scriptPathItem.MoveFile
+                        SftpComputerName       = $task.Sftp.ComputerName
+                        SftpCredential         = $task.Sftp.Credential.Object
+                        SftpPort               = $task.Sftp.Port
+                        SftpOpenSshKeyFile     = $task.Sftp.Credential.PasswordKeyFile
+                        Paths                  = $action.Paths
+                        MaxConcurrentPaths     = $MaxConcurrent.PathsPerAction
+                        MatchFileNameRegex     = $task.Option.MatchFileNameRegex
+                        OverwriteFile          = $task.Option.OverwriteFile
+                        ExcludeZeroSizeFile    = $task.Option.ExcludeZeroSizeFile
+                        EventLogData           = $eventLogData
+                        VerbosePreference      = $VerbosePreference
+                        Retry                  = $JobRetry
+                    }
+                }
+                #endregion
+
+                $parallelParams = @{
+                    InputObject   = @($jobs)
+                    ScriptBlock   = $scriptBlock
+                    ThrottleLimit = $actionThrottle
+                }
+                Invoke-WithOptionalParallelismHC @parallelParams
             }
 
             Write-Verbose 'All tasks finished'
@@ -789,14 +1048,6 @@ process {
         )
 
         Write-Warning $systemErrors[-1].Message
-    }
-    finally {
-        if ($psSessions.Values.Session) {
-            # Only close PS Sessions and not the WinPSCompatSession
-            # used by Write-EventLog
-            # https://github.com/PowerShell/PowerShell/issues/24227
-            $psSessions.Values.Session | Remove-PSSession -EA Ignore
-        }
     }
 }
 
@@ -2146,7 +2397,7 @@ end {
                 $params = @{
                     Source  = $scriptName
                     LogName = $saveInEventLog.LogName
-                    Events  = $eventLogData
+                    Events  = $eventLogData | Sort-Object -Property 'DateTime'
                 }
                 Write-EventsToEventLogHC @params
 

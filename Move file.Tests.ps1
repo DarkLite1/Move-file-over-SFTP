@@ -1,4 +1,5 @@
 #Requires -Modules Pester
+#Requires -Modules Posh-SSH
 #Requires -Version 7
 
 BeforeAll {
@@ -21,7 +22,7 @@ BeforeAll {
                 Destination = (New-Item 'TestDrive:/f2' -ItemType 'Directory').FullName
             }
         )
-        MaxConcurrentActions = 1
+        MaxConcurrentPaths   = 1
         SftpPort             = 22
         MatchFileNameRegex   = '.*'
         OverwriteFile        = $false
@@ -49,7 +50,7 @@ Describe 'the mandatory parameters are' {
         'Paths',
         'SftpComputerName',
         'SftpCredential',
-        'MaxConcurrentActions'
+        'MaxConcurrentPaths'
     ) {
         (Get-Command $testScript).Parameters[$_].Attributes.Mandatory |
         Should -BeTrue

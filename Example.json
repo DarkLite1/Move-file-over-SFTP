@@ -1,5 +1,9 @@
 {
-  "MaxConcurrentActions": 5,
+  "MaxConcurrent": {
+    "ActionsTotal": 4,
+    "PathsPerAction": 2,
+    "SftpSessionsPerServer": 8
+  },
   "Tasks": [
     {
       "TaskName": "Step 1: Upload files",
@@ -107,7 +111,12 @@
     }
   },
   "?": {
-    "MaxConcurrentActions": "(Mandatory) Maximum number of 'Actions' to run in parallel, 'Tasks' are always run sequentially. Possible values: 1 - Run one action at a time, this is the default; 5 - Run 5 actions in parallel; 10 - Run 10 actions in parallel; ...",
+    "MaxConcurrent": {
+      "ActionsTotal": "(Mandatory) Maximum quantity of 'Actions' to run at the same time across ALL computers. This is the overall concurrency budget. 'Tasks' are always run one after the other. Possible values: 1 - run one action at a time; 5 - run 5 actions at the same time; ...",
+      "PathsPerAction": "(Mandatory) Maximum quantity of 'Paths' to handle at the same time within a single action. Every path opens its own SFTP session, so this is the quantity of SFTP sessions opened by one action. Cannot be greater than 'SftpSessionsPerServer'.",
+      "SftpSessionsPerServer": "(Mandatory) Maximum quantity of SFTP sessions opened at the same time to ONE SFTP server. All actions within a task connect to the same SFTP server and tasks run one after the other, so this limit is enforced by running at most 'SftpSessionsPerServer / PathsPerAction' actions at the same time. Keep it below what the SFTP server accepts (for OpenSSH see 'MaxStartups' in sshd_config, other SFTP servers often limit the concurrent logins per user).",
+      "?": "The quantity of SFTP sessions to one SFTP server is 'ActionsTotal' x 'PathsPerAction', capped by 'SftpSessionsPerServer'. There is no setting per computer, because 'Tasks.Actions.ComputerName' is unique within a task and tasks run one after the other: a computer never handles more than one action at a time and never has more than one PowerShell session open."
+    },
     "Tasks": [
       {
         "TaskName": "(Mandatory) Name of the task. Used in the email and log files.",
